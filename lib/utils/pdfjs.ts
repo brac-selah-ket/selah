@@ -20,7 +20,12 @@ if (typeof window !== 'undefined') {
 
 export async function getPdfPageCount(url: string): Promise<number> {
   const pdfjsLib = await initPdfjs()
-  const doc = await pdfjsLib.getDocument(url).promise
+  const doc = await pdfjsLib.getDocument({
+    url,
+    cMapUrl: '/cmaps/',
+    cMapPacked: true,
+    standardFontDataUrl: '/standard_fonts/',
+  }).promise
   const count = doc.numPages
   doc.destroy()
   return count
@@ -36,7 +41,12 @@ export async function renderPdfPagesToDataUrls(
   scale: number = 2,
 ): Promise<string[]> {
   const pdfjsLib = await initPdfjs()
-  const doc = await pdfjsLib.getDocument(url).promise
+  const doc = await pdfjsLib.getDocument({
+    url,
+    cMapUrl: '/cmaps/',
+    cMapPacked: true,
+    standardFontDataUrl: '/standard_fonts/',
+  }).promise
   const results: string[] = []
 
   for (const pageNum of pageNums) {
