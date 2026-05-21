@@ -32,7 +32,7 @@ interface PresetPdfEditorProps {
   sectionOrder: string[];
   tempos: number[];
   initialMetadata: PresetPdfMetadata | null;
-  onSave: (metadata: PresetPdfMetadata | null) => void;
+  onSave: (metadata: PresetPdfMetadata | null) => void | Promise<void>;
 }
 
 export function PresetPdfEditor({
@@ -173,7 +173,7 @@ export function PresetPdfEditor({
     setSelectedOverlayId,
   );
 
-  function handleSaveMetadata() {
+  async function handleSaveMetadata() {
     const pageLayouts: PageLayout[] = pages.map((page, index) => ({
       pageIndex: index,
       songIndex: page.songIndex,
@@ -194,9 +194,13 @@ export function PresetPdfEditor({
     }));
 
     const metadata = extractPresetPdfMetadataFromLayout(pageLayouts, 0);
-    onSave(metadata);
-    setSaveStatus("saved");
-    toast.success("프리셋 PDF 메타데이터가 저장되었습니다");
+    try {
+      await onSave(metadata);
+      setSaveStatus("saved");
+      toast.success("프리셋 PDF 메타데이터가 저장되었습니다");
+    } catch {
+      toast.error("프리셋 PDF 메타데이터 저장 중 오류가 발생했습니다");
+    }
   }
 
   function goToPrevPage() {

@@ -30,6 +30,7 @@ interface SheetMusicGalleryProps {
   files: SheetMusicFile[];
   editable?: boolean;
   songId?: string;
+  onDeleted?: (fileId: string) => void;
 }
 
 interface GalleryItem {
@@ -42,7 +43,7 @@ interface GalleryItem {
   pdfTotalPages: number | null;
 }
 
-export function SheetMusicGallery({ files, editable = false }: SheetMusicGalleryProps) {
+export function SheetMusicGallery({ files, editable = false, onDeleted }: SheetMusicGalleryProps) {
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
   const [hoveredFileId, setHoveredFileId] = useState<string | null>(null);
@@ -101,6 +102,7 @@ export function SheetMusicGallery({ files, editable = false }: SheetMusicGallery
 
     if (result.success) {
       toast('악보가 삭제되었습니다');
+      onDeleted?.(fileId);
     } else {
       toast.error(result.error);
     }
@@ -109,7 +111,7 @@ export function SheetMusicGallery({ files, editable = false }: SheetMusicGallery
   return (
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-        {items.map((item, idx) => (
+        {items.map((item) => (
           <div
             key={`${item.file.id}-${item.pdfPage ?? 'img'}`}
             className="relative group"

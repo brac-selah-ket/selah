@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation"
 import { getConti } from "@/lib/queries/contis"
+import { getSongs } from "@/lib/queries/songs"
 import { PageHeader } from "@/components/layout/page-header"
 import { ContiForm } from "@/components/contis/conti-form"
+import { ContiDetail } from "@/components/contis/conti-detail"
 
 export default async function EditContiPage({
   params,
@@ -9,16 +11,25 @@ export default async function EditContiPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const conti = await getConti(id)
+  const [conti, allSongs] = await Promise.all([
+    getConti(id),
+    getSongs(),
+  ])
 
   if (!conti) {
     notFound()
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <PageHeader title="콘티 편집" />
       <ContiForm conti={conti} />
+      <ContiDetail
+        conti={conti}
+        allSongs={allSongs}
+        variant="edit"
+        showDescription={false}
+      />
     </div>
   )
 }
