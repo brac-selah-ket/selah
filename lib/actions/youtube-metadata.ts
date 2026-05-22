@@ -3,6 +3,8 @@
 import { normalizeYouTubeReference } from '@/lib/utils/youtube'
 import { cleanYouTubeTitle } from '@/lib/utils/youtube-title'
 
+const YOUTUBE_METADATA_TIMEOUT_MS = 2500
+
 export interface ResolvedYouTubeReference {
   videoId: string
   url: string
@@ -30,7 +32,9 @@ export async function fetchYouTubeVideoTitle(videoId: string): Promise<string | 
   })
 
   try {
-    const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params.toString()}`)
+    const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params.toString()}`, {
+      signal: AbortSignal.timeout(YOUTUBE_METADATA_TIMEOUT_MS),
+    })
     if (!response.ok) return null
 
     const data = (await response.json()) as YouTubeVideosResponse
