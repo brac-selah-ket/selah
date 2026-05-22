@@ -22,11 +22,12 @@ export function extractYouTubeVideoId(value: string | null | undefined): string 
 
     if (hostname === "youtube.com" || hostname === "music.youtube.com") {
       const watchId = url.searchParams.get("v")
-      if (watchId && YOUTUBE_VIDEO_ID_PATTERN.test(watchId)) return watchId
+      if (url.pathname === "/watch" && watchId && YOUTUBE_VIDEO_ID_PATTERN.test(watchId)) return watchId
+    }
 
+    if (hostname === "youtube.com") {
       const parts = url.pathname.split("/").filter(Boolean)
-      const embedIndex = parts.findIndex((part) => part === "embed" || part === "shorts")
-      const candidate = embedIndex >= 0 ? parts[embedIndex + 1] : null
+      const candidate = parts[0] === "embed" || parts[0] === "shorts" ? parts[1] : null
       return candidate && YOUTUBE_VIDEO_ID_PATTERN.test(candidate) ? candidate : null
     }
   } catch {
