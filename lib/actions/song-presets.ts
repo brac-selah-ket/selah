@@ -8,6 +8,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { ActionResult, SongPreset, SongPresetData, SongPresetWithSheetMusic } from '@/lib/types';
 import { getSongPresets, getSongPresetsWithSheetMusic } from '@/lib/queries/songs';
+import { resolveYouTubeReferenceMetadata } from '@/lib/actions/youtube-metadata';
 
 const presetSchema = z.object({
   name: z.string().min(1, '프리셋 이름을 입력해주세요'),
@@ -19,6 +20,7 @@ const presetSchema = z.object({
   notes: z.string().nullable().optional().default(null),
   isDefault: z.boolean().optional().default(false),
   youtubeReference: z.string().nullable().optional().default(null),
+  youtubeTitle: z.string().nullable().optional().default(null),
   sheetMusicFileIds: z.array(z.string()).optional().default([]),
   pdfMetadata: z.unknown().nullable().optional().default(null),
 });
@@ -31,6 +33,7 @@ export async function createSongPreset(songId: string, data: SongPresetData): Pr
     }
 
     const d = validation.data;
+    const resolvedYoutube = await resolveYouTubeReferenceMetadata(d.youtubeReference, d.youtubeTitle);
 
     // If this is set as default, unset others
     if (d.isDefault) {
@@ -52,7 +55,8 @@ export async function createSongPreset(songId: string, data: SongPresetData): Pr
       lyrics: JSON.stringify(d.lyrics),
       sectionLyricsMap: JSON.stringify(d.sectionLyricsMap),
       notes: d.notes,
-      youtubeReference: d.youtubeReference ?? null,
+      youtubeReference: resolvedYoutube?.videoId ?? null,
+      youtubeTitle: resolvedYoutube?.title ?? null,
       pdfMetadata: d.pdfMetadata ? JSON.stringify(d.pdfMetadata) : null,
       isDefault: d.isDefault,
       sortOrder: maxSort + 1,
@@ -97,6 +101,11 @@ export async function updateSongPreset(presetId: string, data: Partial<SongPrese
       await db.update(songPresets).set({ isDefault: false }).where(eq(songPresets.songId, songId));
     }
 
+    const resolvedYoutube =
+      data.youtubeReference !== undefined
+        ? await resolveYouTubeReferenceMetadata(data.youtubeReference, data.youtubeTitle)
+        : undefined;
+
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
     if (data.name !== undefined) updateData.name = data.name;
     if (data.keys !== undefined) updateData.keys = JSON.stringify(data.keys);
@@ -106,7 +115,12 @@ export async function updateSongPreset(presetId: string, data: Partial<SongPrese
     if (data.sectionLyricsMap !== undefined) updateData.sectionLyricsMap = JSON.stringify(data.sectionLyricsMap);
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.isDefault !== undefined) updateData.isDefault = data.isDefault;
-    if (data.youtubeReference !== undefined) updateData.youtubeReference = data.youtubeReference;
+    if (data.youtubeReference !== undefined) {
+      updateData.youtubeReference = resolvedYoutube?.videoId ?? null;
+      updateData.youtubeTitle = resolvedYoutube?.title ?? null;
+    } else if (data.youtubeTitle !== undefined) {
+      updateData.youtubeTitle = data.youtubeTitle;
+    }
     if (data.pdfMetadata !== undefined) updateData.pdfMetadata = data.pdfMetadata ? JSON.stringify(data.pdfMetadata) : null;
 
     await db.update(songPresets).set(updateData).where(eq(songPresets.id, presetId));

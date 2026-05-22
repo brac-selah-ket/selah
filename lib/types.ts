@@ -62,6 +62,7 @@ export interface SongPresetData {
   notes: string | null;
   isDefault: boolean;
   youtubeReference?: string | null;
+  youtubeTitle?: string | null;
   sheetMusicFileIds?: string[];  // references to sheet_music_files.id
   pdfMetadata?: PresetPdfMetadata | null;
 }
