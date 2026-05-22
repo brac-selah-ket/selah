@@ -58,3 +58,19 @@ export function normalizeYouTubeReference(value: string | null | undefined): Nor
     displayUrl: formatYouTubeDisplayUrl(videoId),
   }
 }
+
+export function toYouTubeInputValue(value: string | null | undefined): string {
+  const normalized = normalizeYouTubeReference(value)
+  return normalized?.url ?? ""
+}
+
+export function getYouTubeReferenceLabel(
+  value: string | null | undefined,
+  title: string | null | undefined,
+): string | null {
+  const normalized = normalizeYouTubeReference(value)
+  if (!normalized) return null
+
+  const trimmedTitle = title?.trim()
+  return trimmedTitle || normalized.displayUrl
+}

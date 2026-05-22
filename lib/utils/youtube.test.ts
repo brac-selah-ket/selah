@@ -1,9 +1,11 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import {
+  getYouTubeReferenceLabel,
   extractYouTubeVideoId,
   formatYouTubeDisplayUrl,
   normalizeYouTubeReference,
+  toYouTubeInputValue,
   toYouTubeWatchUrl,
 } from "./youtube.ts"
 
@@ -41,4 +43,17 @@ test("normalizeYouTubeReference returns storage and display values", () => {
 test("toYouTubeWatchUrl and formatYouTubeDisplayUrl are stable", () => {
   assert.equal(toYouTubeWatchUrl("dQw4w9WgXcQ"), "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
   assert.equal(formatYouTubeDisplayUrl("dQw4w9WgXcQ"), "youtube.com/watch?v=dQw4w9WgXcQ")
+})
+
+test("toYouTubeInputValue returns a canonical full watch URL", () => {
+  assert.equal(toYouTubeInputValue("dQw4w9WgXcQ"), "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+  assert.equal(toYouTubeInputValue("https://youtu.be/dQw4w9WgXcQ"), "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+  assert.equal(toYouTubeInputValue(null), "")
+  assert.equal(toYouTubeInputValue("not a video"), "")
+})
+
+test("getYouTubeReferenceLabel prefers a title and falls back to compact URL", () => {
+  assert.equal(getYouTubeReferenceLabel("dQw4w9WgXcQ", "  My Video  "), "My Video")
+  assert.equal(getYouTubeReferenceLabel("dQw4w9WgXcQ", null), "youtube.com/watch?v=dQw4w9WgXcQ")
+  assert.equal(getYouTubeReferenceLabel("not a video", "Title"), null)
 })
