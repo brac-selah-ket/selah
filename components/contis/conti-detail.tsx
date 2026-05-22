@@ -93,82 +93,86 @@ export function ContiDetail({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {variant === "edit" && (
-        <h2 className="text-xl font-semibold">곡별 준비</h2>
-      )}
+    <section className="rounded-lg border bg-card p-4 shadow-sm sm:p-5">
+      <div className="flex flex-col gap-4">
+        {variant === "edit" && (
+          <h2 className="text-xl font-semibold">곡별 준비</h2>
+        )}
 
-      {shouldShowDescription && description && (
-        <p className="text-muted-foreground text-base">{description}</p>
-      )}
+        {shouldShowDescription && description && (
+          <p className="text-muted-foreground text-base">{description}</p>
+        )}
 
-      {optimisticSongs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-12 text-center">
-          <p className="text-muted-foreground text-base">
-            이 콘티에 곡이 없습니다. 곡을 추가해주세요.
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {optimisticSongs.map((contiSong, index) => (
-            <Fragment key={contiSong.id}>
-              <ContiSongItem
-                contiSong={contiSong}
-                index={index}
-                total={optimisticSongs.length}
-                onMoveUp={() => handleMoveUp(index)}
-                onMoveDown={() => handleMoveDown(index)}
-                onRemove={() => handleRemove(contiSong.id)}
-                onEdit={() => handleEdit(contiSong.id)}
-              />
-              {editingId === contiSong.id && (
-                <ContiSongEditor
+        {optimisticSongs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-background/60 px-6 py-12 text-center">
+            <p className="text-muted-foreground text-base">
+              이 콘티에 곡이 없습니다. 곡을 추가해주세요.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {optimisticSongs.map((contiSong, index) => (
+              <Fragment key={contiSong.id}>
+                <ContiSongItem
                   contiSong={contiSong}
-                  open={true}
-                  onOpenChange={(open) => { if (!open) setEditingId(null) }}
+                  index={index}
+                  total={optimisticSongs.length}
+                  onMoveUp={() => handleMoveUp(index)}
+                  onMoveDown={() => handleMoveDown(index)}
+                  onRemove={() => handleRemove(contiSong.id)}
+                  onEdit={() => handleEdit(contiSong.id)}
                 />
-              )}
-            </Fragment>
-          ))}
+                {editingId === contiSong.id && (
+                  <ContiSongEditor
+                    contiSong={contiSong}
+                    open={true}
+                    onOpenChange={(open) => {
+                      if (!open) setEditingId(null)
+                    }}
+                  />
+                )}
+              </Fragment>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2 self-start">
+          <Button
+            variant="outline"
+            onClick={() => setPickerOpen(true)}
+            disabled={isPending}
+          >
+            <HugeiconsIcon icon={Add01Icon} strokeWidth={2} data-icon="inline-start" />
+            곡 추가
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setYoutubeImportOpen(true)}
+            disabled={isPending}
+          >
+            <HugeiconsIcon icon={PlayListIcon} strokeWidth={2} data-icon="inline-start" />
+            YouTube에서 가져오기
+          </Button>
         </div>
-      )}
 
-      <div className="flex items-center gap-2 self-start">
-        <Button
-          variant="outline"
-          onClick={() => setPickerOpen(true)}
-          disabled={isPending}
-        >
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={2} data-icon="inline-start" />
-          곡 추가
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => setYoutubeImportOpen(true)}
-          disabled={isPending}
-        >
-          <HugeiconsIcon icon={PlayListIcon} strokeWidth={2} data-icon="inline-start" />
-          YouTube에서 가져오기
-        </Button>
+        <SongPicker
+          contiId={conti.id}
+          existingSongIds={existingSongIds}
+          songs={allSongs}
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+        />
+
+        <YouTubeImportDialog
+          contiId={conti.id}
+          contiTitle={conti.title}
+          contiDate={conti.date}
+          existingSongIds={existingSongIds}
+          allSongs={allSongs}
+          open={youtubeImportOpen}
+          onOpenChange={setYoutubeImportOpen}
+        />
       </div>
-
-      <SongPicker
-        contiId={conti.id}
-        existingSongIds={existingSongIds}
-        songs={allSongs}
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-      />
-
-      <YouTubeImportDialog
-        contiId={conti.id}
-        contiTitle={conti.title}
-        contiDate={conti.date}
-        existingSongIds={existingSongIds}
-        allSongs={allSongs}
-        open={youtubeImportOpen}
-        onOpenChange={setYoutubeImportOpen}
-      />
-    </div>
+    </section>
   )
 }

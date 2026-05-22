@@ -23,35 +23,39 @@ export function SongList({ songs }: SongListProps) {
 
   return (
     <div className="space-y-4">
-      <div className="relative">
-        <HugeiconsIcon
-          icon={SearchIcon}
-          strokeWidth={2}
-          className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-muted-foreground"
-        />
-        <Input
-          type="text"
-          placeholder="곡 이름 검색..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9"
-        />
+      <div className="rounded-lg border bg-card p-3 shadow-sm">
+        <div className="relative">
+          <HugeiconsIcon
+            icon={SearchIcon}
+            strokeWidth={2}
+            className="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            type="text"
+            placeholder="곡 이름 검색..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
       </div>
 
       {showEmptyState && (
-        <div className="text-center text-muted-foreground py-8">
-          곡이 없습니다
+        <div className="flex min-h-44 flex-col items-center justify-center rounded-lg border border-dashed bg-card/70 px-6 py-10 text-center">
+          <p className="font-serif-kr text-2xl font-semibold text-foreground">아직 등록된 곡이 없습니다</p>
+          <p className="mt-2 text-base text-muted-foreground">자주 부르는 찬양부터 하나씩 추가해보세요.</p>
         </div>
       )}
 
       {showSearchEmptyState && (
-        <div className="text-center text-muted-foreground py-8">
-          검색 결과가 없습니다
+        <div className="flex min-h-44 flex-col items-center justify-center rounded-lg border border-dashed bg-card/70 px-6 py-10 text-center">
+          <p className="font-serif-kr text-2xl font-semibold text-foreground">검색 결과가 없습니다</p>
+          <p className="mt-2 text-base text-muted-foreground">다른 곡 이름으로 다시 찾아보세요.</p>
         </div>
       )}
 
       {!showEmptyState && !showSearchEmptyState && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
           {filteredSongs.map((song) => (
             <SongCard key={song.id} song={song} />
           ))}

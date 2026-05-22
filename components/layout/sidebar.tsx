@@ -14,6 +14,7 @@ import {
 import { useSidebarHeader } from "@/components/layout/sidebar-header-context"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { useMobileNav } from "@/components/layout/mobile-nav-context"
+import { BrandMark } from "@/components/layout/brand-mark"
 
 const navItems = [
   {
@@ -45,10 +46,16 @@ function SidebarContent() {
 
   return (
     <>
-      <div className="p-4 border-b">
+      <div className="border-b border-sidebar-border p-4">
         {headerContent ?? (
-          <Link href="/" className="text-xl font-bold">
-            Storyboard
+          <Link
+            href="/"
+            className="inline-flex flex-col gap-1 text-sidebar-foreground transition-opacity hover:opacity-85"
+          >
+            <BrandMark />
+            <span className="text-xs font-medium text-sidebar-foreground/65">
+              Storyboard worship setlist
+            </span>
           </Link>
         )}
       </div>
@@ -63,8 +70,8 @@ function SidebarContent() {
               className={cn(
                 "flex items-center gap-2 rounded-lg px-3 py-2 text-base font-medium transition-colors",
                 isActive
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground/68 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
               )}
             >
               <HugeiconsIcon icon={item.icon} strokeWidth={2} className="size-5" />
@@ -74,10 +81,10 @@ function SidebarContent() {
         })}
       </nav>
 
-      <div className="p-2 border-t">
+      <div className="border-t border-sidebar-border p-2">
         <Button
           variant="ghost"
-          className="w-full justify-start gap-2"
+          className="w-full justify-start gap-2 text-sidebar-foreground/72 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
           onClick={handleLogout}
         >
           <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} />
@@ -94,13 +101,13 @@ export function Sidebar() {
   return (
     <>
       {/* Desktop: fixed sidebar */}
-      <aside className="hidden md:flex w-45 fixed left-0 top-0 h-screen border-r bg-card flex-col">
+      <aside className="fixed left-0 top-0 hidden h-screen w-45 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
         <SidebarContent />
       </aside>
 
       {/* Mobile: Sheet sidebar */}
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetContent>
+        <SheetContent className="border-sidebar-border bg-sidebar text-sidebar-foreground">
           <SidebarContent />
         </SheetContent>
       </Sheet>

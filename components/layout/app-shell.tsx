@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Menu01Icon } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
+import { BrandMark } from "@/components/layout/brand-mark";
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const { portalRef, isOpen } = useDrawerPortal();
@@ -20,13 +21,13 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen">
       <Sidebar />
       <div className="flex flex-1 flex-col md:ml-45 min-w-0">
-        <header className="md:hidden sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background px-4">
+        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur md:hidden">
           <Button variant="ghost" size="icon" aria-label="메뉴 열기" onClick={() => setNavOpen(true)}>
             <HugeiconsIcon icon={Menu01Icon} strokeWidth={2} />
           </Button>
-          <span className="font-semibold">Storyboard</span>
+          <BrandMark compact className="text-primary" />
         </header>
-        <main className="flex-1 p-4 md:p-6 min-w-0">{children}</main>
+        <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
       </div>
       <aside
         ref={portalRef}

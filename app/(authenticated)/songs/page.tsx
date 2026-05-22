@@ -11,7 +11,11 @@ export default async function SongsPage() {
 
   return (
     <div>
-      <PageHeader title="찬양 라이브러리" description="예배에 사용할 곡을 관리합니다">
+      <PageHeader
+        title="찬양 라이브러리"
+        eyebrow="song library"
+        description="예배에 사용할 곡과 악보를 관리합니다"
+      >
         <Button size="icon" className="sm:hidden" aria-label="새 곡 추가"
           render={<Link href="/songs/new" />}>
           <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} />
