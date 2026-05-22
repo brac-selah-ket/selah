@@ -114,7 +114,8 @@ export async function reorderContiSongs(
 export async function saveContiSongAsPreset(
   contiSongId: string,
   presetName: string,
-  existingPresetId?: string
+  existingPresetId?: string,
+  options: { youtubeReference?: string | null } = {},
 ): Promise<ActionResult> {
   try {
     const contiSongRow = await db
@@ -158,6 +159,10 @@ export async function saveContiSongAsPreset(
     }
 
     let result;
+    const youtubeReference = options.youtubeReference;
+    const youtubePayload =
+      youtubeReference !== undefined ? { youtubeReference } : {};
+
     if (existingPresetId) {
       result = await updateSongPreset(existingPresetId, {
         name: presetName,
@@ -169,6 +174,7 @@ export async function saveContiSongAsPreset(
         notes: overrides.notes,
         sheetMusicFileIds: overrides.sheetMusicFileIds ?? [],
         pdfMetadata,
+        ...youtubePayload,
       });
     } else {
       result = await createSongPreset(cs.songId, {
@@ -182,6 +188,7 @@ export async function saveContiSongAsPreset(
         sheetMusicFileIds: overrides.sheetMusicFileIds ?? [],
         pdfMetadata,
         isDefault: false,
+        ...youtubePayload,
       });
     }
 

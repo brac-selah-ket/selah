@@ -13,7 +13,6 @@ import { updateContiSong, saveContiSongAsPreset } from "@/lib/actions/conti-song
 import {
   getPresetSheetMusicFileIds,
   getPresetsForSong,
-  updateSongPreset,
 } from "@/lib/actions/song-presets"
 import { getSheetMusicForSong } from "@/lib/actions/sheet-music"
 import { normalizeYouTubeReference } from "@/lib/utils/youtube"
@@ -84,7 +83,10 @@ function draftToContiSongOverrides(draft: ArrangementDraft) {
     lyrics: draft.lyrics,
     sectionLyricsMap: draft.sectionLyricsMap,
     notes: draft.notes,
-    sheetMusicFileIds: draft.sheetMusicFileIds,
+    // Conti export treats null/no explicit selection as all sheet music.
+    sheetMusicFileIds: draft.sheetMusicFileIds && draft.sheetMusicFileIds.length > 0
+      ? draft.sheetMusicFileIds
+      : null,
     presetId: draft.appliedPresetId,
   }
 }
@@ -202,13 +204,8 @@ export function ContiSongEditor({
           contiSong.id,
           presetName,
           existingPresetId,
+          { youtubeReference: normalized?.videoId ?? null },
         )
-
-        if (normalized && existingPresetId && presetResult.success) {
-          await updateSongPreset(existingPresetId, {
-            youtubeReference: normalized.videoId,
-          })
-        }
 
         if (presetResult.success) {
           router.refresh()

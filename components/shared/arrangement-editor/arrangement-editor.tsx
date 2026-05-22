@@ -104,6 +104,23 @@ export function ArrangementEditor({
     return availableSheetMusic.filter((file) => selectedIds.has(file.id))
   }, [availableSheetMusic, draft.sheetMusicFileIds])
 
+  function pruneUnavailableSheetMusicIds(draftToPrune: ArrangementDraft): ArrangementDraft {
+    if (draftToPrune.sheetMusicFileIds === null || allSheetMusicIds.length === 0) {
+      return draftToPrune
+    }
+
+    const availableIds = new Set(allSheetMusicIds)
+    const sheetMusicFileIds = draftToPrune.sheetMusicFileIds.filter((id) =>
+      availableIds.has(id),
+    )
+
+    if (sheetMusicFileIds.length === draftToPrune.sheetMusicFileIds.length) {
+      return draftToPrune
+    }
+
+    return { ...draftToPrune, sheetMusicFileIds }
+  }
+
   useEffect(() => {
     if (open && !wasOpenRef.current) {
       const nextDraft = cloneDraft(initialDraft)
@@ -139,7 +156,7 @@ export function ArrangementEditor({
       return
     }
 
-    const draftToSave = prepareDraftForSave(draft)
+    const draftToSave = prepareDraftForSave(pruneUnavailableSheetMusicIds(draft))
     if (!draftToSave) return
 
     setIsSaving(true)
@@ -187,7 +204,7 @@ export function ArrangementEditor({
     }
     if (!onSaveAsPreset) return
 
-    const draftToSave = prepareDraftForSave(draft)
+    const draftToSave = prepareDraftForSave(pruneUnavailableSheetMusicIds(draft))
     if (!draftToSave) return
 
     setIsPresetSaving(true)
@@ -195,6 +212,8 @@ export function ArrangementEditor({
       const result = await onSaveAsPreset(draftToSave, trimmedName, selectedPresetId || undefined)
       if (result.success) {
         toast.success(selectedPresetId ? "프리셋이 업데이트되었습니다" : "새 프리셋이 저장되었습니다")
+        setDraft(cloneDraft(draftToSave))
+        resetDirty(draftToSave)
         setPresetName("")
         setSelectedPresetId("")
         await onRefreshPresetOptions?.()
@@ -368,15 +387,17 @@ export function ArrangementEditor({
                     PDF 내보내기에 포함할 악보를 선택하세요.
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPdfEditorOpen(true)}
-                  disabled={selectedSheetMusic.length === 0}
-                >
-                  PDF 편집
-                </Button>
+                {mode === "preset" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPdfEditorOpen(true)}
+                    disabled={selectedSheetMusic.length === 0}
+                  >
+                    PDF 편집
+                  </Button>
+                )}
               </div>
 
               {sheetMusicManagementSlot}
@@ -461,20 +482,22 @@ export function ArrangementEditor({
         </div>
       </Drawer>
 
-      <Dialog open={pdfEditorOpen} onOpenChange={setPdfEditorOpen}>
-        <DialogContent className="!w-screen !h-[100dvh] !max-w-none sm:!max-w-none rounded-none overflow-x-hidden overflow-y-auto p-3 sm:p-4 flex flex-col">
-          <div className="min-h-0 flex-1">
-            <PresetPdfEditor
-              songName={draft.name.trim() || songName}
-              sheetMusic={selectedSheetMusic}
-              sectionOrder={draft.sectionOrder}
-              tempos={draft.tempos}
-              initialMetadata={draft.pdfMetadata}
-              onSave={(metadata) => updateDraft({ pdfMetadata: metadata })}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      {mode === "preset" && (
+        <Dialog open={pdfEditorOpen} onOpenChange={setPdfEditorOpen}>
+          <DialogContent className="!w-screen !h-[100dvh] !max-w-none sm:!max-w-none rounded-none overflow-x-hidden overflow-y-auto p-3 sm:p-4 flex flex-col">
+            <div className="min-h-0 flex-1">
+              <PresetPdfEditor
+                songName={draft.name.trim() || songName}
+                sheetMusic={selectedSheetMusic}
+                sectionOrder={draft.sectionOrder}
+                tempos={draft.tempos}
+                initialMetadata={draft.pdfMetadata}
+                onSave={(metadata) => updateDraft({ pdfMetadata: metadata })}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
         <AlertDialogContent size="sm">
