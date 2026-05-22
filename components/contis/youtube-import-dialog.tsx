@@ -263,6 +263,7 @@ export function YouTubeImportDialog({
         songId: item.matchedSong?.id ?? null,
         newSongName: item.matchedSong ? null : item.editedName.trim(),
         videoId: item.videoId,
+        title: item.originalTitle,
         presetId: item.selectedPresetId,
         createNewPreset: item.createNewPreset || !item.matchedSong,
         presetName: item.presetName || defaultPresetName,
