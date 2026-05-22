@@ -25,6 +25,8 @@ export async function getContisWithSongSummaries(): Promise<ContiWithSongSummari
       contiSong: contiSongs,
       songName: songs.name,
       presetName: songPresets.name,
+      youtubeReference: songPresets.youtubeReference,
+      youtubeTitle: songPresets.youtubeTitle,
     })
     .from(contiSongs)
     .leftJoin(songs, eq(contiSongs.songId, songs.id))
@@ -57,6 +59,8 @@ export async function getContisWithSongSummaries(): Promise<ContiWithSongSummari
       sectionOrder: parsed.sectionOrder,
       presetId: parsed.presetId,
       presetName: row.presetName ?? null,
+      youtubeReference: row.youtubeReference ?? null,
+      youtubeTitle: row.youtubeTitle ?? null,
       hasSheetMusicSelection: parsed.sheetMusicFileIds !== null && parsed.sheetMusicFileIds.length > 0,
     });
     byContiId.set(row.contiSong.contiId, summaries);
