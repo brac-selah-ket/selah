@@ -28,6 +28,7 @@ export const songPresets = pgTable('song_presets', {
   sectionLyricsMap: text('section_lyrics_map'),
   notes: text('notes'),
   youtubeReference: text('youtube_reference'),
+  youtubeTitle: text('youtube_title'),
   pdfMetadata: text('pdf_metadata'),
   isDefault: boolean('is_default').notNull().default(false),
   sortOrder: integer('sort_order').notNull().default(0),

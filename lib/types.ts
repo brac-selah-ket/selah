@@ -78,6 +78,7 @@ export interface SongPresetWithSheetMusic extends SongPreset {
 export interface ContiSongWithSong extends ContiSong {
   song: Song;
   overrides: ContiSongOverrides;
+  appliedPreset?: Pick<SongPreset, 'id' | 'name' | 'youtubeReference' | 'youtubeTitle'> | null;
 }
 
 export interface ContiWithSongs extends Conti {
@@ -94,6 +95,8 @@ export interface ContiSongSummary {
   sectionOrder: string[]
   presetId: string | null
   presetName: string | null
+  youtubeReference: string | null
+  youtubeTitle: string | null
   hasSheetMusicSelection: boolean
 }
 
