@@ -55,6 +55,7 @@ function prepareDraftForSave(draft: ArrangementDraft): ArrangementDraft | null {
     draftToSave.youtubeReference = normalized.videoId
   } else {
     draftToSave.youtubeReference = null
+    draftToSave.youtubeTitle = null
   }
 
   return draftToSave
@@ -357,7 +358,10 @@ export function ArrangementEditor({
             <Input
               id="arrangement-youtube-ref"
               value={draft.youtubeReference ?? ""}
-              onChange={(event) => updateDraft({ youtubeReference: event.target.value || null })}
+              onChange={(event) => updateDraft({
+                youtubeReference: event.target.value || null,
+                youtubeTitle: null,
+              })}
               placeholder="https://www.youtube.com/watch?v=..."
             />
           </div>

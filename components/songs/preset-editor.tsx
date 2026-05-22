@@ -38,6 +38,7 @@ function presetToDraft(preset: SongPresetWithSheetMusic | undefined): Arrangemen
     sheetMusicFileIds: preset?.sheetMusicFileIds?.length ? preset.sheetMusicFileIds : null,
     pdfMetadata: parseJsonField(preset?.pdfMetadata ?? null, null),
     youtubeReference: preset?.youtubeReference ?? null,
+    youtubeTitle: preset?.youtubeTitle ?? null,
     isDefault: preset?.isDefault ?? false,
     appliedPresetId: preset?.id ?? null,
   }
@@ -59,6 +60,7 @@ function draftToPresetData(draft: ArrangementDraft): SongPresetData {
     isDefault: draft.isDefault,
     // ArrangementEditor validates this before save, so this preserves the normalized video ID.
     youtubeReference: normalized?.videoId ?? null,
+    youtubeTitle: draft.youtubeTitle,
     // Preset actions/DB use [] (no association rows) to mean all sheet music.
     sheetMusicFileIds: draft.sheetMusicFileIds ?? [],
     pdfMetadata: draft.pdfMetadata,

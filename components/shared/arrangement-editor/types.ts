@@ -13,6 +13,7 @@ export interface ArrangementDraft {
   sheetMusicFileIds: string[] | null
   pdfMetadata: PresetPdfMetadata | null
   youtubeReference: string | null
+  youtubeTitle: string | null
   isDefault: boolean
   appliedPresetId: string | null
 }

@@ -49,6 +49,7 @@ function contiSongToDraft(contiSong: ContiSongWithSong): ArrangementDraft {
     sheetMusicFileIds: contiSong.overrides.sheetMusicFileIds,
     pdfMetadata: null,
     youtubeReference: null,
+    youtubeTitle: contiSong.appliedPreset?.youtubeTitle ?? null,
     isDefault: false,
     appliedPresetId: contiSong.overrides.presetId,
   }
@@ -70,6 +71,7 @@ function presetToDraft(
     sheetMusicFileIds: sheetMusicFileIds.length > 0 ? sheetMusicFileIds : null,
     pdfMetadata: parseJsonField(preset.pdfMetadata, null),
     youtubeReference: preset.youtubeReference,
+    youtubeTitle: preset.youtubeTitle ?? null,
     isDefault: false,
     appliedPresetId: preset.id,
   }
@@ -191,7 +193,6 @@ export function ContiSongEditor({
         const normalized = draft.youtubeReference
           ? normalizeYouTubeReference(draft.youtubeReference)
           : null
-        const draftYoutubeTitle = (draft as ArrangementDraft & { youtubeTitle?: string | null }).youtubeTitle
         const matchingPreset = existingPresetId
           ? presets.find((preset) => preset.id === existingPresetId)
           : null
@@ -202,7 +203,7 @@ export function ContiSongEditor({
           !!matchingPreset?.youtubeReference?.trim() &&
           !draft.youtubeReference?.trim()
         const youtubeOptions = normalized
-          ? { youtubeReference: normalized.videoId, youtubeTitle: draftYoutubeTitle ?? null }
+          ? { youtubeReference: normalized.videoId, youtubeTitle: draft.youtubeTitle ?? null }
           : shouldClearYoutubeReference
             ? { youtubeReference: null, youtubeTitle: null }
             : undefined
