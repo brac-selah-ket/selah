@@ -1,5 +1,6 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { getYouTubeReferenceLabel, normalizeYouTubeReference } from "@/lib/utils/youtube"
 
 interface YouTubeReferenceLinkProps {
@@ -7,6 +8,7 @@ interface YouTubeReferenceLinkProps {
   title?: string | null
   className?: string
   stopPropagation?: boolean
+  fallback?: ReactNode
 }
 
 export function YouTubeReferenceLink({
@@ -14,11 +16,14 @@ export function YouTubeReferenceLink({
   title,
   className,
   stopPropagation = false,
+  fallback = null,
 }: YouTubeReferenceLinkProps) {
   const normalized = normalizeYouTubeReference(reference)
   const label = getYouTubeReferenceLabel(reference, title)
 
-  if (!normalized || !label) return null
+  if (!normalized || !label) return fallback
+
+  const titleAttribute = title?.trim() ? label : normalized.displayUrl
 
   return (
     <a
@@ -26,7 +31,7 @@ export function YouTubeReferenceLink({
       target="_blank"
       rel="noopener noreferrer"
       className={className}
-      title={label}
+      title={titleAttribute}
       onClick={(event) => {
         if (stopPropagation) event.stopPropagation()
       }}

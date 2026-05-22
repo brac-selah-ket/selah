@@ -52,8 +52,8 @@ test("toYouTubeInputValue returns a canonical full watch URL", () => {
   assert.equal(toYouTubeInputValue("not a video"), "")
 })
 
-test("getYouTubeReferenceLabel prefers a title and falls back to compact URL", () => {
+test("getYouTubeReferenceLabel prefers a title and falls back to a generic link label", () => {
   assert.equal(getYouTubeReferenceLabel("dQw4w9WgXcQ", "  My Video  "), "My Video")
-  assert.equal(getYouTubeReferenceLabel("dQw4w9WgXcQ", null), "youtube.com/watch?v=dQw4w9WgXcQ")
+  assert.equal(getYouTubeReferenceLabel("dQw4w9WgXcQ", null), "YouTube 링크")
   assert.equal(getYouTubeReferenceLabel("not a video", "Title"), null)
 })

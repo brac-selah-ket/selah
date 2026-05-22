@@ -145,8 +145,8 @@ export function ContiSongSummaryTable({
                   reference={getYoutubeReference(song)}
                   title={getYoutubeTitle(song)}
                   className="text-primary block truncate underline-offset-4 hover:underline"
-                />{" "}
-                {!getYoutubeReference(song) && "-"}
+                  fallback="-"
+                />
               </span>
               {showActions && (
                 <div className="flex justify-end gap-1">

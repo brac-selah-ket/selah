@@ -72,5 +72,5 @@ export function getYouTubeReferenceLabel(
   if (!normalized) return null
 
   const trimmedTitle = title?.trim()
-  return trimmedTitle || normalized.displayUrl
+  return trimmedTitle || "YouTube 링크"
 }
