@@ -51,7 +51,7 @@ export function ArrangementEditor({
   availableSheetMusic,
   presetOptions = [],
   sheetMusicManagementSlot,
-  savingLabel = "저장 중...",
+  savingLabel = "저장",
   onOpenChange,
   onSave,
   onLoadPreset,
@@ -167,7 +167,11 @@ export function ArrangementEditor({
 
   async function handleSaveAsPreset() {
     const trimmedName = presetName.trim()
-    if (!trimmedName || !onSaveAsPreset) return
+    if (!trimmedName) {
+      toast.error("프리셋 이름을 입력해주세요")
+      return
+    }
+    if (!onSaveAsPreset) return
 
     const result = await onSaveAsPreset(draft, trimmedName, selectedPresetId || undefined)
     if (result.success) {
@@ -253,7 +257,7 @@ export function ArrangementEditor({
               취소
             </Button>
             <Button className="flex-1" onClick={handleSave} disabled={isSaving}>
-              {isSaving ? savingLabel : "저장"}
+              {isSaving ? "저장 중..." : savingLabel}
             </Button>
           </div>
         }
@@ -412,7 +416,6 @@ export function ArrangementEditor({
                 <Button
                   type="button"
                   onClick={handleSaveAsPreset}
-                  disabled={!presetName.trim()}
                   className="sm:w-32"
                 >
                   {selectedPresetId ? "업데이트" : "저장"}
