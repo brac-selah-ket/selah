@@ -11,7 +11,7 @@ export default async function ContisPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="콘티 목록">
+      <PageHeader title="콘티 목록" eyebrow="selah worship setlist">
         <Button size="icon" className="sm:hidden" aria-label="새 콘티 만들기"
           render={<Link href="/contis/new" />}>
           <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
