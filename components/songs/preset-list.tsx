@@ -17,6 +17,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Add01Icon, Delete01Icon, PencilEdit01Icon, Tick01Icon } from "@hugeicons/core-free-icons"
 import { deleteSongPreset, setDefaultPreset } from "@/lib/actions/song-presets"
+import { normalizeYouTubeReference } from "@/lib/utils/youtube"
 import { PresetEditor } from "./preset-editor"
 import type { SongPresetWithSheetMusic, SheetMusicFile } from "@/lib/types"
 
@@ -102,6 +103,7 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
           {presets.map((preset) => {
             const keys = parseJsonField<string[]>(preset.keys, [])
             const tempos = parseJsonField<number[]>(preset.tempos, [])
+            const youtube = normalizeYouTubeReference(preset.youtubeReference)
 
             return (
               <div
@@ -110,13 +112,13 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
                 onClick={() => handleEditClick(preset)}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 space-y-2">
+                  <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium">{preset.name}</h3>
                       {preset.isDefault && (
                         <Badge variant="secondary">기본</Badge>
                       )}
-                      {preset.youtubeReference && (
+                      {youtube && (
                         <Badge variant="outline" className="text-xs">YT</Badge>
                       )}
                     </div>
@@ -140,17 +142,17 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
                           {preset.notes}
                         </div>
                       )}
-                      {preset.youtubeReference && (
-                        <div>
+                      {youtube && (
+                        <div className="min-w-0 break-all">
                           <span className="font-medium">YouTube:</span>{" "}
                           <a
-                            href={`https://www.youtube.com/watch?v=${preset.youtubeReference}`}
+                            href={youtube.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
+                            className="text-primary underline-offset-4 hover:underline"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {preset.youtubeReference}
+                            {youtube.displayUrl}
                           </a>
                         </div>
                       )}
