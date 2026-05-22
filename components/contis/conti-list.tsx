@@ -1,9 +1,9 @@
 "use client"
 
-import type { Conti } from "@/lib/types"
+import type { ContiWithSongSummaries } from "@/lib/types"
 import { ContiCard } from "@/components/contis/conti-card"
 
-export function ContiList({ contis }: { contis: Conti[] }) {
+export function ContiList({ contis }: { contis: ContiWithSongSummaries[] }) {
   if (contis.length === 0) {
     return (
       <div className="flex min-h-48 flex-col items-center justify-center rounded-lg border border-dashed bg-card/70 px-6 py-12 text-center">
