@@ -1,11 +1,13 @@
 'use server';
 
 import { exportContiToPptx } from '@/lib/actions/pptx-export';
+import { getConti } from '@/lib/queries/contis';
 import { paginateScriptureVerses } from '@/lib/scripture/pagination';
 import { fetchScriptureVerses } from '@/lib/scripture/provider';
 import { formatScriptureReference, parseScriptureReference } from '@/lib/scripture/reference';
 import type {
   ActionResult,
+  ContiWithSongs,
   PptxExportResult,
   PptxExportScriptureData,
   PptxExportScripturePageData,
@@ -67,6 +69,31 @@ export async function previewScripturePptx(options: {
       error: error instanceof Error
         ? error.message
         : '말씀 PPT 미리보기를 준비하는 중 오류가 발생했습니다',
+    };
+  }
+}
+
+export async function getContiForWorshipPptxExport(
+  contiId: string
+): Promise<ActionResult<ContiWithSongs>> {
+  try {
+    if (!contiId) {
+      return { success: false, error: '콘티를 선택해 주세요' };
+    }
+
+    const conti = await getConti(contiId);
+    if (!conti) {
+      return { success: false, error: '선택한 콘티를 찾을 수 없습니다' };
+    }
+
+    return { success: true, data: conti };
+  } catch (error) {
+    console.error('[getContiForWorshipPptxExport]', error);
+    return {
+      success: false,
+      error: error instanceof Error
+        ? error.message
+        : '콘티 정보를 가져오는 중 오류가 발생했습니다',
     };
   }
 }

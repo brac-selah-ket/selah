@@ -1,9 +1,10 @@
 import { PageHeader } from '@/components/layout/page-header';
 import { PrepAutomationPanel } from '@/components/worship-prep/prep-automation-panel';
 import { PrepElementCards } from '@/components/worship-prep/prep-element-cards';
+import { WorshipPptxExportButton } from '@/components/worship-prep/worship-pptx-export-button';
 import { getWorshipPrepDetail } from '@/lib/queries/worship-prep';
 import { Button } from '@/components/ui/button';
-import { getContiByDate } from '@/lib/queries/contis';
+import { getConti, getContiByDate, getContis } from '@/lib/queries/contis';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,11 +34,24 @@ export default async function WorshipPrepPage({
 }) {
   const params = await searchParams;
   const selectedDate = normalizeDate(params.date);
-  const [item, conti] = await Promise.all([getWorshipPrepDetail(selectedDate), getContiByDate(selectedDate)]);
+  const [item, conti, contis] = await Promise.all([
+    getWorshipPrepDetail(selectedDate),
+    getContiByDate(selectedDate),
+    getContis(),
+  ]);
+  const defaultConti = conti ? await getConti(conti.id) : null;
 
   return (
     <div className='flex flex-col gap-6'>
-      <PageHeader title='예배 준비' description='가장 가까운 일요일 1주차를 기본으로 조회합니다' />
+      <PageHeader title='예배 준비' description='가장 가까운 일요일 1주차를 기본으로 조회합니다'>
+        {item && (
+          <WorshipPptxExportButton
+            item={item}
+            contis={contis}
+            defaultConti={defaultConti}
+          />
+        )}
+      </PageHeader>
       <form className='flex flex-wrap items-center gap-2' method='GET'>
         <input
           type='date'
