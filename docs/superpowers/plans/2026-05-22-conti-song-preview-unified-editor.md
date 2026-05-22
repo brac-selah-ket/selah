@@ -360,10 +360,10 @@ type SummaryRow = ContiSongSummary | ContiSongWithSong
 interface ContiSongSummaryTableProps {
   songs: SummaryRow[]
   mode: "read" | "action"
-  onEdit?: (songId: string) => void
+  onEdit?: (contiSongId: string) => void
   onMoveUp?: (index: number) => void
   onMoveDown?: (index: number) => void
-  onRemove?: (songId: string) => void
+  onRemove?: (contiSongId: string) => void
 }
 
 function isContiSongWithSong(song: SummaryRow): song is ContiSongWithSong {
@@ -614,6 +614,9 @@ import { ContiSongSummaryTable } from "@/components/contis/conti-song-summary-ta
 ```
 
 Replace the `optimisticSongs.map(...)` block with:
+
+The table passes each conti-song row id (`contiSong.id`) to `onEdit` and
+`onRemove`, not the base song id (`songId`).
 
 ```tsx
 <ContiSongSummaryTable

@@ -16,10 +16,10 @@ type SummaryRow = ContiSongSummary | ContiSongWithSong
 interface ContiSongSummaryTableProps {
   songs: SummaryRow[]
   mode: "read" | "action"
-  onEdit?: (songId: string) => void
+  onEdit?: (contiSongId: string) => void
   onMoveUp?: (index: number) => void
   onMoveDown?: (index: number) => void
-  onRemove?: (songId: string) => void
+  onRemove?: (contiSongId: string) => void
 }
 
 function isContiSongWithSong(song: SummaryRow): song is ContiSongWithSong {
