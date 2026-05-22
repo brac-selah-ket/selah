@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db';
 import { contiSongs, contiPdfExports, songPresets } from '@/lib/db/schema';
-import { eq, max, asc } from 'drizzle-orm';
+import { and, eq, max, asc } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { stringifyContiSongOverrides, parseContiSongOverrides } from '@/lib/db/helpers';
 import type {
@@ -305,6 +305,7 @@ export async function batchImportSongsToConti(
 
     for (const item of validatedItems) {
       let resolvedSongId: string
+      let appliedPresetId = item.presetId ?? null
 
       if (item.songId) {
         resolvedSongId = item.songId
@@ -326,28 +327,43 @@ export async function batchImportSongsToConti(
       if (item.videoId) {
         if (!item.songId && item.createNewPreset !== false) {
           // New song: auto-create preset with youtube reference
-          await insertSongPreset(db, resolvedSongId, {
+          const preset = await insertSongPreset(db, resolvedSongId, {
             name: item.presetName || 'YouTube Import',
             youtubeReference: item.videoId,
             youtubeTitle: item.title,
           })
+          appliedPresetId = preset.id
         } else if (item.songId && item.presetId) {
           // Existing song: update selected preset's youtube reference
           await updateSongPresetYoutubeRef(db, item.presetId, item.videoId, item.title)
+          appliedPresetId = item.presetId
         } else if (item.songId && item.createNewPreset) {
           // Existing song: create new preset with youtube reference
-          await insertSongPreset(db, resolvedSongId, {
+          const preset = await insertSongPreset(db, resolvedSongId, {
             name: item.presetName || 'YouTube Import',
             youtubeReference: item.videoId,
             youtubeTitle: item.title,
           })
+          appliedPresetId = preset.id
         }
       }
 
       if (item.alreadyInConti) {
+        if (appliedPresetId) {
+          await db
+            .update(contiSongs)
+            .set({ presetId: appliedPresetId, updatedAt: new Date() })
+            .where(and(eq(contiSongs.contiId, contiId), eq(contiSongs.songId, resolvedSongId)))
+        }
         presetUpdated++
       } else {
-        await insertContiSong(db, contiId, resolvedSongId, nextSortOrder++)
+        await insertContiSong(
+          db,
+          contiId,
+          resolvedSongId,
+          nextSortOrder++,
+          appliedPresetId ? { presetId: appliedPresetId } : undefined,
+        )
       }
     }
 
