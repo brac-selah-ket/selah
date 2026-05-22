@@ -7,10 +7,69 @@ import type {
   ContiWithSongsAndSheetMusic,
   ContiPdfExport,
   PresetPdfMetadata,
+  ContiWithSongSummaries,
 } from '@/lib/types';
 
 export async function getContis() {
   return await db.select().from(contis).orderBy(desc(contis.date));
+}
+
+export async function getContisWithSongSummaries(): Promise<ContiWithSongSummaries[]> {
+  const contiRows = await getContis();
+  if (contiRows.length === 0) return [];
+
+  const contiIds = contiRows.map((conti) => conti.id);
+
+  const rows = await db
+    .select({
+      contiSong: contiSongs,
+      songName: songs.name,
+      presetName: songPresets.name,
+    })
+    .from(contiSongs)
+    .leftJoin(songs, eq(contiSongs.songId, songs.id))
+    .leftJoin(songPresets, eq(contiSongs.presetId, songPresets.id))
+    .where(inArray(contiSongs.contiId, contiIds))
+    .orderBy(contiSongs.sortOrder);
+
+  const byContiId = new Map<string, ContiWithSongSummaries["songSummaries"]>();
+
+  for (const row of rows) {
+    const parsed = parseContiSongOverrides({
+      keys: row.contiSong.keys,
+      tempos: row.contiSong.tempos,
+      sectionOrder: row.contiSong.sectionOrder,
+      lyrics: row.contiSong.lyrics,
+      sectionLyricsMap: row.contiSong.sectionLyricsMap,
+      notes: row.contiSong.notes,
+      sheetMusicFileIds: row.contiSong.sheetMusicFileIds,
+      presetId: row.contiSong.presetId,
+    });
+
+    const summaries = byContiId.get(row.contiSong.contiId) ?? [];
+    summaries.push({
+      id: row.contiSong.id,
+      songId: row.contiSong.songId,
+      sortOrder: row.contiSong.sortOrder,
+      songName: row.songName ?? "알 수 없는 곡",
+      keys: parsed.keys,
+      tempos: parsed.tempos,
+      sectionOrder: parsed.sectionOrder,
+      presetId: parsed.presetId,
+      presetName: row.presetName ?? null,
+      hasSheetMusicSelection: parsed.sheetMusicFileIds !== null && parsed.sheetMusicFileIds.length > 0,
+    });
+    byContiId.set(row.contiSong.contiId, summaries);
+  }
+
+  return contiRows.map((conti) => {
+    const songSummaries = byContiId.get(conti.id) ?? [];
+    return {
+      ...conti,
+      songSummaries,
+      songCount: songSummaries.length,
+    };
+  });
 }
 
 export async function getContiByDate(date: string) {

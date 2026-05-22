@@ -84,6 +84,24 @@ export interface ContiWithSongs extends Conti {
   songs: ContiSongWithSong[];
 }
 
+export interface ContiSongSummary {
+  id: string
+  songId: string
+  sortOrder: number
+  songName: string
+  keys: string[]
+  tempos: number[]
+  sectionOrder: string[]
+  presetId: string | null
+  presetName: string | null
+  hasSheetMusicSelection: boolean
+}
+
+export interface ContiWithSongSummaries extends Conti {
+  songSummaries: ContiSongSummary[]
+  songCount: number
+}
+
 export interface ActionResult<T = void> {
   success: boolean;
   error?: string;
