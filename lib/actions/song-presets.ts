@@ -117,7 +117,15 @@ export async function updateSongPreset(presetId: string, data: Partial<SongPrese
     if (data.isDefault !== undefined) updateData.isDefault = data.isDefault;
     if (data.youtubeReference !== undefined) {
       updateData.youtubeReference = resolvedYoutube?.videoId ?? null;
-      updateData.youtubeTitle = resolvedYoutube?.title ?? null;
+      const shouldPreserveExistingYoutubeTitle =
+        resolvedYoutube?.videoId &&
+        !resolvedYoutube.title &&
+        !data.youtubeTitle?.trim() &&
+        existing[0].youtubeReference === resolvedYoutube.videoId &&
+        !!existing[0].youtubeTitle?.trim();
+      updateData.youtubeTitle = shouldPreserveExistingYoutubeTitle
+        ? existing[0].youtubeTitle
+        : resolvedYoutube?.title ?? null;
     } else if (data.youtubeTitle !== undefined && existing[0].youtubeReference) {
       updateData.youtubeTitle = data.youtubeTitle;
     }

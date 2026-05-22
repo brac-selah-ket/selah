@@ -23,7 +23,7 @@ import {
 import { fetchYouTubePlaylist } from "@/lib/actions/youtube"
 import { batchImportSongsToConti } from "@/lib/actions/conti-songs"
 import { getPresetsForSong } from "@/lib/actions/song-presets"
-import type { Song, YouTubePlaylistItem, SongPreset } from "@/lib/types"
+import type { Song, SongPreset } from "@/lib/types"
 
 interface YouTubeImportDialogProps {
   contiId: string
