@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { YouTubeReferenceLink } from "@/components/shared/youtube-reference-link"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   ArrowDown01Icon,
@@ -49,6 +50,16 @@ function getPresetName(song: SummaryRow): string | null {
   return song.overrides.presetId ? "프리셋 적용" : null
 }
 
+function getYoutubeReference(song: SummaryRow): string | null {
+  if (isContiSongWithSong(song)) return song.appliedPreset?.youtubeReference ?? null
+  return song.youtubeReference
+}
+
+function getYoutubeTitle(song: SummaryRow): string | null {
+  if (isContiSongWithSong(song)) return song.appliedPreset?.youtubeTitle ?? null
+  return song.youtubeTitle
+}
+
 function getSectionSummary(song: SummaryRow): string {
   const sections = getSectionOrder(song)
   return sections.length > 0 ? sections.join(" → ") : "-"
@@ -72,9 +83,9 @@ export function ContiSongSummaryTable({
 
   const showActions = mode === "action"
   const gridTemplateClass = showActions
-    ? "grid-cols-[3rem_1.3fr_5rem_5rem_minmax(12rem,1fr)_6rem_auto]"
-    : "grid-cols-[3rem_1.3fr_5rem_5rem_minmax(12rem,1fr)_6rem]"
-  const tableMinWidthClass = showActions ? "min-w-[52rem]" : "min-w-[44rem]"
+    ? "grid-cols-[3rem_1.2fr_5rem_5rem_minmax(12rem,1fr)_6rem_minmax(10rem,0.8fr)_auto]"
+    : "grid-cols-[3rem_1.2fr_5rem_5rem_minmax(12rem,1fr)_6rem_minmax(10rem,0.8fr)]"
+  const tableMinWidthClass = showActions ? "min-w-[64rem]" : "min-w-[56rem]"
 
   return (
     <div className="overflow-x-auto rounded-lg border bg-card">
@@ -88,6 +99,7 @@ export function ContiSongSummaryTable({
           <span>BPM</span>
           <span>섹션</span>
           <span>프리셋</span>
+          <span>YouTube</span>
           {showActions && <span className="text-right">작업</span>}
         </div>
         {songs.map((song, index) => {
@@ -127,6 +139,14 @@ export function ContiSongSummaryTable({
               </span>
               <span className="min-w-0 truncate text-muted-foreground">
                 {presetName ?? "-"}
+              </span>
+              <span className="min-w-0 truncate text-muted-foreground">
+                <YouTubeReferenceLink
+                  reference={getYoutubeReference(song)}
+                  title={getYoutubeTitle(song)}
+                  className="text-primary block truncate underline-offset-4 hover:underline"
+                />{" "}
+                {!getYoutubeReference(song) && "-"}
               </span>
               {showActions && (
                 <div className="flex justify-end gap-1">

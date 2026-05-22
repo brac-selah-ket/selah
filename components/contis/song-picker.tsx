@@ -9,10 +9,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { YouTubeReferenceLink } from "@/components/shared/youtube-reference-link"
 import { addSongToConti } from "@/lib/actions/conti-songs"
 import { createSong } from "@/lib/actions/songs"
 import { getPresetsForSong, getPresetSheetMusicFileIds } from "@/lib/actions/song-presets"
-import { normalizeYouTubeReference } from "@/lib/utils/youtube"
 import type { Song, SongPreset, ContiSongOverrides } from "@/lib/types"
 
 interface SongPickerProps {
@@ -186,41 +186,32 @@ export function SongPicker({
               >
                 <span className="text-muted-foreground">프리셋 없이 추가</span>
               </button>
-              {presets.map((preset) => {
-                const youtube = normalizeYouTubeReference(preset.youtubeReference)
-
-                return (
-                  <div
-                    key={preset.id}
-                    className="hover:bg-muted rounded-lg px-3 py-2 transition-colors"
+              {presets.map((preset) => (
+                <div
+                  key={preset.id}
+                  className="hover:bg-muted rounded-lg px-3 py-2 transition-colors"
+                >
+                  <button
+                    type="button"
+                    className="flex w-full items-start justify-between gap-3 text-left text-base disabled:opacity-50"
+                    onClick={() => handlePresetSelect(preset)}
+                    disabled={isPending}
                   >
-                    <button
-                      type="button"
-                      className="flex w-full items-start justify-between gap-3 text-left text-base disabled:opacity-50"
-                      onClick={() => handlePresetSelect(preset)}
-                      disabled={isPending}
-                    >
-                      <span className="min-w-0 truncate font-medium">{preset.name}</span>
-                      {preset.isDefault && (
-                        <span className="text-muted-foreground shrink-0 text-sm">기본</span>
-                      )}
-                    </button>
-                    <div className="min-w-0">
-                      {youtube && (
-                        <a
-                          href={youtube.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary block truncate text-xs underline-offset-4 hover:underline"
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          {youtube.displayUrl}
-                        </a>
-                      )}
-                    </div>
+                    <span className="min-w-0 truncate font-medium">{preset.name}</span>
+                    {preset.isDefault && (
+                      <span className="text-muted-foreground shrink-0 text-sm">기본</span>
+                    )}
+                  </button>
+                  <div className="min-w-0">
+                    <YouTubeReferenceLink
+                      reference={preset.youtubeReference}
+                      title={preset.youtubeTitle}
+                      className="text-primary block truncate text-xs underline-offset-4 hover:underline"
+                      stopPropagation
+                    />
                   </div>
-                )
-              })}
+                </div>
+              ))}
               <button
                 type="button"
                 className="text-muted-foreground hover:bg-muted mt-1 rounded-lg px-3 py-2 text-left text-sm transition-colors"
