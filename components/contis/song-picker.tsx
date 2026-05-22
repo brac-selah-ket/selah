@@ -190,31 +190,35 @@ export function SongPicker({
                 const youtube = normalizeYouTubeReference(preset.youtubeReference)
 
                 return (
-                  <button
+                  <div
                     key={preset.id}
-                    type="button"
-                    className="hover:bg-muted flex w-full items-start justify-between gap-3 rounded-lg px-3 py-2 text-left text-base transition-colors disabled:opacity-50"
-                    onClick={() => handlePresetSelect(preset)}
-                    disabled={isPending}
+                    className="hover:bg-muted rounded-lg px-3 py-2 transition-colors"
                   >
-                    <span className="min-w-0 flex flex-col gap-0.5">
-                      <span className="truncate font-medium">{preset.name}</span>
+                    <button
+                      type="button"
+                      className="flex w-full items-start justify-between gap-3 text-left text-base disabled:opacity-50"
+                      onClick={() => handlePresetSelect(preset)}
+                      disabled={isPending}
+                    >
+                      <span className="min-w-0 truncate font-medium">{preset.name}</span>
+                      {preset.isDefault && (
+                        <span className="text-muted-foreground shrink-0 text-sm">기본</span>
+                      )}
+                    </button>
+                    <div className="min-w-0">
                       {youtube && (
                         <a
                           href={youtube.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-primary truncate text-xs underline-offset-4 hover:underline"
+                          className="text-primary block truncate text-xs underline-offset-4 hover:underline"
                           onClick={(event) => event.stopPropagation()}
                         >
                           {youtube.displayUrl}
                         </a>
                       )}
-                    </span>
-                    {preset.isDefault && (
-                      <span className="text-muted-foreground shrink-0 text-sm">기본</span>
-                    )}
-                  </button>
+                    </div>
+                  </div>
                 )
               })}
               <button
