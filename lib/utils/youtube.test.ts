@@ -12,6 +12,7 @@ test("extractYouTubeVideoId accepts video IDs and common YouTube URLs", () => {
   assert.equal(extractYouTubeVideoId("https://www.youtube.com/watch?v=dQw4w9WgXcQ"), "dQw4w9WgXcQ")
   assert.equal(extractYouTubeVideoId("https://youtu.be/dQw4w9WgXcQ?si=abc"), "dQw4w9WgXcQ")
   assert.equal(extractYouTubeVideoId("https://www.youtube.com/embed/dQw4w9WgXcQ"), "dQw4w9WgXcQ")
+  assert.equal(extractYouTubeVideoId("https://www.youtube.com/shorts/dQw4w9WgXcQ"), "dQw4w9WgXcQ")
   assert.equal(extractYouTubeVideoId("https://music.youtube.com/watch?v=dQw4w9WgXcQ"), "dQw4w9WgXcQ")
 })
 
@@ -21,6 +22,10 @@ test("extractYouTubeVideoId rejects unsupported values", () => {
   assert.equal(extractYouTubeVideoId("https://example.com/watch?v=dQw4w9WgXcQ"), null)
   assert.equal(extractYouTubeVideoId("https://www.youtube.com/not-watch?v=dQw4w9WgXcQ"), null)
   assert.equal(extractYouTubeVideoId("https://music.youtube.com/embed/dQw4w9WgXcQ"), null)
+  assert.equal(extractYouTubeVideoId("https://youtu.be/dQw4w9WgXcQ/extra"), null)
+  assert.equal(extractYouTubeVideoId("https://www.youtube.com/embed/dQw4w9WgXcQ/extra"), null)
+  assert.equal(extractYouTubeVideoId("https://www.youtube.com/shorts/dQw4w9WgXcQ/extra"), null)
+  assert.equal(extractYouTubeVideoId("ftp://www.youtube.com/watch?v=dQw4w9WgXcQ"), null)
 })
 
 test("normalizeYouTubeReference returns storage and display values", () => {

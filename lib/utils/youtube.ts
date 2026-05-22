@@ -13,10 +13,13 @@ export function extractYouTubeVideoId(value: string | null | undefined): string 
 
   try {
     const url = new URL(input)
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null
+
     const hostname = url.hostname.replace(/^www\./, "")
 
     if (hostname === "youtu.be") {
-      const candidate = url.pathname.split("/").filter(Boolean)[0]
+      const parts = url.pathname.split("/").filter(Boolean)
+      const candidate = parts.length === 1 ? parts[0] : null
       return candidate && YOUTUBE_VIDEO_ID_PATTERN.test(candidate) ? candidate : null
     }
 
@@ -27,7 +30,7 @@ export function extractYouTubeVideoId(value: string | null | undefined): string 
 
     if (hostname === "youtube.com") {
       const parts = url.pathname.split("/").filter(Boolean)
-      const candidate = parts[0] === "embed" || parts[0] === "shorts" ? parts[1] : null
+      const candidate = parts.length === 2 && (parts[0] === "embed" || parts[0] === "shorts") ? parts[1] : null
       return candidate && YOUTUBE_VIDEO_ID_PATTERN.test(candidate) ? candidate : null
     }
   } catch {
