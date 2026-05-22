@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useMemo, useEffect } from "react"
+import { useState, useTransition, useMemo } from "react"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -67,23 +67,27 @@ export function PptxExportButton({ conti, iconOnly = false }: PptxExportButtonPr
     }))
   }, [eligibleSongs])
 
-  // Fetch files when dialog opens
-  useEffect(() => {
-    if (open && files.length === 0 && !filesError) {
-      setFilesLoading(true)
-      listPptxFiles().then((result) => {
-        if (result.success && result.data) {
-          setFiles(result.data.files)
-        } else {
-          setFilesError(result.error || "파일 목록을 가져오지 못했습니다")
-        }
-        setFilesLoading(false)
-      })
-    }
-  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+  function loadFilesIfNeeded() {
+    if (files.length > 0 || filesError || filesLoading) return
+
+    setFilesLoading(true)
+    listPptxFiles().then((result) => {
+      if (result.success && result.data) {
+        setFiles(result.data.files)
+      } else {
+        setFilesError(result.error || "파일 목록을 가져오지 못했습니다")
+      }
+      setFilesLoading(false)
+    })
+  }
 
   function handleOpenChange(newOpen: boolean) {
     setOpen(newOpen)
+    if (newOpen) {
+      loadFilesIfNeeded()
+      return
+    }
+
     if (!newOpen) {
       setStep("file-list")
       setSelectedFile(null)
@@ -357,7 +361,7 @@ export function PptxExportButton({ conti, iconOnly = false }: PptxExportButtonPr
           variant="outline"
           size="icon"
           aria-label="PPT 내보내기"
-          onClick={() => setOpen(true)}
+          onClick={() => handleOpenChange(true)}
           disabled={!hasEligibleSongs}
         >
           <HugeiconsIcon icon={Presentation01Icon} strokeWidth={2} />
@@ -371,7 +375,7 @@ export function PptxExportButton({ conti, iconOnly = false }: PptxExportButtonPr
     <>
       <Button
         variant="outline"
-        onClick={() => setOpen(true)}
+        onClick={() => handleOpenChange(true)}
         disabled={!hasEligibleSongs}
       >
         <HugeiconsIcon icon={Presentation01Icon} strokeWidth={2} data-icon="inline-start" />

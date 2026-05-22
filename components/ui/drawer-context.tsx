@@ -1,9 +1,10 @@
 "use client"
 
-import { createContext, useContext, useRef, useState } from "react"
+import { createContext, useCallback, useContext, useState } from "react"
 
 interface DrawerContextValue {
-  portalRef: React.RefObject<HTMLDivElement | null>
+  portalRef: React.RefCallback<HTMLDivElement>
+  portalNode: HTMLDivElement | null
   isOpen: boolean
   setIsOpen: (open: boolean) => void
 }
@@ -17,11 +18,14 @@ export function useDrawerPortal() {
 }
 
 export function DrawerProvider({ children }: { children: React.ReactNode }) {
-  const portalRef = useRef<HTMLDivElement>(null)
+  const [portalNode, setPortalNode] = useState<HTMLDivElement | null>(null)
   const [isOpen, setIsOpen] = useState(false)
+  const portalRef = useCallback((node: HTMLDivElement | null) => {
+    setPortalNode(node)
+  }, [])
 
   return (
-    <DrawerContext.Provider value={{ portalRef, isOpen, setIsOpen }}>
+    <DrawerContext.Provider value={{ portalRef, portalNode, isOpen, setIsOpen }}>
       {children}
     </DrawerContext.Provider>
   )

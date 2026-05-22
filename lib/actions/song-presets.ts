@@ -189,3 +189,33 @@ export async function getPresetsForSongWithSheetMusic(songId: string): Promise<A
     return { success: false, error: '프리셋을 불러올 수 없습니다' };
   }
 }
+
+export async function getSongPresetWithSheetMusic(presetId: string): Promise<ActionResult<SongPresetWithSheetMusic>> {
+  try {
+    const presetRows = await db
+      .select()
+      .from(songPresets)
+      .where(eq(songPresets.id, presetId))
+      .limit(1);
+
+    if (presetRows.length === 0) {
+      return { success: false, error: '프리셋을 찾을 수 없습니다' };
+    }
+
+    const sheetMusicRows = await db
+      .select({ sheetMusicFileId: presetSheetMusic.sheetMusicFileId })
+      .from(presetSheetMusic)
+      .where(eq(presetSheetMusic.presetId, presetId))
+      .orderBy(presetSheetMusic.sortOrder);
+
+    return {
+      success: true,
+      data: {
+        ...presetRows[0],
+        sheetMusicFileIds: sheetMusicRows.map((row) => row.sheetMusicFileId),
+      },
+    };
+  } catch {
+    return { success: false, error: '프리셋을 불러올 수 없습니다' };
+  }
+}

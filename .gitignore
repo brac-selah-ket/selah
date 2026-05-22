@@ -50,6 +50,9 @@ next-env.d.ts
 .omc/
 settings.local.json
 
+# superpowers local brainstorm artifacts
+.superpowers/
+
 # python
 .venv/
 __pycache__/

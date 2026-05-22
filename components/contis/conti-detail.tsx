@@ -20,9 +20,16 @@ import type { ContiWithSongs, Song, ContiSongWithSong } from "@/lib/types"
 interface ContiDetailProps {
   conti: ContiWithSongs
   allSongs: Song[]
+  variant?: "detail" | "edit"
+  showDescription?: boolean
 }
 
-export function ContiDetail({ conti, allSongs }: ContiDetailProps) {
+export function ContiDetail({
+  conti,
+  allSongs,
+  variant = "detail",
+  showDescription,
+}: ContiDetailProps) {
   const router = useRouter()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [youtubeImportOpen, setYoutubeImportOpen] = useState(false)
@@ -32,6 +39,7 @@ export function ContiDetail({ conti, allSongs }: ContiDetailProps) {
 
   const existingSongIds = optimisticSongs.map((cs) => cs.songId)
   const description = sanitizeContiDescription(conti.description)
+  const shouldShowDescription = showDescription ?? variant === "detail"
 
   function handleMoveUp(index: number) {
     if (index === 0) return
@@ -86,7 +94,11 @@ export function ContiDetail({ conti, allSongs }: ContiDetailProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      {description && (
+      {variant === "edit" && (
+        <h2 className="text-xl font-semibold">곡별 준비</h2>
+      )}
+
+      {shouldShowDescription && description && (
         <p className="text-muted-foreground text-base">{description}</p>
       )}
 

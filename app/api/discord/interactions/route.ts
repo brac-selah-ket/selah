@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  addMessageReaction,
-  getActiveThread,
-  saveRoleSelection,
-  verifyDiscordInteraction,
-} from '@/lib/discord-sync';
+import { addMessageReaction, getChannel } from '@/lib/discord-sync/discord-client';
+import { verifyDiscordInteraction } from '@/lib/discord-sync/interaction-verify';
+import { parseWorshipThreadName } from '@/lib/discord-sync/cron-state';
 import { updateRoleSelectionInSheet } from '@/lib/discord-sync/google-sheets';
 
 const DISCORD_PING = 1;
@@ -33,6 +30,10 @@ interface DiscordInteraction {
   id: string;
   type: number;
   channel_id?: string;
+  channel?: {
+    id?: string;
+    name?: string;
+  };
   message?: {
     id?: string;
     channel_id?: string;
@@ -42,6 +43,20 @@ interface DiscordInteraction {
 
 function invalidRequestResponse() {
   return NextResponse.json({ error: 'Invalid request signature' }, { status: 401 });
+}
+
+async function getInteractionThreadName(interaction: DiscordInteraction): Promise<string | null> {
+  if (interaction.channel?.name) {
+    return interaction.channel.name;
+  }
+
+  const channelId = interaction.channel_id ?? interaction.message?.channel_id;
+  if (!channelId) {
+    return null;
+  }
+
+  const channel = await getChannel(channelId);
+  return channel.name ?? null;
 }
 
 export async function POST(request: NextRequest) {
@@ -87,21 +102,20 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const active = await getActiveThread();
-    if (!active) {
+    const threadName = await getInteractionThreadName(interaction);
+    const sundayDate = threadName ? parseWorshipThreadName(threadName) : null;
+    if (!sundayDate) {
       return NextResponse.json({
         type: CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
-          content: '현재 스레드 정보를 찾을 수 없습니다.',
+          content: '예배 준비 스레드 정보를 찾을 수 없습니다.',
           flags: 64,
         },
       });
     }
 
-    await saveRoleSelection(customId, selectedValue);
-
     try {
-      await updateRoleSelectionInSheet(customId, selectedValue, active.sundayDate);
+      await updateRoleSelectionInSheet(customId, selectedValue, sundayDate);
     } catch (error) {
       return NextResponse.json({
         type: CHANNEL_MESSAGE_WITH_SOURCE,

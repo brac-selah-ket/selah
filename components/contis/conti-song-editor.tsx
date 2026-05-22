@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Drawer } from "@/components/ui/drawer"
@@ -16,20 +16,45 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog"
 import { OverrideEditorFields } from "@/components/shared/override-editor-fields"
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes"
 import { updateContiSong, saveContiSongAsPreset } from "@/lib/actions/conti-songs"
-import { getPresetsForSong } from "@/lib/actions/song-presets"
-import type { ContiSongWithSong, SongPreset } from "@/lib/types"
+import {
+  getPresetSheetMusicFileIds,
+  getPresetsForSong,
+  getSongPresetWithSheetMusic,
+  updateSongPreset,
+} from "@/lib/actions/song-presets"
+import type {
+  ContiSongWithSong,
+  PresetPdfMetadata,
+  SheetMusicFile,
+  SongPreset,
+  SongPresetWithSheetMusic,
+} from "@/lib/types"
 import { SheetMusicSelector } from "@/components/shared/sheet-music-selector"
 import { getSheetMusicForSong } from "@/lib/actions/sheet-music"
-import { getPresetSheetMusicFileIds } from "@/lib/actions/song-presets"
-import type { SheetMusicFile } from "@/lib/types"
+import { SheetMusicUploader } from "@/components/songs/sheet-music-uploader"
+import { SheetMusicGallery } from "@/components/songs/sheet-music-gallery"
+import { PresetPdfEditor } from "@/components/songs/preset-pdf-editor"
 
 interface ContiSongEditorProps {
   contiSong: ContiSongWithSong
   open: boolean
   onOpenChange: (open: boolean) => void
+}
+
+function parseJsonField<T>(field: string | null, fallback: T): T {
+  if (!field) return fallback
+  try {
+    return JSON.parse(field) as T
+  } catch {
+    return fallback
+  }
 }
 
 export function ContiSongEditor({
@@ -65,6 +90,65 @@ export function ContiSongEditor({
   const [sheetMusicFileIds, setSheetMusicFileIds] = useState<string[] | null>(null)
   const [appliedPresetId, setAppliedPresetId] = useState<string | null>(overrides.presetId)
   const [songSheetMusic, setSongSheetMusic] = useState<SheetMusicFile[]>([])
+  const [pdfEditorOpen, setPdfEditorOpen] = useState(false)
+  const [editingPdfPreset, setEditingPdfPreset] = useState<SongPresetWithSheetMusic | null>(null)
+  const [loadingPdfPresetId, setLoadingPdfPresetId] = useState<string | null>(null)
+
+  const refreshPresets = useCallback(async () => {
+    const result = await getPresetsForSong(contiSong.songId)
+    if (result.success && result.data) {
+      setPresets(result.data)
+      return result.data
+    }
+    return []
+  }, [contiSong.songId])
+
+  const refreshSheetMusic = useCallback(async () => {
+    const result = await getSheetMusicForSong(contiSong.songId)
+    if (result.success && result.data) {
+      setSongSheetMusic(result.data)
+      return result.data
+    }
+    return []
+  }, [contiSong.songId])
+
+  const selectedSheetMusic = useMemo(() => {
+    if (!sheetMusicFileIds) {
+      return songSheetMusic
+    }
+    const selected = new Set(sheetMusicFileIds)
+    return songSheetMusic.filter((file) => selected.has(file.id))
+  }, [sheetMusicFileIds, songSheetMusic])
+
+  const editingPdfSheetMusic = useMemo(() => {
+    if (!editingPdfPreset) {
+      return []
+    }
+    if (editingPdfPreset.sheetMusicFileIds.length === 0) {
+      return songSheetMusic
+    }
+    const byId = new Map(songSheetMusic.map((file) => [file.id, file]))
+    return editingPdfPreset.sheetMusicFileIds.reduce<SheetMusicFile[]>((result, fileId) => {
+      const file = byId.get(fileId)
+      if (file) result.push(file)
+      return result
+    }, [])
+  }, [editingPdfPreset, songSheetMusic])
+
+  const editingPdfSectionOrder = useMemo(
+    () => parseJsonField<string[]>(editingPdfPreset?.sectionOrder ?? null, []),
+    [editingPdfPreset],
+  )
+
+  const editingPdfTempos = useMemo(
+    () => parseJsonField<number[]>(editingPdfPreset?.tempos ?? null, []),
+    [editingPdfPreset],
+  )
+
+  const editingPdfMetadata = useMemo(
+    () => parseJsonField<PresetPdfMetadata | null>(editingPdfPreset?.pdfMetadata ?? null, null),
+    [editingPdfPreset],
+  )
 
   // Initialize state from contiSong when drawer opens
   useEffect(() => {
@@ -86,22 +170,16 @@ export function ContiSongEditor({
   // Fetch presets when drawer opens
   useEffect(() => {
     if (open) {
-      getPresetsForSong(contiSong.songId).then(result => {
-        if (result.success && result.data) {
-          setPresets(result.data)
-        }
-      })
+      void refreshPresets()
     }
-  }, [open, contiSong.songId])
+  }, [open, refreshPresets])
 
   // Fetch sheet music for this song when drawer opens
   useEffect(() => {
     if (open) {
-      getSheetMusicForSong(contiSong.songId).then(result => {
-        if (result.success && result.data) setSongSheetMusic(result.data)
-      })
+      void refreshSheetMusic()
     }
-  }, [open, contiSong.songId])
+  }, [open, refreshSheetMusic])
 
   // onChange handlers that update state AND mark dirty
   const handleKeysTemposChange = (data: { keys: string[]; tempos: number[] }) => {
@@ -156,6 +234,32 @@ export function ContiSongEditor({
     markDirty()
   }
 
+  const handleSheetMusicUploaded = (file: SheetMusicFile) => {
+    setSongSheetMusic((current) => {
+      if (current.some((item) => item.id === file.id)) return current
+      return [...current, file]
+    })
+    setSheetMusicFileIds((current) => {
+      if (current === null) return current
+      if (current.includes(file.id)) return current
+      markDirty()
+      return [...current, file.id]
+    })
+    router.refresh()
+  }
+
+  const handleSheetMusicDeleted = (fileId: string) => {
+    setSongSheetMusic((current) => current.filter((file) => file.id !== fileId))
+    setSheetMusicFileIds((current) => {
+      if (current === null) return current
+      const next = current.filter((id) => id !== fileId)
+      if (next.length === current.length) return current
+      markDirty()
+      return next.length > 0 ? next : null
+    })
+    router.refresh()
+  }
+
   // Batch save
   const handleSave = async () => {
     setIsSaving(true)
@@ -189,11 +293,11 @@ export function ContiSongEditor({
     if (!confirm(`"${preset.name}" 프리셋을 불러오면 현재 설정이 덮어씌워집니다. 계속하시겠습니까?`)) {
       return
     }
-    setKeys(preset.keys ? JSON.parse(preset.keys) : [])
-    setTempos(preset.tempos ? JSON.parse(preset.tempos) : [])
-    setSectionOrder(preset.sectionOrder ? JSON.parse(preset.sectionOrder) : [])
-    setLyrics(preset.lyrics ? JSON.parse(preset.lyrics) : [])
-    setSectionLyricsMap(preset.sectionLyricsMap ? JSON.parse(preset.sectionLyricsMap) : {})
+    setKeys(parseJsonField<string[]>(preset.keys, []))
+    setTempos(parseJsonField<number[]>(preset.tempos, []))
+    setSectionOrder(parseJsonField<string[]>(preset.sectionOrder, []))
+    setLyrics(parseJsonField<string[]>(preset.lyrics, []))
+    setSectionLyricsMap(parseJsonField<Record<number, number[]>>(preset.sectionLyricsMap, {}))
     setNotes(preset.notes)
     // Load preset's sheet music selection
     const fileIds = await getPresetSheetMusicFileIds(preset.id)
@@ -202,6 +306,44 @@ export function ContiSongEditor({
     setEditorKey(k => k + 1)
     markDirty()
     toast.success(`"${preset.name}" 프리셋을 불러왔습니다`)
+  }
+
+  async function handleOpenPresetPdfEditor(presetId: string) {
+    setLoadingPdfPresetId(presetId)
+    try {
+      const result = await getSongPresetWithSheetMusic(presetId)
+      if (!result.success || !result.data) {
+        toast.error(result.error ?? "프리셋을 불러올 수 없습니다")
+        return
+      }
+      setEditingPdfPreset(result.data)
+      setPdfEditorOpen(true)
+    } finally {
+      setLoadingPdfPresetId(null)
+    }
+  }
+
+  async function handleSavePresetPdfMetadata(metadata: PresetPdfMetadata | null) {
+    if (!editingPdfPreset) return
+
+    const result = await updateSongPreset(editingPdfPreset.id, { pdfMetadata: metadata })
+    if (!result.success) {
+      throw new Error(result.error ?? "프리셋 PDF 저장 중 오류가 발생했습니다")
+    }
+
+    if (result.data) {
+      setEditingPdfPreset((current) =>
+        current
+          ? {
+              ...current,
+              ...result.data,
+              sheetMusicFileIds: current.sheetMusicFileIds,
+            }
+          : current,
+      )
+    }
+    await refreshPresets()
+    router.refresh()
   }
 
   return (
@@ -238,31 +380,44 @@ export function ContiSongEditor({
                   <label className="text-sm text-muted-foreground mb-1 block">프리셋 불러오기</label>
                   <div className="flex flex-col gap-1">
                     {presets.map(p => (
-                      <button
+                      <div
                         key={p.id}
-                        type="button"
-                        className="hover:bg-muted flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-base transition-colors disabled:opacity-50"
-                        onClick={() => handleLoadPreset(p)}
-                        disabled={isSaving}
+                        className="flex items-center gap-2"
                       >
-                        <span className="truncate font-medium">{p.name}</span>
-                        <span className="flex items-center gap-1.5">
-                          {p.youtubeReference && (
-                            <a
-                              href={`https://www.youtube.com/watch?v=${p.youtubeReference}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="rounded bg-red-500/10 px-1.5 py-0.5 text-xs font-medium text-red-600 hover:bg-red-500/20 transition-colors"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              YT
-                            </a>
-                          )}
-                          {p.isDefault && (
-                            <span className="text-sm text-muted-foreground">기본</span>
-                          )}
-                        </span>
-                      </button>
+                        <button
+                          type="button"
+                          className="hover:bg-muted flex min-w-0 flex-1 items-center justify-between rounded-lg px-3 py-2 text-left text-base transition-colors disabled:opacity-50"
+                          onClick={() => handleLoadPreset(p)}
+                          disabled={isSaving}
+                        >
+                          <span className="truncate font-medium">{p.name}</span>
+                          <span className="flex items-center gap-1.5">
+                            {p.youtubeReference && (
+                              <a
+                                href={`https://www.youtube.com/watch?v=${p.youtubeReference}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="rounded bg-red-500/10 px-1.5 py-0.5 text-xs font-medium text-red-600 hover:bg-red-500/20 transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                YT
+                              </a>
+                            )}
+                            {p.isDefault && (
+                              <span className="text-sm text-muted-foreground">기본</span>
+                            )}
+                          </span>
+                        </button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenPresetPdfEditor(p.id)}
+                          disabled={loadingPdfPresetId === p.id}
+                        >
+                          {loadingPdfPresetId === p.id ? "로딩" : "PDF 편집"}
+                        </Button>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -322,8 +477,7 @@ export function ContiSongEditor({
                             setShowPresetSave(false)
                             setPresetName("")
                             setSelectedPresetId(null)
-                            const refreshed = await getPresetsForSong(contiSong.songId)
-                            if (refreshed.success && refreshed.data) setPresets(refreshed.data)
+                            await refreshPresets()
                           } else {
                             toast.error(result.error ?? "프리셋 저장 중 오류가 발생했습니다")
                           }
@@ -342,20 +496,41 @@ export function ContiSongEditor({
               )}
             </div>
 
-            {songSheetMusic.length > 0 && (
-              <div className="space-y-3">
-                <label className="text-base font-medium">악보 선택</label>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-base font-medium">악보 관리</label>
                 <p className="text-sm text-muted-foreground">
-                  PDF 내보내기에 포함할 악보를 선택하세요. 선택하지 않으면 모든 악보가 포함됩니다.
+                  악보를 등록하고 PDF 내보내기에 포함할 파일을 선택하세요.
                 </p>
-                <SheetMusicSelector
-                  songId={contiSong.songId}
-                  selectedFileIds={sheetMusicFileIds ?? []}
-                  onSelectionChange={(ids) => { setSheetMusicFileIds(ids.length > 0 ? ids : null); markDirty() }}
-                  availableFiles={songSheetMusic}
-                />
               </div>
-            )}
+              <SheetMusicUploader
+                songId={contiSong.songId}
+                onUploaded={handleSheetMusicUploaded}
+              />
+              {songSheetMusic.length > 0 ? (
+                <>
+                  <SheetMusicSelector
+                    songId={contiSong.songId}
+                    selectedFileIds={sheetMusicFileIds ?? []}
+                    onSelectionChange={(ids) => { setSheetMusicFileIds(ids.length > 0 ? ids : null); markDirty() }}
+                    availableFiles={songSheetMusic}
+                  />
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">등록된 악보</p>
+                    <SheetMusicGallery
+                      files={songSheetMusic}
+                      editable
+                      songId={contiSong.songId}
+                      onDeleted={handleSheetMusicDeleted}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+                  등록된 악보가 없습니다.
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="border-t" />
@@ -368,11 +543,7 @@ export function ContiSongEditor({
               lyrics={lyrics}
               sectionLyricsMap={sectionLyricsMap}
               notes={notes}
-              sheetMusicFiles={
-                sheetMusicFileIds
-                  ? songSheetMusic.filter(f => sheetMusicFileIds.includes(f.id))
-                  : songSheetMusic
-              }
+              sheetMusicFiles={selectedSheetMusic}
               onKeysTemposChange={handleKeysTemposChange}
               onSectionOrderChange={handleSectionOrderChange}
               onLyricsChange={handleLyricsChange}
@@ -382,6 +553,29 @@ export function ContiSongEditor({
           </div>
         </div>
       </Drawer>
+
+      <Dialog
+        open={pdfEditorOpen}
+        onOpenChange={(nextOpen) => {
+          setPdfEditorOpen(nextOpen)
+          if (!nextOpen) setEditingPdfPreset(null)
+        }}
+      >
+        <DialogContent className="!w-screen !h-[100dvh] !max-w-none sm:!max-w-none rounded-none overflow-x-hidden overflow-y-auto p-3 sm:p-4 flex flex-col">
+          <div className="min-h-0 flex-1">
+            {editingPdfPreset && (
+              <PresetPdfEditor
+                songName={contiSong.song.name}
+                sheetMusic={editingPdfSheetMusic}
+                sectionOrder={editingPdfSectionOrder}
+                tempos={editingPdfTempos}
+                initialMetadata={editingPdfMetadata}
+                onSave={handleSavePresetPdfMetadata}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
         <AlertDialogContent size="sm">

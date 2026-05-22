@@ -3,7 +3,8 @@ export {
   sendDropdownMessage,
   getThreadMessages,
   addMessageReaction,
-  getActiveThreadIds,
+  getChannel,
+  getActiveForumThreads,
 } from '@/lib/discord-sync/discord-client';
 export {
   buildThreadName,

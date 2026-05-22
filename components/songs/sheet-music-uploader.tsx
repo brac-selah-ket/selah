@@ -5,15 +5,17 @@ import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Upload04Icon } from '@hugeicons/core-free-icons';
 import { uploadSheetMusic } from '@/lib/actions/sheet-music';
+import type { SheetMusicFile } from '@/lib/types';
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 interface SheetMusicUploaderProps {
   songId: string;
+  onUploaded?: (file: SheetMusicFile) => void;
 }
 
-export function SheetMusicUploader({ songId }: SheetMusicUploaderProps) {
+export function SheetMusicUploader({ songId, onUploaded }: SheetMusicUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -45,6 +47,9 @@ export function SheetMusicUploader({ songId }: SheetMusicUploaderProps) {
 
         if (result.success) {
           toast('악보가 업로드되었습니다');
+          if (result.data) {
+            onUploaded?.(result.data);
+          }
         } else {
           toast.error(result.error);
         }

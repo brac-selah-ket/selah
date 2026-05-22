@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  buildInitialMessage,
-  buildThreadName,
-  createForumThread,
-  formatToYYMMDD,
-  getUpcomingSundayDate,
-  markMessageProcessed,
-  sendDropdownMessage,
-  setActiveThread,
-} from '@/lib/discord-sync';
+import { createForumThread, sendDropdownMessage } from '@/lib/discord-sync/discord-client';
+import { buildInitialMessage, buildThreadName, formatToYYMMDD, getUpcomingSundayDate } from '@/lib/discord-sync/thread-template';
 import { readRoleOptionsFromSheet } from '@/lib/discord-sync/google-sheets';
 
 export const maxDuration = 60;
@@ -38,38 +30,16 @@ export async function GET(request: NextRequest) {
     const threadName = buildThreadName(yymmdd);
 
     const thread = await createForumThread(channelId, threadName, buildInitialMessage(sundayDate));
-    if (!dryRun) {
-      await setActiveThread(thread.id, yymmdd);
-    }
 
     const options = (await readRoleOptionsFromSheet()).map((value) => ({ label: value, value }));
     if (options.length === 0) {
       throw new Error('DB_Options is empty');
     }
-    const messageIds: string[] = [];
-
-    if (thread.message?.id) {
-      messageIds.push(thread.message.id);
-    }
 
     if (options.length > 0) {
-      const preacher = await sendDropdownMessage(thread.id, '설교자를 선택하세요', 'preacher-select', '설교자 선택', options);
-      const leader = await sendDropdownMessage(thread.id, '인도자를 선택하세요', 'leader-select', '인도자 선택', options);
-      const worshipLeader = await sendDropdownMessage(
-        thread.id,
-        '찬양 인도자를 선택하세요',
-        'worship-leader-select',
-        '찬양 인도자 선택',
-        options
-      );
-
-      messageIds.push(preacher.id, leader.id, worshipLeader.id);
-    }
-
-    if (!dryRun) {
-      for (const messageId of messageIds) {
-        await markMessageProcessed(thread.id, messageId, '', 'system');
-      }
+      await sendDropdownMessage(thread.id, '설교자를 선택하세요', 'preacher-select', '설교자 선택', options);
+      await sendDropdownMessage(thread.id, '인도자를 선택하세요', 'leader-select', '인도자 선택', options);
+      await sendDropdownMessage(thread.id, '찬양 인도자를 선택하세요', 'worship-leader-select', '찬양 인도자 선택', options);
     }
 
     return NextResponse.json({

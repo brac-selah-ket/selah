@@ -25,7 +25,7 @@ export function Drawer({
   footer,
   children,
 }: DrawerProps) {
-  const { portalRef, setIsOpen } = useDrawerPortal();
+  const { portalNode, setIsOpen } = useDrawerPortal();
   const [mounted, setMounted] = useState(false);
 
   // Sync open state with layout context
@@ -41,12 +41,15 @@ export function Drawer({
   // Keep content mounted during close animation
   useEffect(() => {
     if (open) {
-      setMounted(true);
-    } else {
+      const timer = setTimeout(() => setMounted(true), 0);
+      return () => clearTimeout(timer);
+    }
+
+    if (mounted) {
       const timer = setTimeout(() => setMounted(false), 300);
       return () => clearTimeout(timer);
     }
-  }, [open]);
+  }, [mounted, open]);
 
   const handleClose = useCallback(() => {
     if (onBeforeClose && !onBeforeClose()) {
@@ -69,7 +72,7 @@ export function Drawer({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, handleClose]);
 
-  if (!mounted || !portalRef.current) return null;
+  if ((!open && !mounted) || !portalNode) return null;
 
   const drawerContent = (
     <div className="flex h-full min-w-0 md:min-w-[40%] flex-col">
@@ -117,7 +120,7 @@ export function Drawer({
       />
 
       {/* Portal content into AppShell aside */}
-      {createPortal(drawerContent, portalRef.current)}
+      {createPortal(drawerContent, portalNode)}
     </>
   );
 }
