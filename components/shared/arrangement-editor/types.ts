@@ -9,6 +9,7 @@ export interface ArrangementDraft {
   lyrics: string[]
   sectionLyricsMap: Record<number, number[]>
   notes: string | null
+  // null = all available sheet music, [] = none selected
   sheetMusicFileIds: string[] | null
   pdfMetadata: PresetPdfMetadata | null
   youtubeReference: string | null

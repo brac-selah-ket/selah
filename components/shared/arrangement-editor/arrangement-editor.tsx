@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Drawer } from "@/components/ui/drawer"
 import { Button } from "@/components/ui/button"
@@ -41,6 +41,25 @@ function cloneDraft(draft: ArrangementDraft): ArrangementDraft {
   }
 }
 
+function prepareDraftForSave(draft: ArrangementDraft): ArrangementDraft | null {
+  const draftToSave = cloneDraft(draft)
+  draftToSave.name = draftToSave.name.trim()
+
+  const youtubeInput = draftToSave.youtubeReference?.trim()
+  if (youtubeInput) {
+    const normalized = normalizeYouTubeReference(youtubeInput)
+    if (!normalized) {
+      toast.error("올바른 YouTube 링크 또는 영상 ID를 입력해주세요")
+      return null
+    }
+    draftToSave.youtubeReference = normalized.videoId
+  } else {
+    draftToSave.youtubeReference = null
+  }
+
+  return draftToSave
+}
+
 export function ArrangementEditor({
   mode,
   title,
@@ -60,10 +79,13 @@ export function ArrangementEditor({
 }: ArrangementEditorProps) {
   const [draft, setDraft] = useState<ArrangementDraft>(() => cloneDraft(initialDraft))
   const [isSaving, setIsSaving] = useState(false)
+  const [isPresetSaving, setIsPresetSaving] = useState(false)
   const [presetName, setPresetName] = useState("")
   const [selectedPresetId, setSelectedPresetId] = useState("")
   const [pdfEditorOpen, setPdfEditorOpen] = useState(false)
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
+  const [editorKey, setEditorKey] = useState(0)
+  const wasOpenRef = useRef(false)
   const { isDirty, markDirty, reset: resetDirty } = useUnsavedChanges(initialDraft)
 
   const allSheetMusicIds = useMemo(
@@ -83,15 +105,18 @@ export function ArrangementEditor({
   }, [availableSheetMusic, draft.sheetMusicFileIds])
 
   useEffect(() => {
-    if (!open) return
+    if (open && !wasOpenRef.current) {
+      const nextDraft = cloneDraft(initialDraft)
+      setDraft(nextDraft)
+      setPresetName("")
+      setSelectedPresetId("")
+      setPdfEditorOpen(false)
+      setShowUnsavedDialog(false)
+      setEditorKey((key) => key + 1)
+      resetDirty(nextDraft)
+    }
 
-    const nextDraft = cloneDraft(initialDraft)
-    setDraft(nextDraft)
-    setPresetName("")
-    setSelectedPresetId("")
-    setPdfEditorOpen(false)
-    setShowUnsavedDialog(false)
-    resetDirty(nextDraft)
+    wasOpenRef.current = open
   }, [open, initialDraft, resetDirty])
 
   function updateDraft(patch: Partial<ArrangementDraft>) {
@@ -114,20 +139,8 @@ export function ArrangementEditor({
       return
     }
 
-    const draftToSave = cloneDraft(draft)
-    draftToSave.name = draftToSave.name.trim()
-
-    const youtubeInput = draftToSave.youtubeReference?.trim()
-    if (youtubeInput) {
-      const normalized = normalizeYouTubeReference(youtubeInput)
-      if (!normalized) {
-        toast.error("올바른 YouTube 링크 또는 영상 ID를 입력해주세요")
-        return
-      }
-      draftToSave.youtubeReference = normalized.videoId
-    } else {
-      draftToSave.youtubeReference = null
-    }
+    const draftToSave = prepareDraftForSave(draft)
+    if (!draftToSave) return
 
     setIsSaving(true)
     try {
@@ -158,6 +171,7 @@ export function ArrangementEditor({
     try {
       const loadedDraft = cloneDraft(await onLoadPreset(preset))
       setDraft(loadedDraft)
+      setEditorKey((key) => key + 1)
       markDirty()
       toast.success(`"${preset.name}" 프리셋을 불러왔습니다`)
     } catch {
@@ -173,14 +187,24 @@ export function ArrangementEditor({
     }
     if (!onSaveAsPreset) return
 
-    const result = await onSaveAsPreset(draft, trimmedName, selectedPresetId || undefined)
-    if (result.success) {
-      toast.success(selectedPresetId ? "프리셋이 업데이트되었습니다" : "새 프리셋이 저장되었습니다")
-      setPresetName("")
-      setSelectedPresetId("")
-      await onRefreshPresetOptions?.()
-    } else {
-      toast.error(result.error ?? "프리셋 저장 중 오류가 발생했습니다")
+    const draftToSave = prepareDraftForSave(draft)
+    if (!draftToSave) return
+
+    setIsPresetSaving(true)
+    try {
+      const result = await onSaveAsPreset(draftToSave, trimmedName, selectedPresetId || undefined)
+      if (result.success) {
+        toast.success(selectedPresetId ? "프리셋이 업데이트되었습니다" : "새 프리셋이 저장되었습니다")
+        setPresetName("")
+        setSelectedPresetId("")
+        await onRefreshPresetOptions?.()
+      } else {
+        toast.error(result.error ?? "프리셋 저장 중 오류가 발생했습니다")
+      }
+    } catch {
+      toast.error("프리셋 저장 중 오류가 발생했습니다")
+    } finally {
+      setIsPresetSaving(false)
     }
   }
 
@@ -320,6 +344,7 @@ export function ArrangementEditor({
           </div>
 
           <OverrideEditorFields
+            key={editorKey}
             keys={draft.keys}
             tempos={draft.tempos}
             sectionOrder={draft.sectionOrder}
@@ -348,6 +373,7 @@ export function ArrangementEditor({
                   variant="outline"
                   size="sm"
                   onClick={() => setPdfEditorOpen(true)}
+                  disabled={selectedSheetMusic.length === 0}
                 >
                   PDF 편집
                 </Button>
@@ -408,17 +434,24 @@ export function ArrangementEditor({
                 </div>
               )}
               <div className="flex flex-col gap-2 sm:flex-row">
-                <Input
-                  value={presetName}
-                  onChange={(event) => setPresetName(event.target.value)}
-                  placeholder="프리셋 이름"
-                />
+                <div className="flex-1 space-y-1">
+                  <label htmlFor="arrangement-save-preset-name" className="text-sm text-muted-foreground">
+                    프리셋 이름
+                  </label>
+                  <Input
+                    id="arrangement-save-preset-name"
+                    value={presetName}
+                    onChange={(event) => setPresetName(event.target.value)}
+                    placeholder="프리셋 이름"
+                  />
+                </div>
                 <Button
                   type="button"
                   onClick={handleSaveAsPreset}
-                  className="sm:w-32"
+                  disabled={isPresetSaving}
+                  className="sm:mt-6 sm:w-32"
                 >
-                  {selectedPresetId ? "업데이트" : "저장"}
+                  {isPresetSaving ? "저장 중..." : selectedPresetId ? "업데이트" : "저장"}
                 </Button>
               </div>
             </div>
