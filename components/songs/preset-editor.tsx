@@ -35,7 +35,7 @@ function presetToDraft(preset: SongPresetWithSheetMusic | undefined): Arrangemen
     lyrics: parseJsonField<string[]>(preset?.lyrics ?? null, []),
     sectionLyricsMap: parseJsonField<Record<number, number[]>>(preset?.sectionLyricsMap ?? null, {}),
     notes: preset?.notes ?? null,
-    sheetMusicFileIds: preset?.sheetMusicFileIds ?? [],
+    sheetMusicFileIds: preset?.sheetMusicFileIds?.length ? preset.sheetMusicFileIds : null,
     pdfMetadata: parseJsonField(preset?.pdfMetadata ?? null, null),
     youtubeReference: preset?.youtubeReference ?? null,
     isDefault: preset?.isDefault ?? false,
@@ -55,9 +55,11 @@ function draftToPresetData(draft: ArrangementDraft): SongPresetData {
     sectionOrder: draft.sectionOrder,
     lyrics: draft.lyrics,
     sectionLyricsMap: draft.sectionLyricsMap,
-    notes: draft.notes,
+    notes: draft.notes?.trim() || null,
     isDefault: draft.isDefault,
+    // ArrangementEditor validates this before save, so this preserves the normalized video ID.
     youtubeReference: normalized?.videoId ?? null,
+    // Preset actions/DB use [] (no association rows) to mean all sheet music.
     sheetMusicFileIds: draft.sheetMusicFileIds ?? [],
     pdfMetadata: draft.pdfMetadata,
   }
