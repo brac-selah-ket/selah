@@ -107,7 +107,7 @@ export function Sidebar() {
 
       {/* Mobile: Sheet sidebar */}
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetContent>
+        <SheetContent className="border-sidebar-border bg-sidebar text-sidebar-foreground">
           <SidebarContent />
         </SheetContent>
       </Sheet>

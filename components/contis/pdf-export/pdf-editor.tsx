@@ -108,7 +108,7 @@ export function PdfEditor({ conti, existingExport }: PdfEditorProps) {
       <div className="flex items-start gap-2">
         <Link
           href={`/contis/${conti.id}`}
-          className="text-muted-foreground hover:text-foreground transition-colors"
+          className="text-sidebar-foreground/68 transition-colors hover:text-sidebar-foreground"
         >
           <HugeiconsIcon
             icon={ArrowLeft01Icon}
@@ -117,8 +117,8 @@ export function PdfEditor({ conti, existingExport }: PdfEditorProps) {
           />
         </Link>
         <div className="min-w-0">
-          <h2 className="text-lg font-bold truncate">PDF 내보내기</h2>
-          <p className="text-sm text-muted-foreground truncate">
+          <h2 className="truncate text-lg font-bold text-sidebar-foreground">PDF 내보내기</h2>
+          <p className="truncate text-sm text-sidebar-foreground/65">
             {conti.title || formatDate(conti.date)}
           </p>
         </div>
