@@ -9,6 +9,7 @@ import { z } from 'zod';
 import type { ActionResult, SongPreset, SongPresetData, SongPresetWithSheetMusic } from '@/lib/types';
 import { getSongPresets, getSongPresetsWithSheetMusic } from '@/lib/queries/songs';
 import { resolveYouTubeReferenceMetadata } from '@/lib/actions/youtube-metadata';
+import { normalizeYouTubeReference } from '@/lib/utils/youtube';
 
 const presetSchema = z.object({
   name: z.string().min(1, '프리셋 이름을 입력해주세요'),
@@ -117,17 +118,18 @@ export async function updateSongPreset(presetId: string, data: Partial<SongPrese
     if (data.isDefault !== undefined) updateData.isDefault = data.isDefault;
     if (data.youtubeReference !== undefined) {
       updateData.youtubeReference = resolvedYoutube?.videoId ?? null;
+      const existingYoutube = normalizeYouTubeReference(existing[0].youtubeReference);
       const shouldPreserveExistingYoutubeTitle =
         resolvedYoutube?.videoId &&
         !resolvedYoutube.title &&
         !data.youtubeTitle?.trim() &&
-        existing[0].youtubeReference === resolvedYoutube.videoId &&
+        existingYoutube?.videoId === resolvedYoutube.videoId &&
         !!existing[0].youtubeTitle?.trim();
       updateData.youtubeTitle = shouldPreserveExistingYoutubeTitle
         ? existing[0].youtubeTitle
         : resolvedYoutube?.title ?? null;
     } else if (data.youtubeTitle !== undefined && existing[0].youtubeReference) {
-      updateData.youtubeTitle = data.youtubeTitle;
+      updateData.youtubeTitle = data.youtubeTitle.trim() || null;
     }
     if (data.pdfMetadata !== undefined) updateData.pdfMetadata = data.pdfMetadata ? JSON.stringify(data.pdfMetadata) : null;
 

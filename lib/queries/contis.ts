@@ -89,25 +89,36 @@ export async function getConti(id: string): Promise<ContiWithSongs | null> {
   }
 
   const contiSongsData = await db
-    .select()
+    .select({
+      contiSong: contiSongs,
+      song: songs,
+      preset: {
+        id: songPresets.id,
+        name: songPresets.name,
+        youtubeReference: songPresets.youtubeReference,
+        youtubeTitle: songPresets.youtubeTitle,
+      },
+    })
     .from(contiSongs)
     .leftJoin(songs, eq(contiSongs.songId, songs.id))
+    .leftJoin(songPresets, eq(contiSongs.presetId, songPresets.id))
     .where(eq(contiSongs.contiId, id))
     .orderBy(contiSongs.sortOrder);
 
   const songsWithOverrides = contiSongsData.map((row) => ({
-    ...row.conti_songs,
-    song: row.songs!,
+    ...row.contiSong,
+    song: row.song!,
     overrides: parseContiSongOverrides({
-      keys: row.conti_songs.keys,
-      tempos: row.conti_songs.tempos,
-      sectionOrder: row.conti_songs.sectionOrder,
-      lyrics: row.conti_songs.lyrics,
-      sectionLyricsMap: row.conti_songs.sectionLyricsMap,
-      notes: row.conti_songs.notes,
-      sheetMusicFileIds: row.conti_songs.sheetMusicFileIds,
-      presetId: row.conti_songs.presetId,
+      keys: row.contiSong.keys,
+      tempos: row.contiSong.tempos,
+      sectionOrder: row.contiSong.sectionOrder,
+      lyrics: row.contiSong.lyrics,
+      sectionLyricsMap: row.contiSong.sectionLyricsMap,
+      notes: row.contiSong.notes,
+      sheetMusicFileIds: row.contiSong.sheetMusicFileIds,
+      presetId: row.contiSong.presetId,
     }),
+    appliedPreset: row.preset?.id ? row.preset : null,
   }));
 
   return {
