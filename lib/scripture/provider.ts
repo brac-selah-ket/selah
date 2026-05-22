@@ -83,12 +83,14 @@ async function fetchChapterHtml(book: ScriptureBook, chapter: number): Promise<s
 }
 
 function chaptersInReference(reference: ScriptureReference): number[] {
-  const chapters: number[] = [];
-  for (let chapter = reference.start.chapter; chapter <= reference.end.chapter; chapter += 1) {
-    chapters.push(chapter);
-  }
-  if (chapters.length > MAX_REFERENCE_CHAPTERS) {
+  const chapterCount = reference.end.chapter - reference.start.chapter + 1;
+  if (chapterCount > MAX_REFERENCE_CHAPTERS) {
     throw new Error(`성경 본문 범위는 최대 ${MAX_REFERENCE_CHAPTERS}장까지만 조회할 수 있습니다.`);
+  }
+
+  const chapters: number[] = [];
+  for (let offset = 0; offset < chapterCount; offset += 1) {
+    chapters.push(reference.start.chapter + offset);
   }
   return chapters;
 }
@@ -110,6 +112,28 @@ function expectedEndVerse(
   return selectedVerses[selectedVerses.length - 1]?.verse ?? expectedStartVerse(reference, chapter);
 }
 
+function validateParsedChapterVerses(
+  reference: ScriptureReference,
+  chapter: number,
+  chapterVerses: ScriptureVerse[],
+): void {
+  const verseNumbers = Array.from(
+    new Set(
+      chapterVerses
+        .filter((verse) => verse.chapter === chapter)
+        .map((verse) => verse.verse),
+    ),
+  ).sort((a, b) => a - b);
+
+  for (let index = 1; index < verseNumbers.length; index += 1) {
+    const previous = verseNumbers[index - 1];
+    const current = verseNumbers[index];
+    for (let verse = previous + 1; verse < current; verse += 1) {
+      throw missingVerseError(reference, chapter, verse);
+    }
+  }
+}
+
 export function selectReferenceVerses(
   reference: ScriptureReference,
   versesByChapter: Map<number, ScriptureVerse[]>,
@@ -117,7 +141,10 @@ export function selectReferenceVerses(
   const allVerses: ScriptureVerse[] = [];
 
   for (const chapter of chaptersInReference(reference)) {
-    const selectedVerses = (versesByChapter.get(chapter) ?? [])
+    const chapterVerses = versesByChapter.get(chapter) ?? [];
+    validateParsedChapterVerses(reference, chapter, chapterVerses);
+
+    const selectedVerses = chapterVerses
       .filter((verse) => {
         if (verse.chapter === reference.start.chapter && verse.verse < reference.start.verse) return false;
         if (verse.chapter === reference.end.chapter && verse.verse > reference.end.verse) return false;
