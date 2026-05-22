@@ -205,12 +205,9 @@ export function ContiSongEditor({
         )
 
         if (normalized && existingPresetId && presetResult.success) {
-          const youtubeResult = await updateSongPreset(existingPresetId, {
+          await updateSongPreset(existingPresetId, {
             youtubeReference: normalized.videoId,
           })
-          if (!youtubeResult.success) {
-            return { success: false, error: youtubeResult.error }
-          }
         }
 
         if (presetResult.success) {
