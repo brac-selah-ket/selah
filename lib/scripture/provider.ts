@@ -29,7 +29,7 @@ export function parseBskoreaChapterHtml(
     verseNode.find(BSKOREA_NOTE_SELECTOR).remove();
 
     const text = verseNode.text().replace(/\u00a0/g, ' ').trim();
-    const match = text.match(/^(\d+)\s+(.+)$/s);
+    const match = text.match(/^(\d+)\s+([\s\S]+)$/);
     if (!match) return;
 
     const verse = Number.parseInt(match[1], 10);
