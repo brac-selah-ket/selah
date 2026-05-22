@@ -2,7 +2,7 @@
 
 import { ArrangementEditor, type ArrangementDraft } from "@/components/shared/arrangement-editor"
 import { createSongPreset, updateSongPreset } from "@/lib/actions/song-presets"
-import { normalizeYouTubeReference } from "@/lib/utils/youtube"
+import { normalizeYouTubeReference, toYouTubeInputValue } from "@/lib/utils/youtube"
 import type {
   SheetMusicFile,
   SongPresetData,
@@ -37,7 +37,7 @@ function presetToDraft(preset: SongPresetWithSheetMusic | undefined): Arrangemen
     notes: preset?.notes ?? null,
     sheetMusicFileIds: preset?.sheetMusicFileIds?.length ? preset.sheetMusicFileIds : null,
     pdfMetadata: parseJsonField(preset?.pdfMetadata ?? null, null),
-    youtubeReference: preset?.youtubeReference ?? null,
+    youtubeReference: toYouTubeInputValue(preset?.youtubeReference),
     youtubeTitle: preset?.youtubeTitle ?? null,
     isDefault: preset?.isDefault ?? false,
     appliedPresetId: preset?.id ?? null,
@@ -60,7 +60,7 @@ function draftToPresetData(draft: ArrangementDraft): SongPresetData {
     isDefault: draft.isDefault,
     // ArrangementEditor validates this before save, so this preserves the normalized video ID.
     youtubeReference: normalized?.videoId ?? null,
-    youtubeTitle: draft.youtubeTitle,
+    youtubeTitle: normalized ? draft.youtubeTitle : null,
     // Preset actions/DB use [] (no association rows) to mean all sheet music.
     sheetMusicFileIds: draft.sheetMusicFileIds ?? [],
     pdfMetadata: draft.pdfMetadata,
