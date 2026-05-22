@@ -351,7 +351,7 @@ export function WorshipPptxExportButton({
             <div className="flex flex-col gap-4 overflow-y-auto min-h-0">
               <div className="rounded-lg border bg-muted/50 p-3">
                 <p className="text-sm text-muted-foreground">선택한 파일</p>
-                <p className="text-sm font-medium">{selectedFile?.name}</p>
+                <p className="truncate text-sm font-medium">{selectedFile?.name}</p>
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -424,12 +424,12 @@ export function WorshipPptxExportButton({
               <div className="rounded-lg border bg-muted/50 p-3 space-y-2">
                 <div>
                   <p className="text-sm text-muted-foreground">선택한 파일</p>
-                  <p className="text-sm font-medium">{selectedFile.name}</p>
+                  <p className="truncate text-sm font-medium">{selectedFile.name}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">예배 데이터</p>
-                  <p className="text-sm font-medium">{scriptureReference.trim()}</p>
-                  <p className="text-xs text-muted-foreground">{selectedContiLabel}</p>
+                  <p className="break-words text-sm font-medium">{scriptureReference.trim()}</p>
+                  <p className="break-words text-xs text-muted-foreground">{selectedContiLabel}</p>
                 </div>
               </div>
 
@@ -491,30 +491,30 @@ export function WorshipPptxExportButton({
             <div className="flex flex-col gap-4 overflow-y-auto min-h-0">
               <div className="rounded-lg border bg-muted/50 p-3 space-y-2">
                 <div className="flex justify-between gap-3 text-sm">
-                  <span className="text-muted-foreground">파일</span>
-                  <span className="font-medium text-right">{selectedFile.name}</span>
+                  <span className="shrink-0 text-muted-foreground">파일</span>
+                  <span className="min-w-0 break-words text-right font-medium">{selectedFile.name}</span>
                 </div>
                 <div className="flex justify-between gap-3 text-sm">
-                  <span className="text-muted-foreground">방식</span>
-                  <span className="font-medium text-right">
+                  <span className="shrink-0 text-muted-foreground">방식</span>
+                  <span className="min-w-0 break-words text-right font-medium">
                     {overwrite ? "덮어쓰기" : `새 파일: ${outputFileName}`}
                   </span>
                 </div>
                 <div className="flex justify-between gap-3 text-sm">
-                  <span className="text-muted-foreground">말씀</span>
-                  <span className="font-medium text-right">{scripturePreview.reference}</span>
+                  <span className="shrink-0 text-muted-foreground">말씀</span>
+                  <span className="min-w-0 break-words text-right font-medium">{scripturePreview.reference}</span>
                 </div>
                 <div className="flex justify-between gap-3 text-sm">
-                  <span className="text-muted-foreground">말씀 슬라이드</span>
+                  <span className="shrink-0 text-muted-foreground">말씀 슬라이드</span>
                   <span className="font-medium">{scripturePreview.slideCount}장</span>
                 </div>
                 <div className="flex justify-between gap-3 text-sm">
-                  <span className="text-muted-foreground">절/슬라이드</span>
+                  <span className="shrink-0 text-muted-foreground">절/슬라이드</span>
                   <span className="font-medium">{versesPerSlide}</span>
                 </div>
                 <div className="flex justify-between gap-3 text-sm">
-                  <span className="text-muted-foreground">콘티</span>
-                  <span className="font-medium text-right">{selectedContiLabel}</span>
+                  <span className="shrink-0 text-muted-foreground">콘티</span>
+                  <span className="min-w-0 break-words text-right font-medium">{selectedContiLabel}</span>
                 </div>
               </div>
 
@@ -523,7 +523,7 @@ export function WorshipPptxExportButton({
                 <div className="space-y-1">
                   {songData.map((song) => (
                     <div key={song.section_name} className="flex justify-between gap-3 text-sm">
-                      <span>
+                      <span className="min-w-0 break-words">
                         <span className="text-muted-foreground">{song.section_name}:</span>{" "}
                         {song.title}
                       </span>
