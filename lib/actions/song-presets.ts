@@ -129,7 +129,7 @@ export async function updateSongPreset(presetId: string, data: Partial<SongPrese
         ? existing[0].youtubeTitle
         : resolvedYoutube?.title ?? null;
     } else if (data.youtubeTitle !== undefined && existing[0].youtubeReference) {
-      updateData.youtubeTitle = data.youtubeTitle.trim() || null;
+      updateData.youtubeTitle = data.youtubeTitle?.trim() || null;
     }
     if (data.pdfMetadata !== undefined) updateData.pdfMetadata = data.pdfMetadata ? JSON.stringify(data.pdfMetadata) : null;
 

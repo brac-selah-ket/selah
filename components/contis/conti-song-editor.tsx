@@ -193,18 +193,9 @@ export function ContiSongEditor({
         const normalized = draft.youtubeReference
           ? normalizeYouTubeReference(draft.youtubeReference)
           : null
-        const matchingPreset = existingPresetId
-          ? presets.find((preset) => preset.id === existingPresetId)
-          : null
-        const shouldClearYoutubeReference =
-          !normalized &&
-          !!existingPresetId &&
-          draft.appliedPresetId === existingPresetId &&
-          !!matchingPreset?.youtubeReference?.trim() &&
-          !draft.youtubeReference?.trim()
         const youtubeOptions = normalized
           ? { youtubeReference: normalized.videoId, youtubeTitle: draft.youtubeTitle ?? null }
-          : shouldClearYoutubeReference
+          : existingPresetId
             ? { youtubeReference: null, youtubeTitle: null }
             : undefined
         const updateResult = await updateContiSong(

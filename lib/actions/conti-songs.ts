@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db';
 import { contiSongs, contiPdfExports, songPresets } from '@/lib/db/schema';
-import { eq, max, and, asc } from 'drizzle-orm';
+import { eq, max, asc } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { stringifyContiSongOverrides, parseContiSongOverrides } from '@/lib/db/helpers';
 import type {
