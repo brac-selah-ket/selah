@@ -359,7 +359,7 @@ export function ArrangementEditor({
             onNotesChange={(notes) => updateDraft({ notes })}
           />
 
-          {availableSheetMusic.length > 0 && (
+          {(availableSheetMusic.length > 0 || sheetMusicManagementSlot) && (
             <div className="space-y-4 border-t pt-8">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -381,12 +381,14 @@ export function ArrangementEditor({
 
               {sheetMusicManagementSlot}
 
-              <SheetMusicSelector
-                songId={songId}
-                selectedFileIds={selectorFileIds}
-                onSelectionChange={(ids) => updateDraft({ sheetMusicFileIds: ids })}
-                availableFiles={availableSheetMusic}
-              />
+              {availableSheetMusic.length > 0 && (
+                <SheetMusicSelector
+                  songId={songId}
+                  selectedFileIds={selectorFileIds}
+                  onSelectionChange={(ids) => updateDraft({ sheetMusicFileIds: ids })}
+                  availableFiles={availableSheetMusic}
+                />
+              )}
             </div>
           )}
 
