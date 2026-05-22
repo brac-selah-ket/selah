@@ -580,6 +580,72 @@ def set_morph_transition(slide, duration_ms=1000):
     sld.append(etree.fromstring(transition_xml))
 
 
+def normalize_reference_text(reference):
+    """Normalize reference whitespace for title slide injection."""
+    return ' '.join(str(reference or '').split())
+
+
+def process_scripture_section(prs, scripture, section, slide_id_map):
+    """Process scripture: inject reference, clone body base per page, update section."""
+    slide_ids = section['slide_ids']
+
+    if len(slide_ids) < 2:
+        raise ValueError(
+            f"Section '{section['name']}' needs at least 2 slides (title + base), "
+            f"but has {len(slide_ids)}"
+        )
+
+    title_slide_id = slide_ids[0]
+    body_base_slide_id = slide_ids[1]
+
+    title_slide = slide_id_map[title_slide_id]['slide']
+    title_shape = get_first_textbox(title_slide)
+    if title_shape:
+        inject_text_into_shape(
+            title_shape,
+            normalize_reference_text(scripture.get('reference', ''))
+        )
+
+    body_base_slide = slide_id_map[body_base_slide_id]['slide']
+
+    for sid in slide_ids[2:]:
+        delete_slide_by_id(prs, sid)
+
+    generated_slide_ids = []
+    last_slide_id = body_base_slide_id
+    pages = scripture.get('pages', [])
+
+    for page_idx, page in enumerate(pages, 1):
+        new_slide, new_sid, new_el = duplicate_slide(prs, body_base_slide)
+        textbox = get_first_textbox(new_slide)
+        if textbox:
+            inject_text_into_shape(textbox, page.get('text', ''))
+        move_slide_id_after(prs, new_sid, last_slide_id)
+        generated_slide_ids.append(new_sid)
+        last_slide_id = new_sid
+
+        note_title = page.get('title') or f"{section['name']}-{page_idx}"
+        set_slide_notes(new_slide, note_title)
+
+    delete_slide_by_id(prs, body_base_slide_id)
+
+    section_el = section['element']
+    ns_fn = section.get('ns_fn', _pn)
+    sld_id_lst = section_el.find(ns_fn('sldIdLst'))
+
+    for child in list(sld_id_lst):
+        sld_id_lst.remove(child)
+
+    title_entry = etree.SubElement(sld_id_lst, ns_fn('sldId'))
+    title_entry.set('id', str(title_slide_id))
+
+    for gen_sid in generated_slide_ids:
+        entry = etree.SubElement(sld_id_lst, ns_fn('sldId'))
+        entry.set('id', str(gen_sid))
+
+    return len(generated_slide_ids)
+
+
 def process_song_section(prs, song, section, slide_id_map, shared_base_slide_id):
     """Process a single song: inject title, clone base slide for lyrics, update section."""
     slide_ids = section['slide_ids']
@@ -686,35 +752,14 @@ def process_song_section(prs, song, section, slide_id_map, shared_base_slide_id)
     return len(generated_slide_ids)
 
 
-def process_all_songs(prs, songs):
+def process_all_songs(prs, songs, sections=None, slide_id_map=None):
     """Process all songs in the presentation."""
-    sections = parse_sections(prs)
-    slide_id_map = get_slide_id_map(prs)
+    if sections is None:
+        sections = parse_sections(prs)
+    if slide_id_map is None:
+        slide_id_map = get_slide_id_map(prs)
 
-    # Find shared base slide: try each section's slide_ids[1] until one has text
-    shared_base_slide_id = None
-    for section in sections:
-        if len(section['slide_ids']) >= 2:
-            candidate_id = section['slide_ids'][1]
-            candidate_slide = slide_id_map[candidate_id]['slide']
-            textbox = get_first_textbox(candidate_slide)
-            if textbox is not None and textbox.text_frame.text.strip():
-                shared_base_slide_id = candidate_id
-                break
-
-    # If no section had a text-bearing base, fall back to first section's slide_ids[1]
-    if shared_base_slide_id is None:
-        for section in sections:
-            if len(section['slide_ids']) >= 2:
-                shared_base_slide_id = section['slide_ids'][1]
-                break
-
-    if shared_base_slide_id is None:
-        raise ValueError("No section has a base slide (slide_ids[1]) to use as shared base")
-
-    total_slides = 0
-    songs_processed = 0
-
+    song_sections = []
     for song in songs:
         section_name = song.get('section_name', '')
         if not section_name:
@@ -727,7 +772,33 @@ def process_all_songs(prs, songs):
                 f"Section '{section_name}' not found in template. "
                 f"Available sections: {available}"
             )
+        song_sections.append((song, section))
 
+    # Find shared base slide from song sections only, so scripture bases cannot be selected.
+    shared_base_slide_id = None
+    for _, section in song_sections:
+        if len(section['slide_ids']) >= 2:
+            candidate_id = section['slide_ids'][1]
+            candidate_slide = slide_id_map[candidate_id]['slide']
+            textbox = get_first_textbox(candidate_slide)
+            if textbox is not None and textbox.text_frame.text.strip():
+                shared_base_slide_id = candidate_id
+                break
+
+    # If no song section had a text-bearing base, fall back to first song section's slide_ids[1]
+    if shared_base_slide_id is None:
+        for _, section in song_sections:
+            if len(section['slide_ids']) >= 2:
+                shared_base_slide_id = section['slide_ids'][1]
+                break
+
+    if shared_base_slide_id is None:
+        raise ValueError("No section has a base slide (slide_ids[1]) to use as shared base")
+
+    total_slides = 0
+    songs_processed = 0
+
+    for song, section in song_sections:
         slides = process_song_section(prs, song, section, slide_id_map, shared_base_slide_id)
         total_slides += slides
         songs_processed += 1
@@ -741,6 +812,39 @@ def process_all_songs(prs, songs):
         'songs_processed': songs_processed,
         'slides_generated': total_slides,
     }
+
+
+def has_scripture_payload(scripture):
+    """Return True when an optional scripture payload should be processed."""
+    return isinstance(scripture, dict) and bool(scripture.get('pages'))
+
+
+def process_export(prs, songs, scripture=None):
+    """Process optional scripture before existing song export."""
+    sections = parse_sections(prs)
+    slide_id_map = get_slide_id_map(prs)
+    result = {}
+
+    if has_scripture_payload(scripture):
+        section_name = scripture.get('section_name', '')
+        if not section_name:
+            raise ValueError("Scripture payload has no section_name")
+
+        section = find_section_by_name(sections, section_name)
+        if section is None:
+            available = [s['name'] for s in sections]
+            raise ValueError(
+                f"Section '{section_name}' not found in template. "
+                f"Available sections: {available}"
+            )
+
+        scripture_slides = process_scripture_section(prs, scripture, section, slide_id_map)
+        result['scripture_processed'] = True
+        result['scripture_slides_generated'] = scripture_slides
+        slide_id_map = get_slide_id_map(prs)
+
+    result.update(process_all_songs(prs, songs, sections, slide_id_map))
+    return result
 
 
 def inspect_template(pptx_path):
@@ -851,36 +955,46 @@ class handler(BaseHTTPRequestHandler):
             download_file_by_id(service, file_id, template_path)
 
             prs = Presentation(template_path)
-            result_stats = process_all_songs(prs, songs)
+            result_stats = process_export(prs, songs, body.get('scripture'))
             prs.save(output_path)
             cleanup_orphaned_parts(output_path)
 
             if overwrite:
                 result = overwrite_drive_file(service, file_id, output_path)
+                response_data = {
+                    "file_id": result['id'],
+                    "file_name": result['name'],
+                    "web_view_link": result.get('webViewLink', ''),
+                    "songs_processed": result_stats['songs_processed'],
+                    "slides_generated": result_stats['slides_generated'],
+                }
+                if 'scripture_processed' in result_stats:
+                    response_data["scripture_processed"] = result_stats['scripture_processed']
+                    response_data["scripture_slides_generated"] = result_stats['scripture_slides_generated']
+
                 self.send_json(200, {
                     "success": True,
-                    "data": {
-                        "file_id": result['id'],
-                        "file_name": result['name'],
-                        "web_view_link": result.get('webViewLink', ''),
-                        "songs_processed": result_stats['songs_processed'],
-                        "slides_generated": result_stats['slides_generated'],
-                    }
+                    "data": response_data
                 })
             else:
                 # Upload to Vercel Blob and return JSON with download URL
                 try:
                     download_url = upload_to_blob(output_path, output_file_name)
+                    response_data = {
+                        "file_id": "",
+                        "file_name": output_file_name,
+                        "web_view_link": "",
+                        "download_url": download_url,
+                        "songs_processed": result_stats['songs_processed'],
+                        "slides_generated": result_stats['slides_generated'],
+                    }
+                    if 'scripture_processed' in result_stats:
+                        response_data["scripture_processed"] = result_stats['scripture_processed']
+                        response_data["scripture_slides_generated"] = result_stats['scripture_slides_generated']
+
                     self.send_json(200, {
                         "success": True,
-                        "data": {
-                            "file_id": "",
-                            "file_name": output_file_name,
-                            "web_view_link": "",
-                            "download_url": download_url,
-                            "songs_processed": result_stats['songs_processed'],
-                            "slides_generated": result_stats['slides_generated'],
-                        }
+                        "data": response_data
                     })
                 except ValueError as e:
                     # BLOB_READ_WRITE_TOKEN not set
