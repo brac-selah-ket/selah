@@ -15,7 +15,7 @@ import {
   getPresetsForSong,
 } from "@/lib/actions/song-presets"
 import { getSheetMusicForSong } from "@/lib/actions/sheet-music"
-import { normalizeYouTubeReference } from "@/lib/utils/youtube"
+import { normalizeYouTubeReference, toYouTubeInputValue } from "@/lib/utils/youtube"
 import type {
   ContiSongWithSong,
   SheetMusicFile,
@@ -48,7 +48,7 @@ function contiSongToDraft(contiSong: ContiSongWithSong): ArrangementDraft {
     notes: contiSong.overrides.notes,
     sheetMusicFileIds: contiSong.overrides.sheetMusicFileIds,
     pdfMetadata: null,
-    youtubeReference: null,
+    youtubeReference: toYouTubeInputValue(contiSong.appliedPreset?.youtubeReference),
     youtubeTitle: contiSong.appliedPreset?.youtubeTitle ?? null,
     isDefault: false,
     appliedPresetId: contiSong.overrides.presetId,
@@ -70,7 +70,7 @@ function presetToDraft(
     notes: preset.notes,
     sheetMusicFileIds: sheetMusicFileIds.length > 0 ? sheetMusicFileIds : null,
     pdfMetadata: parseJsonField(preset.pdfMetadata, null),
-    youtubeReference: preset.youtubeReference,
+    youtubeReference: toYouTubeInputValue(preset.youtubeReference),
     youtubeTitle: preset.youtubeTitle ?? null,
     isDefault: false,
     appliedPresetId: preset.id,
