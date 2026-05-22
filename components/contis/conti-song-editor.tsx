@@ -204,7 +204,7 @@ export function ContiSongEditor({
           contiSong.id,
           presetName,
           existingPresetId,
-          { youtubeReference: normalized?.videoId ?? null },
+          normalized ? { youtubeReference: normalized.videoId } : undefined,
         )
 
         if (presetResult.success) {
