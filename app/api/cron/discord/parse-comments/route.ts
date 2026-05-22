@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addMessageReaction, getActiveThread, getProcessedMessageIds, getThreadMessages, markMessageProcessed } from '@/lib/discord-sync';
+import { addMessageReaction, getActiveForumThreads, getThreadMessages } from '@/lib/discord-sync/discord-client';
 import { parseDiscordMessages } from '@/lib/discord-parser';
 import { correctSpelling } from '@/lib/discord-sync/spell-checker';
 import { findRowByDate, updateWorshipData } from '@/lib/discord-sync/google-sheets';
+import { hasProcessedReaction, selectTargetWorshipThread, toSheetDateFromYYMMDD } from '@/lib/discord-sync/cron-state';
 
 export const maxDuration = 60;
 const SHEET_NAME = 'DB';
@@ -19,42 +20,31 @@ function hasParsedData(data?: { preacher?: string; leader?: string; worshipLeade
   return Boolean(data.songs && data.songs.length > 0);
 }
 
-function toSheetDate(sundayDate: string): string {
-  return `20${sundayDate.slice(0, 2)}.${sundayDate.slice(2, 4)}.${sundayDate.slice(4, 6)}`;
-}
-
 export async function GET(request: NextRequest) {
   if (!isCronAuthorized(request)) {
     return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const activeThread = await getActiveThread();
+    const guildId = process.env.DISCORD_GUILD_ID;
+    const channelId = process.env.DISCORD_CHANNEL_ID;
+    if (!guildId || !channelId) {
+      throw new Error('DISCORD_GUILD_ID and DISCORD_CHANNEL_ID must be set');
+    }
+
+    const activeThread = selectTargetWorshipThread(await getActiveForumThreads(guildId, channelId));
     if (!activeThread) {
       return NextResponse.json({ success: true, message: 'No active thread found' });
     }
 
-    const messages = await getThreadMessages(activeThread.threadId);
-    const processedIds = new Set(await getProcessedMessageIds(activeThread.threadId));
-    const newMessages = messages.filter((message) => !processedIds.has(message.id) && message.id !== activeThread.threadId);
+    const messages = await getThreadMessages(activeThread.id);
+    const newMessages = messages.filter((message) => !message.author.bot && !hasProcessedReaction(message));
 
     if (newMessages.length === 0) {
       return NextResponse.json({
         success: true,
         message: 'No new messages',
       });
-    }
-
-    const formattedDate = toSheetDate(activeThread.sundayDate);
-    const targetRow = await findRowByDate(SHEET_NAME, formattedDate);
-    if (!targetRow) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: `No matching date row for ${formattedDate}`,
-        },
-        { status: 404 }
-      );
     }
 
     const parsedMessages = parseDiscordMessages(
@@ -81,14 +71,7 @@ export async function GET(request: NextRequest) {
 
     for (let index = 0; index < parsedMessages.length; index += 1) {
       const parsed = parsedMessages[index]?.parsedData;
-      const message = newMessages[index];
       const parsedSuccess = hasParsedData(parsed);
-
-      if (message && parsedSuccess) {
-        try {
-          await addMessageReaction(message.channel_id, message.id, '✅');
-        } catch {}
-      }
 
       if (!parsedSuccess || !parsed) {
         continue;
@@ -100,22 +83,35 @@ export async function GET(request: NextRequest) {
     }
 
     if (Object.keys(mergedData).length > 0) {
+      const formattedDate = toSheetDateFromYYMMDD(activeThread.sundayDate);
+      const targetRow = await findRowByDate(SHEET_NAME, formattedDate);
+      if (!targetRow) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `No matching date row for ${formattedDate}`,
+          },
+          { status: 404 }
+        );
+      }
+
       if (mergedData.title) {
         mergedData.title = await correctSpelling(mergedData.title);
       }
       await updateWorshipData(SHEET_NAME, targetRow, mergedData);
     }
 
-    const parseStatus = Object.keys(mergedData).length > 0 ? 'parsed' : 'ignored';
     for (const message of newMessages) {
-      await markMessageProcessed(activeThread.threadId, message.id, message.content, parseStatus);
+      try {
+        await addMessageReaction(message.channel_id, message.id, '✅');
+      } catch {}
     }
 
     return NextResponse.json({
       success: true,
       message: Object.keys(mergedData).length > 0 ? `Processed ${newMessages.length} new messages` : 'No parsable data',
       data: {
-        threadId: activeThread.threadId,
+        threadId: activeThread.id,
         processedCount: newMessages.length,
       },
     });

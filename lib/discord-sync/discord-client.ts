@@ -16,11 +16,31 @@ export interface DiscordMessage {
     id: string;
     username: string;
     global_name?: string;
+    bot?: boolean;
   };
+  reactions?: Array<{
+    count: number;
+    me?: boolean;
+    emoji?: {
+      name?: string | null;
+    };
+  }>;
 }
 
 interface DiscordThreadListResponse {
-  threads: Array<{ id: string; parent_id?: string }>;
+  threads: DiscordForumThread[];
+}
+
+export interface DiscordForumThread {
+  id: string;
+  name: string;
+  parent_id?: string;
+}
+
+export interface DiscordChannel {
+  id: string;
+  name?: string;
+  parent_id?: string;
 }
 
 export interface DiscordSelectOption {
@@ -114,12 +134,21 @@ export async function addMessageReaction(channelId: string, messageId: string, e
   }
 }
 
-export async function getActiveThreadIds(guildId: string, parentChannelId: string): Promise<string[]> {
+export async function getChannel(channelId: string): Promise<DiscordChannel> {
+  const response = await fetch(`${DISCORD_API_BASE}/channels/${channelId}`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+
+  return parseDiscordResponse<DiscordChannel>(response, 'Failed to fetch channel');
+}
+
+export async function getActiveForumThreads(guildId: string, parentChannelId: string): Promise<DiscordForumThread[]> {
   const response = await fetch(`${DISCORD_API_BASE}/guilds/${guildId}/threads/active`, {
     method: 'GET',
     headers: getHeaders(),
   });
 
   const data = await parseDiscordResponse<DiscordThreadListResponse>(response, 'Failed to fetch active threads');
-  return data.threads.filter((thread) => thread.parent_id === parentChannelId).map((thread) => thread.id);
+  return data.threads.filter((thread) => thread.parent_id === parentChannelId);
 }
