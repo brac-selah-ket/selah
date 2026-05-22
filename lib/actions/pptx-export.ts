@@ -3,7 +3,9 @@
 import type {
   ActionResult,
   PptxDriveFile,
+  PptxExportRequest,
   PptxExportResult,
+  PptxExportScriptureData,
   PptxExportSongData,
   PptxTemplateStructure,
 } from '@/lib/types';
@@ -139,23 +141,29 @@ export async function exportContiToPptx(options: {
   overwrite: boolean;
   outputFileName?: string;
   songs: PptxExportSongData[];
+  scripture?: PptxExportScriptureData;
   outputFolderId?: string;
 }): Promise<ActionResult<PptxExportResult>> {
   try {
     const url = getPptxApiUrl();
     const headers = getPptxHeaders({ 'Content-Type': 'application/json' });
+    const body: PptxExportRequest = {
+      action: 'export_lyrics',
+      file_id: options.fileId,
+      overwrite: options.overwrite,
+      output_file_name: options.outputFileName,
+      output_folder_id: options.outputFolderId,
+      songs: options.songs,
+    };
+
+    if (options.scripture) {
+      body.scripture = options.scripture;
+    }
 
     const response = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify({
-        action: 'export_lyrics',
-        file_id: options.fileId,
-        overwrite: options.overwrite,
-        output_file_name: options.outputFileName,
-        output_folder_id: options.outputFolderId,
-        songs: options.songs,
-      }),
+      body: JSON.stringify(body),
     });
 
     const text = await response.text();

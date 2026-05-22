@@ -1,4 +1,9 @@
-import type { ContiSongWithSong, PptxExportSongData } from '@/lib/types';
+import type { ScriptureSlidePage } from '@/lib/scripture/types';
+import type {
+  ContiSongWithSong,
+  PptxExportScriptureData,
+  PptxExportSongData,
+} from '@/lib/types';
 
 /**
  * Build PPTX export song data from conti songs.
@@ -24,4 +29,21 @@ export function buildPptxSongData(
         )
       ),
     }));
+}
+
+export function buildPptxScriptureData(
+  reference: string,
+  pages: ScriptureSlidePage[],
+  sectionName: string
+): PptxExportScriptureData {
+  return {
+    section_name: sectionName,
+    reference,
+    pages: pages.map((page) => ({
+      title: page.title,
+      text: page.text,
+      verse_start: page.verseStart,
+      verse_end: page.verseEnd,
+    })),
+  };
 }
