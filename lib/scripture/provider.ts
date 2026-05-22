@@ -2,6 +2,9 @@ import * as cheerio from 'cheerio';
 import type { ScriptureBook, ScriptureReference, ScriptureVerse } from './types';
 
 const BSKOREA_LEGACY_URL = 'https://www.bskorea.or.kr/bible/korbibReadpage.php';
+const BSKOREA_REQUEST_TIMEOUT_MS = 10_000;
+const MAX_REFERENCE_CHAPTERS = 5;
+const BSKOREA_NOTE_SELECTOR = '[id^="D_"], .D1, .D2, .D3, .D4, .D5, .D6';
 
 function cleanVerseText(value: string): string {
   return value
@@ -20,7 +23,12 @@ export function parseBskoreaChapterHtml(
   const seen = new Set<number>();
 
   $('.leftCont span').each((_, element) => {
-    const text = $(element).text().replace(/\u00a0/g, ' ').trim();
+    if ($(element).closest(BSKOREA_NOTE_SELECTOR).length > 0) return;
+
+    const verseNode = $(element).clone();
+    verseNode.find(BSKOREA_NOTE_SELECTOR).remove();
+
+    const text = verseNode.text().replace(/\u00a0/g, ' ').trim();
     const match = text.match(/^(\d+)\s+(.+)$/s);
     if (!match) return;
 
@@ -47,18 +55,31 @@ async function fetchChapterHtml(book: ScriptureBook, chapter: number): Promise<s
   url.searchParams.set('book', book.bskoreaCode);
   url.searchParams.set('chap', String(chapter));
 
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': 'storyboard-worship-ppt-export/1.0',
-    },
-    cache: 'no-store',
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), BSKOREA_REQUEST_TIMEOUT_MS);
 
-  if (!response.ok) {
-    throw new Error(`성경 본문 조회 실패 (${response.status})`);
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'storyboard-worship-ppt-export/1.0',
+      },
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`성경 본문 조회 실패 (${response.status})`);
+    }
+
+    return await response.text();
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`성경 본문 조회 시간이 초과되었습니다. (${BSKOREA_REQUEST_TIMEOUT_MS / 1000}초)`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return response.text();
 }
 
 function chaptersInReference(reference: ScriptureReference): number[] {
@@ -66,40 +87,72 @@ function chaptersInReference(reference: ScriptureReference): number[] {
   for (let chapter = reference.start.chapter; chapter <= reference.end.chapter; chapter += 1) {
     chapters.push(chapter);
   }
+  if (chapters.length > MAX_REFERENCE_CHAPTERS) {
+    throw new Error(`성경 본문 범위는 최대 ${MAX_REFERENCE_CHAPTERS}장까지만 조회할 수 있습니다.`);
+  }
   return chapters;
+}
+
+function missingVerseError(reference: ScriptureReference, chapter: number, verse: number): Error {
+  return new Error(`성경 본문에서 누락된 절을 찾았습니다: ${reference.book.abbreviation} ${chapter}:${verse}`);
+}
+
+function expectedStartVerse(reference: ScriptureReference, chapter: number): number {
+  return chapter === reference.start.chapter ? reference.start.verse : 1;
+}
+
+function expectedEndVerse(
+  reference: ScriptureReference,
+  chapter: number,
+  selectedVerses: ScriptureVerse[],
+): number {
+  if (chapter === reference.end.chapter) return reference.end.verse;
+  return selectedVerses[selectedVerses.length - 1]?.verse ?? expectedStartVerse(reference, chapter);
+}
+
+export function selectReferenceVerses(
+  reference: ScriptureReference,
+  versesByChapter: Map<number, ScriptureVerse[]>,
+): ScriptureVerse[] {
+  const allVerses: ScriptureVerse[] = [];
+
+  for (const chapter of chaptersInReference(reference)) {
+    const selectedVerses = (versesByChapter.get(chapter) ?? [])
+      .filter((verse) => {
+        if (verse.chapter === reference.start.chapter && verse.verse < reference.start.verse) return false;
+        if (verse.chapter === reference.end.chapter && verse.verse > reference.end.verse) return false;
+        return true;
+      })
+      .sort((a, b) => a.verse - b.verse);
+
+    const startVerse = expectedStartVerse(reference, chapter);
+    const endVerse = expectedEndVerse(reference, chapter, selectedVerses);
+    const presentVerses = new Set(selectedVerses.map((verse) => verse.verse));
+
+    for (let verse = startVerse; verse <= endVerse; verse += 1) {
+      if (!presentVerses.has(verse)) {
+        throw missingVerseError(reference, chapter, verse);
+      }
+    }
+
+    allVerses.push(...selectedVerses);
+  }
+
+  return allVerses;
 }
 
 export async function fetchScriptureVerses(reference: ScriptureReference): Promise<ScriptureVerse[]> {
   const chapterCache = new Map<number, ScriptureVerse[]>();
-  const allVerses: ScriptureVerse[] = [];
 
   for (const chapter of chaptersInReference(reference)) {
-    let chapterVerses = chapterCache.get(chapter);
-    if (!chapterVerses) {
-      const html = await fetchChapterHtml(reference.book, chapter);
-      chapterVerses = parseBskoreaChapterHtml(html, reference.book, chapter);
-      chapterCache.set(chapter, chapterVerses);
-    }
-
-    const filtered = chapterVerses.filter((verse) => {
-      if (verse.chapter === reference.start.chapter && verse.verse < reference.start.verse) return false;
-      if (verse.chapter === reference.end.chapter && verse.verse > reference.end.verse) return false;
-      return true;
-    });
-    allVerses.push(...filtered);
+    const html = await fetchChapterHtml(reference.book, chapter);
+    const chapterVerses = parseBskoreaChapterHtml(html, reference.book, chapter);
+    chapterCache.set(chapter, chapterVerses);
   }
 
+  const allVerses = selectReferenceVerses(reference, chapterCache);
   if (allVerses.length === 0) {
     throw new Error('요청한 범위에서 성경 본문을 찾지 못했습니다.');
-  }
-
-  const first = allVerses[0];
-  const last = allVerses[allVerses.length - 1];
-  if (first.chapter !== reference.start.chapter || first.verse !== reference.start.verse) {
-    throw new Error(`시작 절을 찾지 못했습니다: ${reference.book.abbreviation} ${reference.start.chapter}:${reference.start.verse}`);
-  }
-  if (last.chapter !== reference.end.chapter || last.verse !== reference.end.verse) {
-    throw new Error(`끝 절을 찾지 못했습니다: ${reference.book.abbreviation} ${reference.end.chapter}:${reference.end.verse}`);
   }
 
   return allVerses;
