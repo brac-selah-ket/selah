@@ -110,15 +110,23 @@ export function ContiSongSummaryTable({
               <span className="font-semibold text-primary">{index + 1}</span>
               <div className="min-w-0">
                 <p className="truncate font-medium">{getSongName(song)}</p>
-                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                  <span>{getKeyTempoSummary(song)}</span>
-                  {presetName && <span className="truncate">{presetName}</span>}
+                <div className="mt-1 flex min-w-0 max-w-full flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span className="min-w-0 max-w-full truncate">
+                    {getKeyTempoSummary(song)}
+                  </span>
+                  {presetName && (
+                    <span className="min-w-0 max-w-full truncate">
+                      {presetName}
+                    </span>
+                  )}
                   {youtubeReference && (
-                    <YouTubeReferenceLink
-                      reference={youtubeReference}
-                      title={youtubeTitle}
-                      className="truncate underline-offset-2 hover:underline"
-                    />
+                    <span className="min-w-0 max-w-full truncate">
+                      <YouTubeReferenceLink
+                        reference={youtubeReference}
+                        title={youtubeTitle}
+                        className="block max-w-full truncate underline-offset-2 hover:underline"
+                      />
+                    </span>
                   )}
                 </div>
                 {sectionSummary !== "-" && (
