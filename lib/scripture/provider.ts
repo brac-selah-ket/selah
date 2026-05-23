@@ -6,11 +6,15 @@ const BSKOREA_REQUEST_TIMEOUT_MS = 10_000;
 const MAX_REFERENCE_CHAPTERS = 5;
 const BSKOREA_NOTE_SELECTOR = '[id^="D_"], .D1, .D2, .D3, .D4, .D5, .D6';
 
-function cleanVerseText(value: string): string {
-  return value
+function cleanVerseText(value: string, verse?: number): string {
+  const cleaned = value
     .replace(/\d+\)/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+
+  if (verse === undefined) return cleaned;
+
+  return cleaned.replace(new RegExp(`^${verse}\\s+`), '').trim();
 }
 
 export function parseBskoreaChapterHtml(
@@ -35,7 +39,7 @@ export function parseBskoreaChapterHtml(
     const verse = Number.parseInt(match[1], 10);
     if (!Number.isFinite(verse) || seen.has(verse)) return;
 
-    const verseText = cleanVerseText(match[2]);
+    const verseText = cleanVerseText(match[2], verse);
     if (!verseText) return;
 
     seen.add(verse);
