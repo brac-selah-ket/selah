@@ -83,7 +83,7 @@ export function ContiSongSummaryTable({
 
   const showActions = mode === "action"
   const gridTemplateClass = showActions
-    ? "grid-cols-[3rem_1.2fr_5rem_5rem_minmax(12rem,1fr)_6rem_minmax(10rem,0.8fr)_auto]"
+    ? "grid-cols-[3rem_1.2fr_5rem_5rem_minmax(12rem,1fr)_6rem_minmax(10rem,0.8fr)_9rem]"
     : "grid-cols-[3rem_1.2fr_5rem_5rem_minmax(12rem,1fr)_6rem_minmax(10rem,0.8fr)]"
   const tableMinWidthClass = showActions ? "min-w-[64rem]" : "min-w-[56rem]"
 
