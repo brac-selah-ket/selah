@@ -16,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useOptionalDrawerState } from "@/components/ui/drawer-context"
 import { ContiSongSummaryTable } from "@/components/contis/conti-song-summary-table"
 import { ContiSongEditor } from "./conti-song-editor"
 import { SongPicker } from "@/components/contis/song-picker"
@@ -41,6 +42,7 @@ export function ContiDetail({
   showDescription,
 }: ContiDetailProps) {
   const router = useRouter()
+  const { isOpen: drawerOpen } = useOptionalDrawerState()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [youtubeImportOpen, setYoutubeImportOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -125,6 +127,7 @@ export function ContiDetail({
             <ContiSongSummaryTable
               songs={optimisticSongs}
               mode="action"
+              density={drawerOpen ? "compact" : "default"}
               onEdit={handleEdit}
               onMoveUp={handleMoveUp}
               onMoveDown={handleMoveDown}

@@ -17,6 +17,7 @@ type SummaryRow = ContiSongSummary | ContiSongWithSong
 interface ContiSongSummaryTableProps {
   songs: SummaryRow[]
   mode: "read" | "action"
+  density?: "default" | "compact"
   onEdit?: (contiSongId: string) => void
   onMoveUp?: (index: number) => void
   onMoveDown?: (index: number) => void
@@ -65,9 +66,20 @@ function getSectionSummary(song: SummaryRow): string {
   return sections.length > 0 ? sections.join(" → ") : "-"
 }
 
+function getKeyTempoSummary(song: SummaryRow): string {
+  const keys = getKeys(song)
+  const tempos = getTempos(song)
+  const parts = [
+    keys.length > 0 ? keys.join("/") : null,
+    tempos.length > 0 ? `${tempos.join("/")} BPM` : null,
+  ].filter(Boolean)
+  return parts.length > 0 ? parts.join(" · ") : "-"
+}
+
 export function ContiSongSummaryTable({
   songs,
   mode,
+  density = "default",
   onEdit,
   onMoveUp,
   onMoveDown,
@@ -77,6 +89,85 @@ export function ContiSongSummaryTable({
     return (
       <div className="rounded-lg border border-dashed bg-background/60 px-4 py-6 text-center text-sm text-muted-foreground">
         등록된 곡이 없습니다.
+      </div>
+    )
+  }
+
+  if (density === "compact" && mode === "action") {
+    return (
+      <div className="space-y-2">
+        {songs.map((song, index) => {
+          const youtubeReference = getYoutubeReference(song)
+          const youtubeTitle = getYoutubeTitle(song)
+          const presetName = getPresetName(song)
+          const sectionSummary = getSectionSummary(song)
+
+          return (
+            <div
+              key={song.id}
+              className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border bg-background/70 px-3 py-3 text-sm"
+            >
+              <span className="font-semibold text-primary">{index + 1}</span>
+              <div className="min-w-0">
+                <p className="truncate font-medium">{getSongName(song)}</p>
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span>{getKeyTempoSummary(song)}</span>
+                  {presetName && <span className="truncate">{presetName}</span>}
+                  {youtubeReference && (
+                    <YouTubeReferenceLink
+                      reference={youtubeReference}
+                      title={youtubeTitle}
+                      className="truncate underline-offset-2 hover:underline"
+                    />
+                  )}
+                </div>
+                {sectionSummary !== "-" && (
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
+                    {sectionSummary}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="편집"
+                  disabled={!onEdit}
+                  onClick={() => onEdit?.(song.id)}
+                >
+                  <HugeiconsIcon icon={PencilEdit01Icon} strokeWidth={2} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="위로 이동"
+                  disabled={index === 0 || !onMoveUp}
+                  onClick={() => onMoveUp?.(index)}
+                >
+                  <HugeiconsIcon icon={ArrowUp01Icon} strokeWidth={2} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="아래로 이동"
+                  disabled={index === songs.length - 1 || !onMoveDown}
+                  onClick={() => onMoveDown?.(index)}
+                >
+                  <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="삭제"
+                  disabled={!onRemove}
+                  onClick={() => onRemove?.(song.id)}
+                >
+                  <HugeiconsIcon icon={Delete01Icon} strokeWidth={2} />
+                </Button>
+              </div>
+            </div>
+          )
+        })}
       </div>
     )
   }
