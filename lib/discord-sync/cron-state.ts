@@ -22,6 +22,9 @@ export interface DiscordMessageReactionState {
 
 const WORSHIP_THREAD_PATTERN = /^(\d{6})\s+예배 준비$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
+export const PARSED_REACTION = '✅';
+export const IGNORED_REACTION = '☑️';
+export const PROCESSED_REACTIONS = [PARSED_REACTION, IGNORED_REACTION] as const;
 
 export function parseWorshipThreadName(threadName: string): string | null {
   return threadName.match(WORSHIP_THREAD_PATTERN)?.[1] ?? null;
@@ -100,7 +103,10 @@ export function selectTargetWorshipThread(
 export function hasProcessedReaction(message: DiscordMessageReactionState): boolean {
   return Boolean(
     message.reactions?.some(
-      (reaction) => reaction.me === true && reaction.emoji?.name === '✅' && (reaction.count ?? 0) > 0,
+      (reaction) =>
+        reaction.me === true &&
+        PROCESSED_REACTIONS.includes(reaction.emoji?.name as (typeof PROCESSED_REACTIONS)[number]) &&
+        (reaction.count ?? 0) > 0,
     ),
   );
 }

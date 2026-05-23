@@ -3,7 +3,13 @@ import { addMessageReaction, getActiveForumThreads, getThreadMessages } from '@/
 import { parseDiscordMessages } from '@/lib/discord-parser';
 import { correctSpelling } from '@/lib/discord-sync/spell-checker';
 import { findRowByDate, updateWorshipData } from '@/lib/discord-sync/google-sheets';
-import { hasProcessedReaction, selectTargetWorshipThread, toSheetDateFromYYMMDD } from '@/lib/discord-sync/cron-state';
+import {
+  IGNORED_REACTION,
+  PARSED_REACTION,
+  hasProcessedReaction,
+  selectTargetWorshipThread,
+  toSheetDateFromYYMMDD,
+} from '@/lib/discord-sync/cron-state';
 
 export const maxDuration = 60;
 const SHEET_NAME = 'DB';
@@ -68,6 +74,7 @@ export async function GET(request: NextRequest) {
       scripture?: string;
       songs?: string[];
     } = {};
+    const parsedMessageIds = new Set<string>();
 
     for (let index = 0; index < parsedMessages.length; index += 1) {
       const parsed = parsedMessages[index]?.parsedData;
@@ -75,6 +82,11 @@ export async function GET(request: NextRequest) {
 
       if (!parsedSuccess || !parsed) {
         continue;
+      }
+
+      const message = newMessages[index];
+      if (message) {
+        parsedMessageIds.add(message.id);
       }
 
       if (parsed.title) mergedData.title = parsed.title;
@@ -102,8 +114,9 @@ export async function GET(request: NextRequest) {
     }
 
     for (const message of newMessages) {
+      const reaction = parsedMessageIds.has(message.id) ? PARSED_REACTION : IGNORED_REACTION;
       try {
-        await addMessageReaction(message.channel_id, message.id, '✅');
+        await addMessageReaction(message.channel_id, message.id, reaction);
       } catch {}
     }
 
