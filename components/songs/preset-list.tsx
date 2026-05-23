@@ -133,13 +133,13 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
                       )}
                     >
                       {keys.length > 0 && (
-                        <div className={compact ? "truncate" : undefined}>
+                        <div className={compact ? "min-w-0 max-w-full truncate" : undefined}>
                           <span className="font-medium">조성:</span>{" "}
                           {keys.join(", ")}
                         </div>
                       )}
                       {tempos.length > 0 && (
-                        <div className={compact ? "truncate" : undefined}>
+                        <div className={compact ? "min-w-0 max-w-full truncate" : undefined}>
                           <span className="font-medium">템포:</span>{" "}
                           {tempos.join(", ")} BPM
                         </div>
@@ -154,7 +154,10 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
                         reference={preset.youtubeReference}
                         title={preset.youtubeTitle}
                         stopPropagation
-                        className="text-primary block truncate underline-offset-4 hover:underline"
+                        className={cn(
+                          "text-primary block truncate underline-offset-4 hover:underline",
+                          compact && "min-w-0 max-w-full",
+                        )}
                       />
                     </div>
                   </div>
