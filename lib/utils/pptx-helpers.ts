@@ -1,6 +1,7 @@
 import type { ScriptureSlidePage } from '@/lib/scripture/types';
 import type {
   ContiSongWithSong,
+  PptxDriveFile,
   PptxExportScriptureData,
   PptxExportSongData,
 } from '@/lib/types';
@@ -46,4 +47,11 @@ export function buildPptxScriptureData(
       verse_end: page.verseEnd,
     })),
   };
+}
+
+export function findAllowedPptxFile(
+  files: PptxDriveFile[],
+  fileId: string
+): PptxDriveFile | null {
+  return files.find((file) => file.file_id === fileId) ?? null;
 }

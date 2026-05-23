@@ -554,6 +554,17 @@ def get_largest_textbox(slide):
     )
 
 
+def clear_other_textboxes(slide, keep_shape):
+    """Clear text-bearing shapes except the selected body textbox."""
+    keep_element = keep_shape._element if keep_shape is not None else None
+    for shape in slide.shapes:
+        if not shape.has_text_frame:
+            continue
+        if shape._element is keep_element:
+            continue
+        inject_text_into_shape(shape, '')
+
+
 def strip_textbox_numbering(shape):
     """Disable inherited PowerPoint paragraph numbering on a text shape."""
     if not shape.has_text_frame:
@@ -667,6 +678,7 @@ def process_scripture_section(prs, scripture, section, slide_id_map):
         new_slide, new_sid, new_el = duplicate_slide(prs, body_base_slide)
         textbox = get_largest_textbox(new_slide)
         if textbox:
+            clear_other_textboxes(new_slide, textbox)
             inject_text_into_shape(textbox, page.get('text', ''))
             strip_textbox_numbering(textbox)
         move_slide_id_after(prs, new_sid, last_slide_id)

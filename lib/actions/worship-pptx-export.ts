@@ -1,6 +1,6 @@
 'use server';
 
-import { exportContiToPptx } from '@/lib/actions/pptx-export';
+import { ensurePptxFileAllowed, sendPptxExportRequest } from '@/lib/pptx/export-service';
 import { getConti } from '@/lib/queries/contis';
 import { paginateScriptureVerses } from '@/lib/scripture/pagination';
 import { fetchScriptureVerses } from '@/lib/scripture/provider';
@@ -11,9 +11,10 @@ import type {
   PptxExportResult,
   PptxExportScriptureData,
   PptxExportScripturePageData,
-  PptxExportSongData,
 } from '@/lib/types';
-import { buildPptxScriptureData } from '@/lib/utils/pptx-helpers';
+import { buildPptxScriptureData, buildPptxSongData } from '@/lib/utils/pptx-helpers';
+
+const SECTION_PREFIX = process.env.PPTX_SECTION_PREFIX || process.env.NEXT_PUBLIC_PPTX_SECTION_PREFIX || '찬양';
 
 function getScriptureSectionName(): string {
   return (
@@ -102,9 +103,9 @@ export async function exportWorshipToPptx(options: {
   fileId: string;
   overwrite: boolean;
   outputFileName?: string;
+  contiId: string;
   scriptureReference: string;
   versesPerSlide?: number;
-  songs: PptxExportSongData[];
   outputFolderId?: string;
 }): Promise<ActionResult<PptxExportResult>> {
   try {
@@ -112,7 +113,19 @@ export async function exportWorshipToPptx(options: {
     if (!scriptureReference) {
       return { success: false, error: '말씀 본문을 입력해 주세요' };
     }
-    if (!Array.isArray(options.songs) || options.songs.length === 0) {
+
+    const allowedFile = await ensurePptxFileAllowed(options.fileId);
+    if (!allowedFile.success) {
+      return { success: false, error: allowedFile.error };
+    }
+
+    const conti = await getConti(options.contiId);
+    if (!conti) {
+      return { success: false, error: '선택한 콘티를 찾을 수 없습니다' };
+    }
+
+    const songs = buildPptxSongData(conti.songs, SECTION_PREFIX);
+    if (songs.length === 0) {
       return { success: false, error: '내보낼 찬양 곡이 없습니다' };
     }
 
@@ -121,12 +134,12 @@ export async function exportWorshipToPptx(options: {
       options.versesPerSlide
     );
 
-    return exportContiToPptx({
-      fileId: options.fileId,
+    return sendPptxExportRequest({
+      fileId: allowedFile.data!.file_id,
       overwrite: options.overwrite,
       outputFileName: options.outputFileName,
       outputFolderId: options.outputFolderId,
-      songs: options.songs,
+      songs,
       scripture,
     });
   } catch (error) {

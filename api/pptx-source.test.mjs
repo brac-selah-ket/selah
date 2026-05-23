@@ -22,3 +22,13 @@ test('scripture body slides disable inherited automatic numbering', async () => 
     /def process_scripture_section[\s\S]+strip_textbox_numbering\(textbox\)/,
   );
 });
+
+test('scripture body slides clear non-target textboxes after choosing body textbox', async () => {
+  const source = await readFile(new URL('./pptx.py', import.meta.url), 'utf8');
+
+  assert.match(source, /def clear_other_textboxes\(slide, keep_shape\):/);
+  assert.match(
+    source,
+    /def process_scripture_section[\s\S]+textbox = get_largest_textbox\(new_slide\)[\s\S]+clear_other_textboxes\(new_slide, textbox\)/,
+  );
+});

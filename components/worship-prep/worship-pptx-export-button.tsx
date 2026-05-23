@@ -288,9 +288,9 @@ export function WorshipPptxExportButton({
         fileId: selectedFile.file_id,
         overwrite,
         outputFileName: overwrite ? undefined : outputFileName.trim(),
+        contiId: selectedConti.id,
         scriptureReference: scriptureReference.trim(),
         versesPerSlide,
-        songs: songData,
       })
 
       if (!result.success || !result.data) {

@@ -20,7 +20,6 @@ import {
   Loading03Icon,
 } from "@hugeicons/core-free-icons"
 import { listPptxFiles, exportContiToPptx } from "@/lib/actions/pptx-export"
-import { buildPptxSongData } from "@/lib/utils/pptx-helpers"
 import type { ContiWithSongs, PptxDriveFile } from "@/lib/types"
 
 type Step = "file-list" | "mode-select" | "confirm"
@@ -125,13 +124,11 @@ export function PptxExportButton({ conti, iconOnly = false }: PptxExportButtonPr
     if (!selectedFile) return
 
     startTransition(async () => {
-      const songData = buildPptxSongData(conti.songs, SECTION_PREFIX)
-
       const result = await exportContiToPptx({
         fileId: selectedFile.file_id,
         overwrite,
         outputFileName: overwrite ? undefined : outputFileName.trim(),
-        songs: songData,
+        contiId: conti.id,
       })
 
       if (!result.success || !result.data) {
