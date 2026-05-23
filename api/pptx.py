@@ -554,6 +554,42 @@ def get_largest_textbox(slide):
     )
 
 
+def strip_textbox_numbering(shape):
+    """Disable inherited PowerPoint paragraph numbering on a text shape."""
+    if not shape.has_text_frame:
+        return
+
+    numbering_tags = {
+        qn('a:buNone'),
+        qn('a:buAutoNum'),
+        qn('a:buChar'),
+        qn('a:buBlip'),
+    }
+    insert_before_tags = {
+        qn('a:tabLst'),
+        qn('a:defRPr'),
+        qn('a:extLst'),
+    }
+
+    for paragraph in shape.text_frame.paragraphs:
+        pPr = paragraph._p.find(qn('a:pPr'))
+        if pPr is None:
+            pPr = etree.Element(qn('a:pPr'))
+            paragraph._p.insert(0, pPr)
+
+        for child in list(pPr):
+            if child.tag in numbering_tags:
+                pPr.remove(child)
+
+        bu_none = etree.Element(qn('a:buNone'))
+        for index, child in enumerate(list(pPr)):
+            if child.tag in insert_before_tags:
+                pPr.insert(index, bu_none)
+                break
+        else:
+            pPr.append(bu_none)
+
+
 def set_slide_notes(slide, text):
     """Add speaker notes to a slide using python-pptx."""
     notes_slide = slide.notes_slide
@@ -632,6 +668,7 @@ def process_scripture_section(prs, scripture, section, slide_id_map):
         textbox = get_largest_textbox(new_slide)
         if textbox:
             inject_text_into_shape(textbox, page.get('text', ''))
+            strip_textbox_numbering(textbox)
         move_slide_id_after(prs, new_sid, last_slide_id)
         generated_slide_ids.append(new_sid)
         last_slide_id = new_sid
