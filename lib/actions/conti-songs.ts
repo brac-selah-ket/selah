@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { contiSongs, contiPdfExports, songPresets } from '@/lib/db/schema';
+import { contiSongs, contiPdfExports, songPresets, presetSheetMusic } from '@/lib/db/schema';
 import { and, eq, max, asc } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { stringifyContiSongOverrides, parseContiSongOverrides } from '@/lib/db/helpers';
@@ -15,6 +15,7 @@ import type {
 import { createSongPreset, updateSongPreset } from './song-presets';
 import { insertContiSong, insertSong, insertSongPreset, updateSongPresetYoutubeRef } from '@/lib/db/insert-helpers';
 import { extractPresetPdfMetadataFromLayout } from '@/lib/utils/pdf-export-helpers';
+import { songPresetToContiOverrides } from '@/lib/utils/preset-overrides';
 import { z } from 'zod';
 
 export async function addSongToConti(
@@ -262,6 +263,27 @@ const batchImportSchema = z.object({
   items: z.array(batchImportItemSchema).min(1, '가져올 곡이 없습니다'),
 })
 
+async function getPresetOverridesForSong(presetId: string, songId: string) {
+  const presetRows = await db
+    .select()
+    .from(songPresets)
+    .where(and(eq(songPresets.id, presetId), eq(songPresets.songId, songId)))
+    .limit(1)
+
+  if (presetRows.length === 0) return null
+
+  const sheetMusicRows = await db
+    .select({ sheetMusicFileId: presetSheetMusic.sheetMusicFileId })
+    .from(presetSheetMusic)
+    .where(eq(presetSheetMusic.presetId, presetId))
+    .orderBy(presetSheetMusic.sortOrder)
+
+  return songPresetToContiOverrides(
+    presetRows[0],
+    sheetMusicRows.map((row) => row.sheetMusicFileId),
+  )
+}
+
 export async function batchImportSongsToConti(
   contiId: string,
   items: Array<{
@@ -306,6 +328,7 @@ export async function batchImportSongsToConti(
     for (const item of validatedItems) {
       let resolvedSongId: string
       let appliedPresetId = item.presetId ?? null
+      let appliedPresetOverrides: ContiSongOverrides | null = null
 
       if (item.songId) {
         resolvedSongId = item.songId
@@ -333,8 +356,13 @@ export async function batchImportSongsToConti(
             youtubeTitle: item.title,
           })
           appliedPresetId = preset.id
+          appliedPresetOverrides = songPresetToContiOverrides(preset)
         } else if (item.songId && item.presetId) {
           // Existing song: update selected preset's youtube reference
+          appliedPresetOverrides = await getPresetOverridesForSong(item.presetId, resolvedSongId)
+          if (!appliedPresetOverrides) {
+            return { success: false, error: '선택한 프리셋을 찾을 수 없습니다' }
+          }
           await updateSongPresetYoutubeRef(db, item.presetId, item.videoId, item.title)
           appliedPresetId = item.presetId
         } else if (item.songId && item.createNewPreset) {
@@ -345,14 +373,23 @@ export async function batchImportSongsToConti(
             youtubeTitle: item.title,
           })
           appliedPresetId = preset.id
+          appliedPresetOverrides = songPresetToContiOverrides(preset)
+        }
+      }
+
+      if (appliedPresetId && !appliedPresetOverrides) {
+        appliedPresetOverrides = await getPresetOverridesForSong(appliedPresetId, resolvedSongId)
+        if (!appliedPresetOverrides) {
+          return { success: false, error: '선택한 프리셋을 찾을 수 없습니다' }
         }
       }
 
       if (item.alreadyInConti) {
-        if (appliedPresetId) {
+        if (appliedPresetOverrides) {
+          const serialized = stringifyContiSongOverrides(appliedPresetOverrides)
           await db
             .update(contiSongs)
-            .set({ presetId: appliedPresetId, updatedAt: new Date() })
+            .set({ ...serialized, updatedAt: new Date() })
             .where(and(eq(contiSongs.contiId, contiId), eq(contiSongs.songId, resolvedSongId)))
         }
         presetUpdated++
@@ -362,7 +399,7 @@ export async function batchImportSongsToConti(
           contiId,
           resolvedSongId,
           nextSortOrder++,
-          appliedPresetId ? { presetId: appliedPresetId } : undefined,
+          appliedPresetOverrides ?? undefined,
         )
       }
     }

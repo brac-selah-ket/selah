@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --experimental-strip-types --test lib/utils/youtube.test.ts lib/utils/preset-overrides.test.ts components/shared/arrangement-editor/save-rules.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.1.0",

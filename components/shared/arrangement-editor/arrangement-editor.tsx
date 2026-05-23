@@ -24,6 +24,10 @@ import { OverrideEditorFields } from "@/components/shared/override-editor-fields
 import { PresetPdfEditor } from "@/components/songs/preset-pdf-editor"
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes"
 import { normalizeYouTubeReference } from "@/lib/utils/youtube"
+import {
+  getSheetMusicSelectionSaveError,
+  shouldShowYouTubeReferenceField,
+} from "./save-rules"
 import type {
   ArrangementDraft,
   ArrangementEditorProps,
@@ -105,6 +109,8 @@ export function ArrangementEditor({
     return availableSheetMusic.filter((file) => selectedIds.has(file.id))
   }, [availableSheetMusic, draft.sheetMusicFileIds])
 
+  const showYouTubeReferenceField = shouldShowYouTubeReferenceField(mode)
+
   function pruneUnavailableSheetMusicIds(draftToPrune: ArrangementDraft): ArrangementDraft {
     if (draftToPrune.sheetMusicFileIds === null || allSheetMusicIds.length === 0) {
       return draftToPrune
@@ -157,7 +163,17 @@ export function ArrangementEditor({
       return
     }
 
-    const draftToSave = prepareDraftForSave(pruneUnavailableSheetMusicIds(draft))
+    const prunedDraft = pruneUnavailableSheetMusicIds(draft)
+    const selectionError = getSheetMusicSelectionSaveError(
+      prunedDraft.sheetMusicFileIds,
+      allSheetMusicIds.length,
+    )
+    if (selectionError) {
+      toast.error(selectionError)
+      return
+    }
+
+    const draftToSave = prepareDraftForSave(prunedDraft)
     if (!draftToSave) return
 
     setIsSaving(true)
@@ -205,7 +221,17 @@ export function ArrangementEditor({
     }
     if (!onSaveAsPreset) return
 
-    const draftToSave = prepareDraftForSave(pruneUnavailableSheetMusicIds(draft))
+    const prunedDraft = pruneUnavailableSheetMusicIds(draft)
+    const selectionError = getSheetMusicSelectionSaveError(
+      prunedDraft.sheetMusicFileIds,
+      allSheetMusicIds.length,
+    )
+    if (selectionError) {
+      toast.error(selectionError)
+      return
+    }
+
+    const draftToSave = prepareDraftForSave(prunedDraft)
     if (!draftToSave) return
 
     setIsPresetSaving(true)
@@ -351,20 +377,22 @@ export function ArrangementEditor({
             </div>
           )}
 
-          <div className="space-y-2">
-            <label htmlFor="arrangement-youtube-ref" className="text-base font-medium">
-              YouTube 레퍼런스
-            </label>
-            <Input
-              id="arrangement-youtube-ref"
-              value={draft.youtubeReference ?? ""}
-              onChange={(event) => updateDraft({
-                youtubeReference: event.target.value || null,
-                youtubeTitle: null,
-              })}
-              placeholder="https://www.youtube.com/watch?v=..."
-            />
-          </div>
+          {showYouTubeReferenceField && (
+            <div className="space-y-2">
+              <label htmlFor="arrangement-youtube-ref" className="text-base font-medium">
+                YouTube 레퍼런스
+              </label>
+              <Input
+                id="arrangement-youtube-ref"
+                value={draft.youtubeReference ?? ""}
+                onChange={(event) => updateDraft({
+                  youtubeReference: event.target.value || null,
+                  youtubeTitle: null,
+                })}
+                placeholder="https://www.youtube.com/watch?v=..."
+              />
+            </div>
+          )}
 
           <OverrideEditorFields
             key={editorKey}

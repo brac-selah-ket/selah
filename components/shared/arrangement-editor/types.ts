@@ -9,7 +9,7 @@ export interface ArrangementDraft {
   lyrics: string[]
   sectionLyricsMap: Record<number, number[]>
   notes: string | null
-  // null = all available sheet music, [] = none selected
+  // null = all available sheet music; [] is a transient invalid selection blocked on save.
   sheetMusicFileIds: string[] | null
   pdfMetadata: PresetPdfMetadata | null
   youtubeReference: string | null
