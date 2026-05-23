@@ -554,13 +554,59 @@ def get_largest_textbox(slide):
     )
 
 
+def get_scripture_page_title_textbox(slide, body_shape):
+    """Find the best non-body textbox for a scripture page title."""
+    body_element = body_shape._element if body_shape is not None else None
+    candidates = [
+        shape
+        for shape in slide.shapes
+        if shape.has_text_frame and shape._element is not body_element
+    ]
+    if not candidates:
+        return None
+
+    body_top = int(body_shape.top or 0) if body_shape is not None else None
+    if body_top is not None:
+        above_body = [
+            shape
+            for shape in candidates
+            if int(shape.top or 0) <= body_top
+        ]
+        if above_body:
+            candidates = above_body
+
+    text_bearing = [
+        shape
+        for shape in candidates
+        if shape.text_frame.text.strip()
+    ]
+    if text_bearing:
+        candidates = text_bearing
+
+    return min(
+        candidates,
+        key=lambda shape: (
+            int(shape.top or 0),
+            -int(shape.width or 0) * int(shape.height or 0),
+        )
+    )
+
+
 def clear_other_textboxes(slide, keep_shape):
     """Clear text-bearing shapes except the selected body textbox."""
-    keep_element = keep_shape._element if keep_shape is not None else None
+    if isinstance(keep_shape, (list, tuple, set)):
+        keep_element_ids = {
+            id(shape._element)
+            for shape in keep_shape
+            if shape is not None
+        }
+    else:
+        keep_element_ids = {id(keep_shape._element)} if keep_shape is not None else set()
+
     for shape in slide.shapes:
         if not shape.has_text_frame:
             continue
-        if shape._element is keep_element:
+        if id(shape._element) in keep_element_ids:
             continue
         inject_text_into_shape(shape, '')
 
@@ -678,7 +724,10 @@ def process_scripture_section(prs, scripture, section, slide_id_map):
         new_slide, new_sid, new_el = duplicate_slide(prs, body_base_slide)
         textbox = get_largest_textbox(new_slide)
         if textbox:
-            clear_other_textboxes(new_slide, textbox)
+            page_title_shape = get_scripture_page_title_textbox(new_slide, textbox)
+            clear_other_textboxes(new_slide, [textbox, page_title_shape])
+            if page_title_shape:
+                inject_text_into_shape(page_title_shape, page.get('title', ''))
             inject_text_into_shape(textbox, page.get('text', ''))
             strip_textbox_numbering(textbox)
         move_slide_id_after(prs, new_sid, last_slide_id)

@@ -29,6 +29,20 @@ test('scripture body slides clear non-target textboxes after choosing body textb
   assert.match(source, /def clear_other_textboxes\(slide, keep_shape\):/);
   assert.match(
     source,
-    /def process_scripture_section[\s\S]+textbox = get_largest_textbox\(new_slide\)[\s\S]+clear_other_textboxes\(new_slide, textbox\)/,
+    /def process_scripture_section[\s\S]+textbox = get_largest_textbox\(new_slide\)[\s\S]+clear_other_textboxes\(new_slide, \[textbox, page_title_shape\]\)/,
+  );
+});
+
+test('scripture body slides inject page title into a separate title textbox', async () => {
+  const source = await readFile(new URL('./pptx.py', import.meta.url), 'utf8');
+
+  assert.match(source, /def get_scripture_page_title_textbox\(slide, body_shape\):/);
+  assert.match(
+    source,
+    /def process_scripture_section[\s\S]+textbox = get_largest_textbox\(new_slide\)[\s\S]+page_title_shape = get_scripture_page_title_textbox\(new_slide, textbox\)[\s\S]+inject_text_into_shape\(page_title_shape, page.get\('title', ''\)\)/,
+  );
+  assert.match(
+    source,
+    /def process_scripture_section[\s\S]+clear_other_textboxes\(new_slide, \[textbox, page_title_shape\]\)/,
   );
 });
