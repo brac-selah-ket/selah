@@ -48,6 +48,11 @@ function getSectionOrder(song: SummaryRow): string[] {
 
 function getPresetName(song: SummaryRow): string | null {
   if (!isContiSongWithSong(song)) return song.presetName
+  return song.overrides.presetId ? "프리셋 적용" : null
+}
+
+function getCompactPresetName(song: SummaryRow): string | null {
+  if (!isContiSongWithSong(song)) return song.presetName
   return song.appliedPreset?.name ?? (song.overrides.presetId ? "프리셋 적용" : null)
 }
 
@@ -99,7 +104,7 @@ export function ContiSongSummaryTable({
         {songs.map((song, index) => {
           const youtubeReference = getYoutubeReference(song)
           const youtubeTitle = getYoutubeTitle(song)
-          const presetName = getPresetName(song)
+          const presetName = getCompactPresetName(song)
           const sectionSummary = getSectionSummary(song)
 
           return (
