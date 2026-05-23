@@ -41,6 +41,7 @@ export interface DiscordChannel {
   id: string;
   name?: string;
   parent_id?: string;
+  guild_id?: string;
 }
 
 export interface DiscordSelectOption {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addMessageReaction, getActiveForumThreads, getThreadMessages } from '@/lib/discord-sync/discord-client';
+import { addMessageReaction, getActiveForumThreads, getChannel, getThreadMessages } from '@/lib/discord-sync/discord-client';
 import { parseDiscordMessages } from '@/lib/discord-parser';
 import { correctSpelling } from '@/lib/discord-sync/spell-checker';
 import { findRowByDate, updateWorshipData } from '@/lib/discord-sync/google-sheets';
@@ -7,6 +7,7 @@ import {
   IGNORED_REACTION,
   PARSED_REACTION,
   hasProcessedReaction,
+  resolveGuildId,
   selectTargetWorshipThread,
   toSheetDateFromYYMMDD,
 } from '@/lib/discord-sync/cron-state';
@@ -32,10 +33,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const guildId = process.env.DISCORD_GUILD_ID;
+    const configuredGuildId = process.env.DISCORD_GUILD_ID;
     const channelId = process.env.DISCORD_CHANNEL_ID;
-    if (!guildId || !channelId) {
-      throw new Error('DISCORD_GUILD_ID and DISCORD_CHANNEL_ID must be set');
+    if (!channelId) {
+      throw new Error('DISCORD_CHANNEL_ID must be set');
+    }
+
+    const guildId = resolveGuildId({
+      configuredGuildId,
+      channel: configuredGuildId?.trim() ? null : await getChannel(channelId),
+    });
+    if (!guildId) {
+      throw new Error('DISCORD_GUILD_ID is not set and guild_id could not be resolved from DISCORD_CHANNEL_ID');
     }
 
     const activeThread = selectTargetWorshipThread(await getActiveForumThreads(guildId, channelId));

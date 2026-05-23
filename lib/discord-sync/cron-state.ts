@@ -20,11 +20,29 @@ export interface DiscordMessageReactionState {
   reactions?: DiscordReactionLike[];
 }
 
+export interface DiscordChannelGuildState {
+  guild_id?: string | null;
+}
+
 const WORSHIP_THREAD_PATTERN = /^(\d{6})\s+예배 준비$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const PARSED_REACTION = '✅';
 export const IGNORED_REACTION = '☑️';
 export const PROCESSED_REACTIONS = [PARSED_REACTION, IGNORED_REACTION] as const;
+
+export function resolveGuildId({
+  configuredGuildId,
+  channel,
+}: {
+  configuredGuildId?: string | null;
+  channel?: DiscordChannelGuildState | null;
+}): string | null {
+  const configured = configuredGuildId?.trim();
+  if (configured) return configured;
+
+  const resolved = channel?.guild_id?.trim();
+  return resolved || null;
+}
 
 export function parseWorshipThreadName(threadName: string): string | null {
   return threadName.match(WORSHIP_THREAD_PATTERN)?.[1] ?? null;
