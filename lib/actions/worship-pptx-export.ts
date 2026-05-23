@@ -26,12 +26,13 @@ function getScriptureSectionName(): string {
 
 async function buildScripturePayload(
   scriptureReference: string,
-  versesPerSlide?: number
+  versesPerSlide?: number,
+  verseTextFormat?: string
 ): Promise<PptxExportScriptureData> {
   const parsedReference = parseScriptureReference(scriptureReference);
   const reference = formatScriptureReference(parsedReference);
   const verses = await fetchScriptureVerses(parsedReference);
-  const pages = paginateScriptureVerses(verses, versesPerSlide);
+  const pages = paginateScriptureVerses(verses, versesPerSlide, { verseTextFormat });
 
   return buildPptxScriptureData(reference, pages, getScriptureSectionName());
 }
@@ -39,6 +40,7 @@ async function buildScripturePayload(
 export async function previewScripturePptx(options: {
   scriptureReference: string;
   versesPerSlide?: number;
+  verseTextFormat?: string;
 }): Promise<ActionResult<{
   reference: string;
   slideCount: number;
@@ -52,7 +54,8 @@ export async function previewScripturePptx(options: {
 
     const scripture = await buildScripturePayload(
       scriptureReference,
-      options.versesPerSlide
+      options.versesPerSlide,
+      options.verseTextFormat
     );
 
     return {
@@ -106,6 +109,7 @@ export async function exportWorshipToPptx(options: {
   contiId: string;
   scriptureReference: string;
   versesPerSlide?: number;
+  verseTextFormat?: string;
   outputFolderId?: string;
 }): Promise<ActionResult<PptxExportResult>> {
   try {
@@ -131,7 +135,8 @@ export async function exportWorshipToPptx(options: {
 
     const scripture = await buildScripturePayload(
       scriptureReference,
-      options.versesPerSlide
+      options.versesPerSlide,
+      options.verseTextFormat
     );
 
     return sendPptxExportRequest({

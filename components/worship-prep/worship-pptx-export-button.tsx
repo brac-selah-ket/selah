@@ -34,6 +34,7 @@ import {
   getContiForWorshipPptxExport,
   previewScripturePptx,
 } from "@/lib/actions/worship-pptx-export"
+import { DEFAULT_SCRIPTURE_VERSE_TEXT_FORMAT } from "@/lib/scripture/pagination"
 import { buildPptxSongData } from "@/lib/utils/pptx-helpers"
 import type { WorshipPrepSummary } from "@/lib/queries/worship-prep"
 import type { Conti, ContiWithSongs, PptxDriveFile, PptxExportScripturePageData } from "@/lib/types"
@@ -71,6 +72,7 @@ export function WorshipPptxExportButton({
   const [scriptureReference, setScriptureReference] = useState(item.scripture ?? "")
   const [selectedContiId, setSelectedContiId] = useState(defaultConti?.id ?? "")
   const [versesPerSlide, setVersesPerSlide] = useState(2)
+  const [verseTextFormat, setVerseTextFormat] = useState(DEFAULT_SCRIPTURE_VERSE_TEXT_FORMAT)
   const [loadedContis, setLoadedContis] = useState<Record<string, ContiWithSongs>>(() =>
     defaultConti ? { [defaultConti.id]: defaultConti } : {}
   )
@@ -82,6 +84,7 @@ export function WorshipPptxExportButton({
   const [scripturePreview, setScripturePreview] = useState<{
     requestedReference: string
     requestedVersesPerSlide: number
+    requestedVerseTextFormat: string
     reference: string
     slideCount: number
     pages: PptxExportScripturePageData[]
@@ -89,9 +92,13 @@ export function WorshipPptxExportButton({
 
   const selectedConti = selectedContiId ? loadedContis[selectedContiId] ?? null : null
   const currentScriptureReference = scriptureReference.trim()
+  const effectiveVerseTextFormat = verseTextFormat.trim()
+    ? verseTextFormat
+    : DEFAULT_SCRIPTURE_VERSE_TEXT_FORMAT
   const currentScripturePreview =
     scripturePreview?.requestedReference === currentScriptureReference &&
-    scripturePreview.requestedVersesPerSlide === versesPerSlide
+    scripturePreview.requestedVersesPerSlide === versesPerSlide &&
+    scripturePreview.requestedVerseTextFormat === effectiveVerseTextFormat
       ? scripturePreview
       : null
 
@@ -120,6 +127,7 @@ export function WorshipPptxExportButton({
     setScriptureReference(item.scripture ?? "")
     setSelectedContiId(defaultConti?.id ?? "")
     setVersesPerSlide(2)
+    setVerseTextFormat(DEFAULT_SCRIPTURE_VERSE_TEXT_FORMAT)
     setOverwrite(true)
     setOutputFileName("")
     setScripturePreview(null)
@@ -223,6 +231,7 @@ export function WorshipPptxExportButton({
     const result = await previewScripturePptx({
       scriptureReference: scripture,
       versesPerSlide,
+      verseTextFormat: effectiveVerseTextFormat,
     })
 
     if (!result.success || !result.data) {
@@ -233,6 +242,7 @@ export function WorshipPptxExportButton({
     setScripturePreview({
       requestedReference: scripture,
       requestedVersesPerSlide: versesPerSlide,
+      requestedVerseTextFormat: effectiveVerseTextFormat,
       reference: result.data.reference,
       slideCount: result.data.slideCount,
       pages: result.data.pages,
@@ -291,6 +301,7 @@ export function WorshipPptxExportButton({
         contiId: selectedConti.id,
         scriptureReference: scriptureReference.trim(),
         versesPerSlide,
+        verseTextFormat: effectiveVerseTextFormat,
       })
 
       if (!result.success || !result.data) {
@@ -467,6 +478,20 @@ export function WorshipPptxExportButton({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="verse-text-format" className="text-sm">
+                  절 표시 서식
+                </Label>
+                <Input
+                  id="verse-text-format"
+                  value={verseTextFormat}
+                  onChange={(event) => {
+                    setVerseTextFormat(event.target.value)
+                    setScripturePreview(null)
+                  }}
+                />
               </div>
 
               <div className="flex flex-col gap-2">
