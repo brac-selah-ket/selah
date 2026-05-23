@@ -50,6 +50,10 @@ const SECTION_PREFIX = process.env.NEXT_PUBLIC_PPTX_SECTION_PREFIX || "찬양"
 
 const VERSES_PER_SLIDE_OPTIONS = [1, 2, 3, 4, 5]
 
+function formatContiLabel(conti: Pick<Conti, "date" | "title">): string {
+  return `${conti.date} - ${conti.title || "콘티"}`
+}
+
 export function WorshipPptxExportButton({
   item,
   contis,
@@ -90,8 +94,12 @@ export function WorshipPptxExportButton({
   const selectedContiLabel = useMemo(() => {
     const conti = contis.find((item) => item.id === selectedContiId) ?? selectedConti
     if (!conti) return ""
-    return `${conti.date} ${conti.title || "콘티"}`
+    return formatContiLabel(conti)
   }, [contis, selectedConti, selectedContiId])
+
+  const contiLabelsById = useMemo(() => {
+    return new Map(contis.map((conti) => [conti.id, formatContiLabel(conti)]))
+  }, [contis])
 
   const canOpen = contis.length > 0
 
@@ -386,12 +394,14 @@ export function WorshipPptxExportButton({
                   onValueChange={(value) => handleContiChange(String(value ?? ""))}
                 >
                   <SelectTrigger className="h-9 w-full justify-between">
-                    <SelectValue placeholder="콘티 선택" />
+                    <SelectValue placeholder="콘티 선택">
+                      {(value) => contiLabelsById.get(String(value ?? "")) ?? "콘티 선택"}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {contis.map((conti) => (
                       <SelectItem key={conti.id} value={conti.id}>
-                        {conti.date} {conti.title || "콘티"}
+                        {formatContiLabel(conti)}
                       </SelectItem>
                     ))}
                   </SelectContent>
