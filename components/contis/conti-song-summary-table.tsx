@@ -48,7 +48,7 @@ function getSectionOrder(song: SummaryRow): string[] {
 
 function getPresetName(song: SummaryRow): string | null {
   if (!isContiSongWithSong(song)) return song.presetName
-  return song.overrides.presetId ? "프리셋 적용" : null
+  return song.appliedPreset?.name ?? (song.overrides.presetId ? "프리셋 적용" : null)
 }
 
 function getYoutubeReference(song: SummaryRow): string | null {
