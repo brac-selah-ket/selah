@@ -36,7 +36,7 @@ import {
 } from "@/lib/actions/worship-pptx-export"
 import { buildPptxSongData } from "@/lib/utils/pptx-helpers"
 import type { WorshipPrepSummary } from "@/lib/queries/worship-prep"
-import type { Conti, ContiWithSongs, PptxDriveFile } from "@/lib/types"
+import type { Conti, ContiWithSongs, PptxDriveFile, PptxExportScripturePageData } from "@/lib/types"
 
 type Step = "file-list" | "worship-data" | "mode-select" | "confirm"
 
@@ -80,11 +80,20 @@ export function WorshipPptxExportButton({
   const [overwrite, setOverwrite] = useState(true)
   const [outputFileName, setOutputFileName] = useState("")
   const [scripturePreview, setScripturePreview] = useState<{
+    requestedReference: string
+    requestedVersesPerSlide: number
     reference: string
     slideCount: number
+    pages: PptxExportScripturePageData[]
   } | null>(null)
 
   const selectedConti = selectedContiId ? loadedContis[selectedContiId] ?? null : null
+  const currentScriptureReference = scriptureReference.trim()
+  const currentScripturePreview =
+    scripturePreview?.requestedReference === currentScriptureReference &&
+    scripturePreview.requestedVersesPerSlide === versesPerSlide
+      ? scripturePreview
+      : null
 
   const songData = useMemo(() => {
     if (!selectedConti) return []
@@ -204,6 +213,39 @@ export function WorshipPptxExportButton({
     })
   }
 
+  async function loadScripturePreview(): Promise<boolean> {
+    const scripture = scriptureReference.trim()
+    if (!scripture) {
+      toast.error("말씀 본문을 입력해 주세요")
+      return false
+    }
+
+    const result = await previewScripturePptx({
+      scriptureReference: scripture,
+      versesPerSlide,
+    })
+
+    if (!result.success || !result.data) {
+      toast.error(result.error || "말씀 본문을 확인하지 못했습니다")
+      return false
+    }
+
+    setScripturePreview({
+      requestedReference: scripture,
+      requestedVersesPerSlide: versesPerSlide,
+      reference: result.data.reference,
+      slideCount: result.data.slideCount,
+      pages: result.data.pages,
+    })
+    return true
+  }
+
+  function handlePreviewScripture() {
+    startTransition(async () => {
+      await loadScripturePreview()
+    })
+  }
+
   function handleModeConfirm() {
     if (!overwrite && !outputFileName.trim()) {
       toast.error("파일명을 입력해 주세요")
@@ -211,20 +253,8 @@ export function WorshipPptxExportButton({
     }
 
     startTransition(async () => {
-      const result = await previewScripturePptx({
-        scriptureReference: scriptureReference.trim(),
-        versesPerSlide,
-      })
-
-      if (!result.success || !result.data) {
-        toast.error(result.error || "말씀 본문을 확인하지 못했습니다")
-        return
-      }
-
-      setScripturePreview({
-        reference: result.data.reference,
-        slideCount: result.data.slideCount,
-      })
+      const ready = currentScripturePreview || (await loadScripturePreview())
+      if (!ready) return
       setStep("confirm")
     })
   }
@@ -308,7 +338,7 @@ export function WorshipPptxExportButton({
       </Button>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] grid-rows-[auto_1fr_auto]">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] grid-rows-[auto_1fr_auto]">
           <DialogHeader>
             <DialogTitle>
               {step === "file-list" && "PPT 파일 선택"}
@@ -438,6 +468,42 @@ export function WorshipPptxExportButton({
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium">말씀 미리보기</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePreviewScripture}
+                    disabled={isPending}
+                  >
+                    {isPending && (
+                      <HugeiconsIcon icon={Loading03Icon} strokeWidth={2} className="animate-spin" data-icon="inline-start" />
+                    )}
+                    {isPending ? "불러오는 중..." : "미리보기"}
+                  </Button>
+                </div>
+                {currentScripturePreview && (
+                  <div className="rounded-lg border bg-muted/30">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
+                      <span className="text-sm font-medium">{currentScripturePreview.reference}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {currentScripturePreview.slideCount}슬라이드
+                      </span>
+                    </div>
+                    <div className="max-h-[min(42vh,28rem)] space-y-2 overflow-y-auto p-3">
+                      {currentScripturePreview.pages.map((page, index) => (
+                        <div key={`${page.verse_start}-${page.verse_end}-${index}`} className="rounded-md border bg-background p-3">
+                          <p className="mb-2 text-xs font-medium text-muted-foreground">{page.title}</p>
+                          <p className="whitespace-pre-wrap break-words text-sm leading-6">{page.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -509,7 +575,7 @@ export function WorshipPptxExportButton({
             </div>
           )}
 
-          {step === "confirm" && selectedFile && scripturePreview && (
+          {step === "confirm" && selectedFile && currentScripturePreview && (
             <div className="flex flex-col gap-4 overflow-y-auto min-h-0">
               <div className="rounded-lg border bg-muted/50 p-3 space-y-2">
                 <div className="flex justify-between gap-3 text-sm">
@@ -524,11 +590,11 @@ export function WorshipPptxExportButton({
                 </div>
                 <div className="flex justify-between gap-3 text-sm">
                   <span className="shrink-0 text-muted-foreground">말씀</span>
-                  <span className="min-w-0 break-words text-right font-medium">{scripturePreview.reference}</span>
+                  <span className="min-w-0 break-words text-right font-medium">{currentScripturePreview.reference}</span>
                 </div>
                 <div className="flex justify-between gap-3 text-sm">
                   <span className="shrink-0 text-muted-foreground">말씀 슬라이드</span>
-                  <span className="font-medium">{scripturePreview.slideCount}장</span>
+                  <span className="font-medium">{currentScripturePreview.slideCount}장</span>
                 </div>
                 <div className="flex justify-between gap-3 text-sm">
                   <span className="shrink-0 text-muted-foreground">절/슬라이드</span>
