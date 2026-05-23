@@ -33,13 +33,13 @@ test('scripture body slides clear non-target textboxes after choosing body textb
   );
 });
 
-test('scripture body slides inject page title into a separate title textbox', async () => {
+test('scripture body slides inject the full reference into a separate title textbox', async () => {
   const source = await readFile(new URL('./pptx.py', import.meta.url), 'utf8');
 
   assert.match(source, /def get_scripture_page_title_textbox\(slide, body_shape\):/);
   assert.match(
     source,
-    /def process_scripture_section[\s\S]+textbox = get_largest_textbox\(new_slide\)[\s\S]+page_title_shape = get_scripture_page_title_textbox\(new_slide, textbox\)[\s\S]+inject_text_into_shape\(page_title_shape, page.get\('title', ''\)\)/,
+    /def process_scripture_section[\s\S]+scripture_page_title = normalize_reference_text\(scripture.get\('reference', ''\)\)[\s\S]+page_title_shape = get_scripture_page_title_textbox\(new_slide, textbox\)[\s\S]+inject_text_into_shape\(\s*page_title_shape,\s*scripture_page_title or page.get\('title', ''\)\s*\)/,
   );
   assert.match(
     source,

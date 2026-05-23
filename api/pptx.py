@@ -719,6 +719,7 @@ def process_scripture_section(prs, scripture, section, slide_id_map):
     generated_slide_ids = []
     last_slide_id = body_base_slide_id
     pages = scripture.get('pages', [])
+    scripture_page_title = normalize_reference_text(scripture.get('reference', ''))
 
     for page_idx, page in enumerate(pages, 1):
         new_slide, new_sid, new_el = duplicate_slide(prs, body_base_slide)
@@ -727,7 +728,10 @@ def process_scripture_section(prs, scripture, section, slide_id_map):
             page_title_shape = get_scripture_page_title_textbox(new_slide, textbox)
             clear_other_textboxes(new_slide, [textbox, page_title_shape])
             if page_title_shape:
-                inject_text_into_shape(page_title_shape, page.get('title', ''))
+                inject_text_into_shape(
+                    page_title_shape,
+                    scripture_page_title or page.get('title', '')
+                )
             inject_text_into_shape(textbox, page.get('text', ''))
             strip_textbox_numbering(textbox)
         move_slide_id_after(prs, new_sid, last_slide_id)
