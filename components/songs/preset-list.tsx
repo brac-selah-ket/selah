@@ -4,6 +4,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { YouTubeReferenceLink } from "@/components/shared/youtube-reference-link"
 import {
   AlertDialog,
   AlertDialogContent,
@@ -17,6 +18,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Add01Icon, Delete01Icon, PencilEdit01Icon, Tick01Icon } from "@hugeicons/core-free-icons"
 import { deleteSongPreset, setDefaultPreset } from "@/lib/actions/song-presets"
+import { cn } from "@/lib/utils"
 import { PresetEditor } from "./preset-editor"
 import type { SongPresetWithSheetMusic, SheetMusicFile } from "@/lib/types"
 
@@ -32,6 +34,7 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deletingPresetId, setDeletingPresetId] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
+  const compact = editorOpen
 
   const handleCreateClick = () => {
     setEditingPreset(undefined)
@@ -98,7 +101,7 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
           프리셋이 없습니다
         </p>
       ) : (
-        <div className="space-y-3">
+        <div className={compact ? "space-y-2" : "space-y-3"}>
           {presets.map((preset) => {
             const keys = parseJsonField<string[]>(preset.keys, [])
             const tempos = parseJsonField<number[]>(preset.tempos, [])
@@ -106,54 +109,56 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
             return (
               <div
                 key={preset.id}
-                className="ring-foreground/10 rounded-lg bg-muted/30 p-4 ring-1 cursor-pointer hover:bg-muted/50 transition-colors"
+                className={cn(
+                  "ring-foreground/10 rounded-lg bg-muted/30 ring-1 cursor-pointer hover:bg-muted/50 transition-colors",
+                  compact ? "p-3" : "p-4",
+                )}
                 onClick={() => handleEditClick(preset)}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium">{preset.name}</h3>
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <h3 className="truncate font-medium">{preset.name}</h3>
                       {preset.isDefault && (
                         <Badge variant="secondary">기본</Badge>
                       )}
-                      {preset.youtubeReference && (
-                        <Badge variant="outline" className="text-xs">YT</Badge>
-                      )}
                     </div>
 
-                    <div className="text-muted-foreground text-base space-y-1.5">
+                    <div
+                      className={cn(
+                        "text-muted-foreground",
+                        compact
+                          ? "mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+                          : "text-base space-y-1.5",
+                      )}
+                    >
                       {keys.length > 0 && (
-                        <div>
+                        <div className={compact ? "min-w-0 max-w-full truncate" : undefined}>
                           <span className="font-medium">조성:</span>{" "}
                           {keys.join(", ")}
                         </div>
                       )}
                       {tempos.length > 0 && (
-                        <div>
+                        <div className={compact ? "min-w-0 max-w-full truncate" : undefined}>
                           <span className="font-medium">템포:</span>{" "}
                           {tempos.join(", ")} BPM
                         </div>
                       )}
-                      {preset.notes && (
+                      {preset.notes && !compact && (
                         <div>
                           <span className="font-medium">메모:</span>{" "}
                           {preset.notes}
                         </div>
                       )}
-                      {preset.youtubeReference && (
-                        <div>
-                          <span className="font-medium">YouTube:</span>{" "}
-                          <a
-                            href={`https://www.youtube.com/watch?v=${preset.youtubeReference}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {preset.youtubeReference}
-                          </a>
-                        </div>
-                      )}
+                      <YouTubeReferenceLink
+                        reference={preset.youtubeReference}
+                        title={preset.youtubeTitle}
+                        stopPropagation
+                        className={cn(
+                          "text-primary block truncate underline-offset-4 hover:underline",
+                          compact && "min-w-0 max-w-full",
+                        )}
+                      />
                     </div>
                   </div>
 

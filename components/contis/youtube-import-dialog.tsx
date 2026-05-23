@@ -23,7 +23,7 @@ import {
 import { fetchYouTubePlaylist } from "@/lib/actions/youtube"
 import { batchImportSongsToConti } from "@/lib/actions/conti-songs"
 import { getPresetsForSong } from "@/lib/actions/song-presets"
-import type { Song, YouTubePlaylistItem, SongPreset } from "@/lib/types"
+import type { Song, SongPreset } from "@/lib/types"
 
 interface YouTubeImportDialogProps {
   contiId: string
@@ -263,6 +263,7 @@ export function YouTubeImportDialog({
         songId: item.matchedSong?.id ?? null,
         newSongName: item.matchedSong ? null : item.editedName.trim(),
         videoId: item.videoId,
+        title: item.originalTitle,
         presetId: item.selectedPresetId,
         createNewPreset: item.createNewPreset || !item.matchedSong,
         presetName: item.presetName || defaultPresetName,

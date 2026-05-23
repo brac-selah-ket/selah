@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { getContis } from "@/lib/queries/contis"
+import { getContisWithSongSummaries } from "@/lib/queries/contis"
 import { PageHeader } from "@/components/layout/page-header"
 import { Button } from "@/components/ui/button"
 import { ContiList } from "@/components/contis/conti-list"
@@ -7,7 +7,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { Add01Icon } from "@hugeicons/core-free-icons"
 
 export default async function ContisPage() {
-  const contis = await getContis()
+  const contis = await getContisWithSongSummaries()
 
   return (
     <div className="flex flex-col gap-6">

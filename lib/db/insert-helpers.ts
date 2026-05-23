@@ -62,7 +62,7 @@ export async function insertContiSong(
 export async function insertSongPreset(
   tx: TxOrDb,
   songId: string,
-  data: { name: string; youtubeReference?: string | null }
+  data: { name: string; youtubeReference?: string | null; youtubeTitle?: string | null }
 ) {
   const now = new Date()
   const existing = await tx
@@ -82,6 +82,7 @@ export async function insertSongPreset(
     sectionLyricsMap: '{}',
     notes: null,
     youtubeReference: data.youtubeReference ?? null,
+    youtubeTitle: data.youtubeTitle ?? null,
     pdfMetadata: null,
     isDefault: false,
     sortOrder: maxSort + 1,
@@ -96,10 +97,11 @@ export async function insertSongPreset(
 export async function updateSongPresetYoutubeRef(
   tx: TxOrDb,
   presetId: string,
-  youtubeReference: string | null
+  youtubeReference: string | null,
+  youtubeTitle?: string | null,
 ) {
   await tx
     .update(songPresets)
-    .set({ youtubeReference, updatedAt: new Date() })
+    .set({ youtubeReference, youtubeTitle: youtubeReference ? youtubeTitle ?? null : null, updatedAt: new Date() })
     .where(eq(songPresets.id, presetId))
 }

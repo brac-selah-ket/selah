@@ -62,6 +62,7 @@ export interface SongPresetData {
   notes: string | null;
   isDefault: boolean;
   youtubeReference?: string | null;
+  youtubeTitle?: string | null;
   sheetMusicFileIds?: string[];  // references to sheet_music_files.id
   pdfMetadata?: PresetPdfMetadata | null;
 }
@@ -78,10 +79,31 @@ export interface SongPresetWithSheetMusic extends SongPreset {
 export interface ContiSongWithSong extends ContiSong {
   song: Song;
   overrides: ContiSongOverrides;
+  appliedPreset?: Pick<SongPreset, 'id' | 'name' | 'youtubeReference' | 'youtubeTitle'> | null;
 }
 
 export interface ContiWithSongs extends Conti {
   songs: ContiSongWithSong[];
+}
+
+export interface ContiSongSummary {
+  id: string
+  songId: string
+  sortOrder: number
+  songName: string
+  keys: string[]
+  tempos: number[]
+  sectionOrder: string[]
+  presetId: string | null
+  presetName: string | null
+  youtubeReference: string | null
+  youtubeTitle: string | null
+  hasSheetMusicSelection: boolean
+}
+
+export interface ContiWithSongSummaries extends Conti {
+  songSummaries: ContiSongSummary[]
+  songCount: number
 }
 
 export interface ActionResult<T = void> {

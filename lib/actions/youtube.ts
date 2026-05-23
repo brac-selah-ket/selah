@@ -2,6 +2,7 @@
 
 import { z } from 'zod'
 import type { ActionResult, YouTubePlaylistItem } from '@/lib/types'
+import { cleanYouTubeTitle } from '@/lib/utils/youtube-title'
 
 const urlSchema = z.string().url()
 
@@ -16,14 +17,6 @@ function extractPlaylistId(url: string): string | null {
 
 const isPrivateOrDeleted = (title: string) =>
   title === 'Private video' || title === 'Deleted video'
-
-function cleanVideoTitle(title: string): string {
-  return title
-    .replace(/\s*[\[\(]\s*(Official\s*(M\/?V|Video|Audio|Lyric\s*Video)|공식\s*(뮤직비디오|MV|영상)|Lyrics?\s*Video|가사\s*영상)\s*[\]\)]\s*/gi, '')
-    .replace(/\s*[\[\(]\s*(?:4K|HD|HQ)\s*[\]\)]\s*/gi, '')
-    .replace(/\s*\/\/\s*.*$/, '')
-    .trim()
-}
 
 interface YouTubeApiResponse {
   items?: Array<{
@@ -95,7 +88,7 @@ export async function fetchYouTubePlaylist(
         for (const item of data.items) {
           if (!isPrivateOrDeleted(item.snippet.title)) {
             items.push({
-              title: cleanVideoTitle(item.snippet.title),
+              title: cleanYouTubeTitle(item.snippet.title),
               videoId: item.snippet.resourceId.videoId,
               position: item.snippet.position,
             })

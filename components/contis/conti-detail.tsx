@@ -1,12 +1,23 @@
 "use client"
 
-import { Fragment, useState, useTransition, useOptimistic } from "react"
+import { useState, useTransition, useOptimistic } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Add01Icon, PlayListIcon } from "@hugeicons/core-free-icons"
-import { ContiSongItem } from "@/components/contis/conti-song-item"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { useOptionalDrawerState } from "@/components/ui/drawer-context"
+import { ContiSongSummaryTable } from "@/components/contis/conti-song-summary-table"
 import { ContiSongEditor } from "./conti-song-editor"
 import { SongPicker } from "@/components/contis/song-picker"
 import { YouTubeImportDialog } from "@/components/contis/youtube-import-dialog"
@@ -31,9 +42,11 @@ export function ContiDetail({
   showDescription,
 }: ContiDetailProps) {
   const router = useRouter()
+  const { isOpen: drawerOpen } = useOptionalDrawerState()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [youtubeImportOpen, setYoutubeImportOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [removingId, setRemovingId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [optimisticSongs, setOptimisticSongs] = useOptimistic<ContiSongWithSong[]>(conti.songs)
 
@@ -111,30 +124,61 @@ export function ContiDetail({
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {optimisticSongs.map((contiSong, index) => (
-              <Fragment key={contiSong.id}>
-                <ContiSongItem
+            <ContiSongSummaryTable
+              songs={optimisticSongs}
+              mode="action"
+              density={drawerOpen ? "compact" : "default"}
+              onEdit={handleEdit}
+              onMoveUp={handleMoveUp}
+              onMoveDown={handleMoveDown}
+              onRemove={setRemovingId}
+            />
+            {optimisticSongs.map((contiSong) => (
+              editingId === contiSong.id ? (
+                <ContiSongEditor
+                  key={contiSong.id}
                   contiSong={contiSong}
-                  index={index}
-                  total={optimisticSongs.length}
-                  onMoveUp={() => handleMoveUp(index)}
-                  onMoveDown={() => handleMoveDown(index)}
-                  onRemove={() => handleRemove(contiSong.id)}
-                  onEdit={() => handleEdit(contiSong.id)}
+                  open={true}
+                  onOpenChange={(open) => {
+                    if (!open) setEditingId(null)
+                  }}
                 />
-                {editingId === contiSong.id && (
-                  <ContiSongEditor
-                    contiSong={contiSong}
-                    open={true}
-                    onOpenChange={(open) => {
-                      if (!open) setEditingId(null)
-                    }}
-                  />
-                )}
-              </Fragment>
+              ) : null
             ))}
           </div>
         )}
+
+        <AlertDialog
+          open={removingId !== null}
+          onOpenChange={(open) => {
+            if (!open) setRemovingId(null)
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>곡 제거</AlertDialogTitle>
+              <AlertDialogDescription>
+                이 곡을 콘티에서 제거하시겠습니까?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setRemovingId(null)}>
+                취소
+              </AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                onClick={() => {
+                  if (removingId) {
+                    handleRemove(removingId)
+                    setRemovingId(null)
+                  }
+                }}
+              >
+                삭제
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <div className="flex flex-wrap items-center gap-2 self-start">
           <Button

@@ -50,6 +50,13 @@
       "when": 1771508153320,
       "tag": "0006_slimy_scarlet_spider",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1779467367608,
+      "tag": "0007_lowly_terror",
+      "breakpoints": true
     }
   ]
 }
