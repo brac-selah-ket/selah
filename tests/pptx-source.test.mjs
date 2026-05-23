@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 test('scripture body slides target the largest textbox, not the first textbox', async () => {
-  const source = await readFile(new URL('./pptx.py', import.meta.url), 'utf8');
+  const source = await readFile(new URL('../api/pptx.py', import.meta.url), 'utf8');
 
   assert.match(source, /def get_largest_textbox\(slide\):/);
   assert.match(
@@ -13,7 +13,7 @@ test('scripture body slides target the largest textbox, not the first textbox', 
 });
 
 test('scripture body slides disable inherited automatic numbering', async () => {
-  const source = await readFile(new URL('./pptx.py', import.meta.url), 'utf8');
+  const source = await readFile(new URL('../api/pptx.py', import.meta.url), 'utf8');
 
   assert.match(source, /def strip_textbox_numbering\(shape\):/);
   assert.match(source, /buAutoNum/);
@@ -24,7 +24,7 @@ test('scripture body slides disable inherited automatic numbering', async () => 
 });
 
 test('scripture body slides clear non-target textboxes after choosing body textbox', async () => {
-  const source = await readFile(new URL('./pptx.py', import.meta.url), 'utf8');
+  const source = await readFile(new URL('../api/pptx.py', import.meta.url), 'utf8');
 
   assert.match(source, /def clear_other_textboxes\(slide, keep_shape\):/);
   assert.match(
@@ -34,7 +34,7 @@ test('scripture body slides clear non-target textboxes after choosing body textb
 });
 
 test('scripture body slides inject the full reference into a separate title textbox', async () => {
-  const source = await readFile(new URL('./pptx.py', import.meta.url), 'utf8');
+  const source = await readFile(new URL('../api/pptx.py', import.meta.url), 'utf8');
 
   assert.match(source, /def get_scripture_page_title_textbox\(slide, body_shape\):/);
   assert.match(
@@ -48,7 +48,7 @@ test('scripture body slides inject the full reference into a separate title text
 });
 
 test('scripture body slides keep morph transition only on the first generated page', async () => {
-  const source = await readFile(new URL('./pptx.py', import.meta.url), 'utf8');
+  const source = await readFile(new URL('../api/pptx.py', import.meta.url), 'utf8');
 
   assert.match(source, /def clear_slide_transitions\(slide\):/);
   assert.match(

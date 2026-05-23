@@ -10,6 +10,9 @@ import type {
 import { findAllowedPptxFile } from '@/lib/utils/pptx-helpers';
 
 function getPptxApiUrl(): string {
+  if (process.env.PPTX_API_URL) {
+    return process.env.PPTX_API_URL;
+  }
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}/api/pptx`;
   }
@@ -27,18 +30,70 @@ function getPptxHeaders(extra?: Record<string, string>): Record<string, string> 
   return headers;
 }
 
+type GoogleServiceAccountJson = {
+  client_email?: string;
+  private_key?: string;
+};
+
+function parseServiceAccountJson(rawJson: string): GoogleServiceAccountJson | null {
+  const candidates = [
+    rawJson,
+    rawJson.replace(/\r?\n/g, '\\n'),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate) as GoogleServiceAccountJson;
+    } catch {}
+  }
+
+  return null;
+}
+
+function getServiceAccountCredentials(): { clientEmail: string; privateKey: string } {
+  const rawJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (rawJson) {
+    const parsed = parseServiceAccountJson(rawJson);
+    if (parsed?.client_email && parsed.private_key) {
+      return {
+        clientEmail: parsed.client_email,
+        privateKey: parsed.private_key,
+      };
+    }
+  }
+
+  const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = process.env.GOOGLE_PRIVATE_KEY;
+  if (clientEmail && privateKey) {
+    return {
+      clientEmail,
+      privateKey,
+    };
+  }
+
+  throw new Error('Google service account credentials are not configured');
+}
+
+function normalizePrivateKey(value: string): string {
+  let normalized = value.trim();
+  while (normalized.startsWith('"') && normalized.endsWith('"') && normalized.length >= 2) {
+    normalized = normalized.slice(1, -1).trim();
+  }
+  return normalized.replace(/\\n/g, '\n').trim();
+}
+
 /**
  * Get Google API access token from service account credentials.
  * Creates a self-signed JWT and exchanges it for an access token.
  * Uses Web Crypto API (Edge Runtime compatible).
  */
 async function getGoogleAccessToken(): Promise<string> {
-  const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}');
+  const { clientEmail, privateKey } = getServiceAccountCredentials();
   const now = Math.floor(Date.now() / 1000);
 
   const header = { alg: 'RS256', typ: 'JWT' };
   const payload = {
-    iss: creds.client_email,
+    iss: clientEmail,
     scope: 'https://www.googleapis.com/auth/drive.readonly',
     aud: 'https://oauth2.googleapis.com/token',
     iat: now,
@@ -50,10 +105,10 @@ async function getGoogleAccessToken(): Promise<string> {
 
   const unsignedToken = `${toBase64Url(header)}.${toBase64Url(payload)}`;
 
-  const pemKey = creds.private_key.replace(/-----BEGIN PRIVATE KEY-----/g, '')
+  const pemKey = normalizePrivateKey(privateKey)
+    .replace(/-----BEGIN PRIVATE KEY-----/g, '')
     .replace(/-----END PRIVATE KEY-----/g, '')
-    .replace(/\\n/g, '')
-    .replace(/\n/g, '');
+    .replace(/\s+/g, '');
   const keyBuffer = Uint8Array.from(atob(pemKey), (c) => c.charCodeAt(0));
 
   const cryptoKey = await crypto.subtle.importKey(
