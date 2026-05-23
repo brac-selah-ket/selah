@@ -542,6 +542,18 @@ def get_first_textbox(slide):
     return None
 
 
+def get_largest_textbox(slide):
+    """Get the largest text-bearing shape on a slide."""
+    textboxes = [shape for shape in slide.shapes if shape.has_text_frame]
+    if not textboxes:
+        return None
+
+    return max(
+        textboxes,
+        key=lambda shape: int(shape.width or 0) * int(shape.height or 0)
+    )
+
+
 def set_slide_notes(slide, text):
     """Add speaker notes to a slide using python-pptx."""
     notes_slide = slide.notes_slide
@@ -617,7 +629,7 @@ def process_scripture_section(prs, scripture, section, slide_id_map):
 
     for page_idx, page in enumerate(pages, 1):
         new_slide, new_sid, new_el = duplicate_slide(prs, body_base_slide)
-        textbox = get_first_textbox(new_slide)
+        textbox = get_largest_textbox(new_slide)
         if textbox:
             inject_text_into_shape(textbox, page.get('text', ''))
         move_slide_id_after(prs, new_sid, last_slide_id)
