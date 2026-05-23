@@ -653,6 +653,16 @@ def set_slide_notes(slide, text):
     notes_slide.notes_text_frame.text = text
 
 
+def clear_slide_transitions(slide):
+    """Remove slide-level transition XML from a slide."""
+    sld = slide._element
+    for existing in sld.findall(_pn('transition')):
+        sld.remove(existing)
+    for existing in sld.findall(f'{{{MC_NS}}}AlternateContent'):
+        if existing.find(f'.//{{{P_NS}}}transition') is not None:
+            sld.remove(existing)
+
+
 def set_morph_transition(slide, duration_ms=1000):
     """Set a morph transition on a slide using mc:AlternateContent.
 
@@ -660,11 +670,7 @@ def set_morph_transition(slide, duration_ms=1000):
     mc:Choice with p159:morph for 2019+, mc:Fallback with p:fade for older.
     """
     sld = slide._element
-    # Remove existing bare transitions and mc:AlternateContent wrappers
-    for existing in sld.findall(_pn('transition')):
-        sld.remove(existing)
-    for existing in sld.findall(f'{{{MC_NS}}}AlternateContent'):
-        sld.remove(existing)
+    clear_slide_transitions(slide)
 
     transition_xml = (
         '<mc:AlternateContent'
@@ -723,6 +729,9 @@ def process_scripture_section(prs, scripture, section, slide_id_map):
 
     for page_idx, page in enumerate(pages, 1):
         new_slide, new_sid, new_el = duplicate_slide(prs, body_base_slide)
+        clear_slide_transitions(new_slide)
+        if page_idx == 1:
+            set_morph_transition(new_slide)
         textbox = get_largest_textbox(new_slide)
         if textbox:
             page_title_shape = get_scripture_page_title_textbox(new_slide, textbox)

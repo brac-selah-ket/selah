@@ -46,3 +46,13 @@ test('scripture body slides inject the full reference into a separate title text
     /def process_scripture_section[\s\S]+clear_other_textboxes\(new_slide, \[textbox, page_title_shape\]\)/,
   );
 });
+
+test('scripture body slides keep morph transition only on the first generated page', async () => {
+  const source = await readFile(new URL('./pptx.py', import.meta.url), 'utf8');
+
+  assert.match(source, /def clear_slide_transitions\(slide\):/);
+  assert.match(
+    source,
+    /def process_scripture_section[\s\S]+for page_idx, page in enumerate\(pages, 1\):[\s\S]+new_slide, new_sid, new_el = duplicate_slide\(prs, body_base_slide\)[\s\S]+clear_slide_transitions\(new_slide\)[\s\S]+if page_idx == 1:[\s\S]+set_morph_transition\(new_slide\)/,
+  );
+});
