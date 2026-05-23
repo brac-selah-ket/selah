@@ -21,6 +21,13 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { listPptxFiles } from "@/lib/actions/pptx-export"
 import {
   exportWorshipToPptx,
@@ -373,21 +380,22 @@ export function WorshipPptxExportButton({
                 <Label htmlFor="conti-select" className="text-sm">
                   콘티
                 </Label>
-                <select
+                <Select
                   id="conti-select"
-                  value={selectedContiId}
-                  onChange={(event) => handleContiChange(event.target.value)}
-                  className="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3"
+                  value={selectedContiId || null}
+                  onValueChange={(value) => handleContiChange(String(value ?? ""))}
                 >
-                  <option value="" disabled>
-                    콘티 선택
-                  </option>
-                  {contis.map((conti) => (
-                    <option key={conti.id} value={conti.id}>
-                      {conti.date} {conti.title || "콘티"}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-9 w-full justify-between">
+                    <SelectValue placeholder="콘티 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contis.map((conti) => (
+                      <SelectItem key={conti.id} value={conti.id}>
+                        {conti.date} {conti.title || "콘티"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {contiLoading && (
                   <p className="text-xs text-muted-foreground">콘티 정보를 불러오는 중...</p>
                 )}
@@ -400,21 +408,25 @@ export function WorshipPptxExportButton({
                 <Label htmlFor="verses-per-slide" className="text-sm">
                   절/슬라이드
                 </Label>
-                <select
+                <Select
                   id="verses-per-slide"
-                  value={versesPerSlide}
-                  onChange={(event) => {
-                    setVersesPerSlide(Number(event.target.value))
+                  value={String(versesPerSlide)}
+                  onValueChange={(value) => {
+                    setVersesPerSlide(Number(value))
                     setScripturePreview(null)
                   }}
-                  className="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3"
                 >
-                  {VERSES_PER_SLIDE_OPTIONS.map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-9 w-full justify-between">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VERSES_PER_SLIDE_OPTIONS.map((value) => (
+                      <SelectItem key={value} value={String(value)}>
+                        {value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}
