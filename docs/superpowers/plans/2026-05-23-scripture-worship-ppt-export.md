@@ -912,7 +912,7 @@ import type {
 } from '@/lib/types';
 
 const SONG_SECTION_PREFIX = process.env.PPTX_SECTION_PREFIX || process.env.NEXT_PUBLIC_PPTX_SECTION_PREFIX || '찬양';
-const SCRIPTURE_SECTION_NAME = process.env.PPTX_SCRIPTURE_SECTION_NAME || '말씀';
+const SCRIPTURE_SECTION_NAME = process.env.PPTX_SCRIPTURE_SECTION_NAME || '봉독 말씀';
 
 function normalizeVersesPerSlide(value: number): number {
   if (!Number.isInteger(value) || value < 1 || value > 5) {
@@ -1307,7 +1307,7 @@ import {
 import type { Conti, PptxDriveFile } from "@/lib/types"
 
 type Step = "file-list" | "worship-data" | "mode-select" | "confirm"
-const SCRIPTURE_SECTION_NAME = process.env.NEXT_PUBLIC_PPTX_SCRIPTURE_SECTION_NAME || "말씀"
+const SCRIPTURE_SECTION_NAME = process.env.NEXT_PUBLIC_PPTX_SCRIPTURE_SECTION_NAME || "봉독 말씀"
 
 interface WorshipPptxExportButtonProps {
   scripture: string | null
@@ -1731,8 +1731,8 @@ Expected: commit succeeds.
 Add these lines near the existing PPTX env vars in both `.env.example` and `.env.local.example`:
 
 ```bash
-PPTX_SCRIPTURE_SECTION_NAME=말씀
-NEXT_PUBLIC_PPTX_SCRIPTURE_SECTION_NAME=말씀
+PPTX_SCRIPTURE_SECTION_NAME=봉독 말씀
+NEXT_PUBLIC_PPTX_SCRIPTURE_SECTION_NAME=봉독 말씀
 ```
 
 - [ ] **Step 2: Run focused tests**
@@ -1776,7 +1776,7 @@ Expected: commit succeeds.
 
 After implementation, verify the workflow with a real template:
 
-1. The PPT template has a section named `말씀` with a title slide and body base slide.
+1. The PPT template has a section named `봉독 말씀` with a title slide and body base slide.
 2. The PPT template still has the existing `찬양 1`, `찬양 2`, etc. sections.
 3. Open `/worship-prep?date=YYYY-MM-DD` for a row with a Sheets scripture value and matching conti.
 4. Click `예배 PPT 내보내기`.
@@ -1786,7 +1786,7 @@ After implementation, verify the workflow with a real template:
 8. Confirm the slide count matches the fetched passage length.
 9. Export as a downloaded file first.
 10. Open the file and confirm:
-    - The `말씀` section title slide contains the normalized reference.
+    - The `봉독 말씀` section title slide contains the normalized reference.
     - The body slides contain the fetched New Korean Revised Version text.
     - The songs are still inserted into `찬양 N` sections.
 11. Repeat with overwrite mode only after the downloaded-file path works.

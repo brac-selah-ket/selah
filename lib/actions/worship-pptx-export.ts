@@ -19,7 +19,7 @@ function getScriptureSectionName(): string {
   return (
     process.env.PPTX_SCRIPTURE_SECTION_NAME ||
     process.env.NEXT_PUBLIC_PPTX_SCRIPTURE_SECTION_NAME ||
-    '말씀'
+    '봉독 말씀'
   );
 }
 

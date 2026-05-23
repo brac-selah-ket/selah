@@ -12,7 +12,7 @@ The first implementation reads the weekly scripture reference from the existing 
 - The user can edit the scripture reference before export. The Sheets value is only the default.
 - The first scripture provider is a non-official HTML parser for the Korean Bible Society legacy Bible reading page.
 - The provider boundary must be explicit so a licensed API, local database, or manual text provider can replace the parser later.
-- The scripture PowerPoint section name is configurable. The default is `말씀`.
+- The scripture PowerPoint section name is configurable. The default is `봉독 말씀`.
 - Scripture slides default to two verses per slide. The export UI lets the user choose the verses-per-slide value.
 - The worship-prep tab gets a new combined `예배 PPT 내보내기` button. The existing conti detail `PPT 내보내기` button remains focused on songs.
 - The first version does not include a full scripture text preview. It shows the normalized reference, verses-per-slide value, and expected slide count in the confirmation step.
@@ -189,8 +189,8 @@ If the selected date has no matching conti, the user can pick one from available
 Add client/server configuration for the scripture section name:
 
 ```text
-PPTX_SCRIPTURE_SECTION_NAME=말씀
-NEXT_PUBLIC_PPTX_SCRIPTURE_SECTION_NAME=말씀
+PPTX_SCRIPTURE_SECTION_NAME=봉독 말씀
+NEXT_PUBLIC_PPTX_SCRIPTURE_SECTION_NAME=봉독 말씀
 ```
 
 The client value is used only for UI summary. The server value is authoritative for the payload sent to the Python API.
@@ -247,7 +247,7 @@ Run the existing lint/build checks after implementation.
 2. Extend export types and server action payload.
 3. Extend Python PPTX processing for optional scripture payload.
 4. Add the worship-prep combined export UI.
-5. Validate with a real template containing a `말씀` section and existing `찬양 N` sections.
+5. Validate with a real template containing a `봉독 말씀` section and existing `찬양 N` sections.
 6. Keep the existing conti detail song-only export available as a fallback.
 
 ## Open Operational Risk
