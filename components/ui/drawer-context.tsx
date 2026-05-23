@@ -17,6 +17,13 @@ export function useDrawerPortal() {
   return ctx
 }
 
+export function useOptionalDrawerState() {
+  const ctx = useContext(DrawerContext)
+  return {
+    isOpen: ctx?.isOpen ?? false,
+  }
+}
+
 export function DrawerProvider({ children }: { children: React.ReactNode }) {
   const [portalNode, setPortalNode] = useState<HTMLDivElement | null>(null)
   const [isOpen, setIsOpen] = useState(false)
