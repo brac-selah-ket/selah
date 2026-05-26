@@ -24,17 +24,28 @@ function getScriptureSectionName(): string {
   );
 }
 
+function getSermonTitleSectionName(): string {
+  return (
+    process.env.PPTX_SERMON_TITLE_SECTION_NAME ||
+    '말씀 제목'
+  );
+}
+
 async function buildScripturePayload(
   scriptureReference: string,
   versesPerSlide?: number,
-  verseTextFormat?: string
+  verseTextFormat?: string,
+  sermonTitle?: string | null
 ): Promise<PptxExportScriptureData> {
   const parsedReference = parseScriptureReference(scriptureReference);
   const reference = formatScriptureReference(parsedReference);
   const verses = await fetchScriptureVerses(parsedReference);
   const pages = paginateScriptureVerses(verses, versesPerSlide, { verseTextFormat });
 
-  return buildPptxScriptureData(reference, pages, getScriptureSectionName());
+  return buildPptxScriptureData(reference, pages, getScriptureSectionName(), {
+    sermonTitle,
+    sermonTitleSectionName: getSermonTitleSectionName(),
+  });
 }
 
 export async function previewScripturePptx(options: {
@@ -110,6 +121,7 @@ export async function exportWorshipToPptx(options: {
   scriptureReference: string;
   versesPerSlide?: number;
   verseTextFormat?: string;
+  sermonTitle?: string | null;
   outputFolderId?: string;
 }): Promise<ActionResult<PptxExportResult>> {
   try {
@@ -136,7 +148,8 @@ export async function exportWorshipToPptx(options: {
     const scripture = await buildScripturePayload(
       scriptureReference,
       options.versesPerSlide,
-      options.verseTextFormat
+      options.verseTextFormat,
+      options.sermonTitle
     );
 
     return sendPptxExportRequest({

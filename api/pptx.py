@@ -27,6 +27,34 @@ MC_NS = 'http://schemas.openxmlformats.org/markup-compatibility/2006'
 R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
 A_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main'
 
+SERMON_TITLE_TEXTBOX_LAYOUT = {
+    'left': 875160,
+    'top': 698500,
+    'width': 23649681,
+    'height': 6350000,
+}
+
+SERMON_TITLE_TEXTBOX_STYLE_XML = (
+    f'<a:lstStyle xmlns:a="{A_NS}">'
+    '<a:lvl1pPr marL="0" indent="0" algn="ctr" defTabSz="1354632">'
+    '<a:lnSpc><a:spcPct val="120000"/></a:lnSpc>'
+    '<a:buSzTx/>'
+    '<a:buNone/>'
+    '<a:defRPr sz="9000" b="1" i="0" spc="-180">'
+    '<a:effectLst>'
+    '<a:outerShdw blurRad="127000" dist="63500" dir="18900000" rotWithShape="0">'
+    '<a:srgbClr val="8B716E"><a:alpha val="70000"/></a:srgbClr>'
+    '</a:outerShdw>'
+    '</a:effectLst>'
+    '<a:latin typeface="Noto Serif KR" panose="02020200000000000000" pitchFamily="18" charset="-128"/>'
+    '<a:ea typeface="Noto Serif KR" panose="02020200000000000000" pitchFamily="18" charset="-128"/>'
+    '<a:cs typeface="+mn-cs"/>'
+    '<a:sym typeface="마루 부리OTF 굵은"/>'
+    '</a:defRPr>'
+    '</a:lvl1pPr>'
+    '</a:lstStyle>'
+)
+
 
 def _pn(tag):
     """Build a namespaced tag for presentationml namespace."""
@@ -542,6 +570,25 @@ def get_first_textbox(slide):
     return None
 
 
+def find_sermon_title_slide_id(slide_ids, slide_id_map):
+    """Find a title slide already living inside a scripture section."""
+    for slide_id in reversed(slide_ids):
+        entry = slide_id_map.get(slide_id)
+        slide = entry.get('slide') if entry else None
+        if not slide:
+            continue
+
+        texts = [
+            shape.text.strip()
+            for shape in slide.shapes
+            if shape.has_text_frame and shape.text.strip()
+        ]
+        if len(texts) == 1 and texts[0].startswith('“') and texts[0].endswith('”'):
+            return slide_id
+
+    return None
+
+
 def get_largest_textbox(slide):
     """Get the largest text-bearing shape on a slide."""
     textboxes = [shape for shape in slide.shapes if shape.has_text_frame]
@@ -718,8 +765,11 @@ def process_scripture_section(prs, scripture, section, slide_id_map):
         )
 
     body_base_slide = slide_id_map[body_base_slide_id]['slide']
+    preserved_sermon_title_slide_id = find_sermon_title_slide_id(slide_ids[2:], slide_id_map)
 
     for sid in slide_ids[2:]:
+        if sid == preserved_sermon_title_slide_id:
+            continue
         delete_slide_by_id(prs, sid)
 
     generated_slide_ids = []
@@ -750,6 +800,18 @@ def process_scripture_section(prs, scripture, section, slide_id_map):
         note_title = page.get('title') or f"{section['name']}-{page_idx}"
         set_slide_notes(new_slide, note_title)
 
+    scripture_section_slide_ids = list(generated_slide_ids)
+    if preserved_sermon_title_slide_id:
+        sermon_title_slide = slide_id_map[preserved_sermon_title_slide_id]['slide']
+        sermon_title_shape = get_first_textbox(sermon_title_slide)
+        if sermon_title_shape:
+            inject_sermon_title_into_shape(
+                sermon_title_shape,
+                scripture.get('sermon_title', '')
+            )
+        move_slide_id_after(prs, preserved_sermon_title_slide_id, last_slide_id)
+        scripture_section_slide_ids.append(preserved_sermon_title_slide_id)
+
     delete_slide_by_id(prs, body_base_slide_id)
 
     section_el = section['element']
@@ -762,11 +824,121 @@ def process_scripture_section(prs, scripture, section, slide_id_map):
     title_entry = etree.SubElement(sld_id_lst, ns_fn('sldId'))
     title_entry.set('id', str(title_slide_id))
 
-    for gen_sid in generated_slide_ids:
+    for gen_sid in scripture_section_slide_ids:
         entry = etree.SubElement(sld_id_lst, ns_fn('sldId'))
         entry.set('id', str(gen_sid))
 
     return len(generated_slide_ids)
+
+
+def format_sermon_title_text(title):
+    """Wrap sermon title in curly Korean presentation quotes."""
+    normalized = ' '.join(str(title or '').splitlines()).strip()
+    stripped = normalized.strip('"').strip("'").strip('“').strip('”').strip()
+    stripped = ' '.join(stripped.split())
+    if not stripped:
+        return ''
+    return f'“{stripped}”'
+
+
+def apply_sermon_title_shape_layout(shape):
+    """Apply the canonical sermon title textbox layout."""
+    shape.left = SERMON_TITLE_TEXTBOX_LAYOUT['left']
+    shape.top = SERMON_TITLE_TEXTBOX_LAYOUT['top']
+    shape.width = SERMON_TITLE_TEXTBOX_LAYOUT['width']
+    shape.height = SERMON_TITLE_TEXTBOX_LAYOUT['height']
+
+
+def apply_sermon_title_shape_style(shape):
+    """Normalize inherited placeholder/textbox style to match sermon title slides."""
+    apply_sermon_title_shape_layout(shape)
+
+    nv_sp_pr = shape._element.find(_pn('nvSpPr'))
+    nv_pr = nv_sp_pr.find(_pn('nvPr')) if nv_sp_pr is not None else None
+    ph = nv_pr.find(_pn('ph')) if nv_pr is not None else None
+    if ph is not None:
+        ph.attrib.clear()
+        ph.set('type', 'body')
+        ph.set('idx', '21')
+
+    body_pr = shape.text_frame._txBody.find(qn('a:bodyPr'))
+    if body_pr is not None:
+        body_pr.attrib.clear()
+        body_pr.set('anchor', 't')
+        for child in list(body_pr):
+            body_pr.remove(child)
+
+    tx_body = shape.text_frame._txBody
+    existing_lst_style = tx_body.find(qn('a:lstStyle'))
+    if existing_lst_style is not None:
+        tx_body.remove(existing_lst_style)
+
+    lst_style = etree.fromstring(SERMON_TITLE_TEXTBOX_STYLE_XML)
+    if body_pr is not None:
+        body_pr.addnext(lst_style)
+    else:
+        tx_body.insert(0, lst_style)
+
+
+def _append_sermon_title_run(paragraph_el, text, lang, alt_lang):
+    run_el = etree.SubElement(paragraph_el, qn('a:r'))
+    run_props = etree.SubElement(run_el, qn('a:rPr'))
+    run_props.set('lang', lang)
+    run_props.set('altLang', alt_lang)
+    run_props.set('dirty', '0')
+    text_el = etree.SubElement(run_el, qn('a:t'))
+    text_el.text = text
+
+
+def inject_sermon_title_into_shape(shape, title):
+    """Replace sermon title text while matching the canonical title shape XML."""
+    apply_sermon_title_shape_style(shape)
+
+    formatted_title = format_sermon_title_text(title)
+    tx_body = shape.text_frame._txBody
+    for paragraph_el in tx_body.findall(qn('a:p')):
+        tx_body.remove(paragraph_el)
+
+    paragraph_el = etree.SubElement(tx_body, qn('a:p'))
+    etree.SubElement(paragraph_el, qn('a:pPr'))
+
+    if formatted_title:
+        _append_sermon_title_run(paragraph_el, '“', 'en-US', 'ko-KR')
+        _append_sermon_title_run(
+            paragraph_el,
+            formatted_title.removeprefix('“').removesuffix('”'),
+            'ko-KR',
+            'en-US',
+        )
+        _append_sermon_title_run(paragraph_el, '”', 'en-US', 'ko-KR')
+
+    end_props = etree.SubElement(paragraph_el, qn('a:endParaRPr'))
+    end_props.set('dirty', '0')
+
+
+def process_sermon_title_section(prs, scripture, sections, slide_id_map):
+    """Update the existing sermon-title section's first slide without changing sections."""
+    sermon_title = scripture.get('sermon_title', '') if isinstance(scripture, dict) else ''
+    if not str(sermon_title or '').strip():
+        return False
+
+    section_name = scripture.get('sermon_title_section_name') or '말씀 제목'
+    section = find_section_by_name(sections, section_name)
+    if section is None or not section.get('slide_ids'):
+        return False
+
+    title_slide_id = section['slide_ids'][0]
+    title_slide_entry = slide_id_map.get(title_slide_id)
+    if not title_slide_entry or not title_slide_entry.get('slide'):
+        return False
+
+    title_slide = title_slide_entry['slide']
+    title_shape = get_first_textbox(title_slide)
+    if not title_shape:
+        return False
+
+    inject_sermon_title_into_shape(title_shape, sermon_title)
+    return True
 
 
 def process_song_section(prs, song, section, slide_id_map, shared_base_slide_id):
@@ -962,6 +1134,7 @@ def process_export(prs, songs, scripture=None):
             )
 
         scripture_slides = process_scripture_section(prs, scripture, section, slide_id_map)
+        process_sermon_title_section(prs, scripture, sections, slide_id_map)
         result['scripture_processed'] = True
         result['scripture_slides_generated'] = scripture_slides
         slide_id_map = get_slide_id_map(prs)

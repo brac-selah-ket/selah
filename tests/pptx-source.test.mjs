@@ -56,3 +56,37 @@ test('scripture body slides keep morph transition only on the first generated pa
     /def process_scripture_section[\s\S]+for page_idx, page in enumerate\(pages, 1\):[\s\S]+new_slide, new_sid, new_el = duplicate_slide\(prs, body_base_slide\)[\s\S]+clear_slide_transitions\(new_slide\)[\s\S]+if page_idx == 1:[\s\S]+set_morph_transition\(new_slide\)/,
   );
 });
+
+test('sermon title slide is updated in the existing sermon title section', async () => {
+  const source = await readFile(new URL('../api/pptx.py', import.meta.url), 'utf8');
+
+  assert.match(source, /def format_sermon_title_text\(title\):/);
+  assert.match(source, /def apply_sermon_title_shape_layout\(shape\):/);
+  assert.match(source, /SERMON_TITLE_TEXTBOX_STYLE_XML/);
+  assert.match(source, /def inject_sermon_title_into_shape\(shape, title\):/);
+  assert.match(source, /return f'“\{stripped\}”'/);
+  assert.match(source, /def process_sermon_title_section\(prs, scripture, sections, slide_id_map\):/);
+  assert.match(source, /sermon_title_section_name/);
+  assert.match(source, /find_section_by_name\(sections, section_name\)/);
+  assert.match(source, /title_slide_id = section\['slide_ids'\]\[0\]/);
+  assert.match(source, /inject_sermon_title_into_shape\(title_shape, sermon_title\)/);
+  assert.match(
+    source,
+    /process_scripture_section\(prs, scripture, section, slide_id_map\)[\s\S]+process_sermon_title_section\(prs, scripture, sections, slide_id_map\)/,
+  );
+});
+
+test('scripture section preserves an in-section sermon title slide after generated pages', async () => {
+  const source = await readFile(new URL('../api/pptx.py', import.meta.url), 'utf8');
+
+  assert.match(source, /def find_sermon_title_slide_id\(slide_ids, slide_id_map\):/);
+  assert.match(source, /preserved_sermon_title_slide_id = find_sermon_title_slide_id\(slide_ids\[2:\], slide_id_map\)/);
+  assert.match(
+    source,
+    /for sid in slide_ids\[2:\]:[\s\S]+if sid == preserved_sermon_title_slide_id:[\s\S]+continue[\s\S]+delete_slide_by_id\(prs, sid\)/,
+  );
+  assert.match(
+    source,
+    /if preserved_sermon_title_slide_id:[\s\S]+inject_sermon_title_into_shape\([\s\S]+sermon_title_shape,[\s\S]+scripture.get\('sermon_title', ''\)[\s\S]+\)[\s\S]+move_slide_id_after\(prs, preserved_sermon_title_slide_id, last_slide_id\)[\s\S]+scripture_section_slide_ids.append\(preserved_sermon_title_slide_id\)/,
+  );
+});

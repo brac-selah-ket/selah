@@ -35,8 +35,17 @@ export function buildPptxSongData(
 export function buildPptxScriptureData(
   reference: string,
   pages: ScriptureSlidePage[],
-  sectionName: string
+  sectionName: string,
+  options: {
+    sermonTitle?: string | null;
+    sermonTitleSectionName?: string;
+  } = {}
 ): PptxExportScriptureData {
+  const sermonTitle = options.sermonTitle
+    ?.replace(/\r?\n|\r/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+
   return {
     section_name: sectionName,
     reference,
@@ -46,6 +55,8 @@ export function buildPptxScriptureData(
       verse_start: page.verseStart,
       verse_end: page.verseEnd,
     })),
+    ...(sermonTitle ? { sermon_title: sermonTitle } : {}),
+    ...(options.sermonTitleSectionName ? { sermon_title_section_name: options.sermonTitleSectionName } : {}),
   };
 }
 

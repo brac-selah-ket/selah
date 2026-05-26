@@ -170,6 +170,8 @@ export interface PptxExportScriptureData {
   section_name: string;
   reference: string;
   pages: PptxExportScripturePageData[];
+  sermon_title?: string;
+  sermon_title_section_name?: string;
 }
 
 export interface PptxExportRequest {

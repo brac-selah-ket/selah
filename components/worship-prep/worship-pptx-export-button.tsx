@@ -302,6 +302,7 @@ export function WorshipPptxExportButton({
         scriptureReference: scriptureReference.trim(),
         versesPerSlide,
         verseTextFormat: effectiveVerseTextFormat,
+        sermonTitle: item.title,
       })
 
       if (!result.success || !result.data) {
