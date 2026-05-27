@@ -181,6 +181,21 @@ export interface PptxExportSongData {
   section_lyrics_map: Record<string, number[]>;
 }
 
+export interface PptxExportScripturePageData {
+  title: string;
+  text: string;
+  verse_start: string;
+  verse_end: string;
+}
+
+export interface PptxExportScriptureData {
+  section_name: string;
+  reference: string;
+  pages: PptxExportScripturePageData[];
+  sermon_title?: string;
+  sermon_title_section_name?: string;
+}
+
 export interface PptxExportRequest {
   action: 'export_lyrics';
   file_id: string;
@@ -188,6 +203,7 @@ export interface PptxExportRequest {
   output_file_name?: string;
   output_folder_id?: string;
   songs: PptxExportSongData[];
+  scripture?: PptxExportScriptureData;
 }
 
 export interface PptxExportResult {
@@ -197,6 +213,8 @@ export interface PptxExportResult {
   download_url?: string;
   songs_processed: number;
   slides_generated: number;
+  scripture_processed?: boolean;
+  scripture_slides_generated?: number;
 }
 
 export interface PptxTemplateSectionInfo {

@@ -1,4 +1,10 @@
-import type { ContiSongWithSong, PptxExportSongData } from '@/lib/types';
+import type { ScriptureSlidePage } from '@/lib/scripture/types';
+import type {
+  ContiSongWithSong,
+  PptxDriveFile,
+  PptxExportScriptureData,
+  PptxExportSongData,
+} from '@/lib/types';
 
 /**
  * Build PPTX export song data from conti songs.
@@ -24,4 +30,39 @@ export function buildPptxSongData(
         )
       ),
     }));
+}
+
+export function buildPptxScriptureData(
+  reference: string,
+  pages: ScriptureSlidePage[],
+  sectionName: string,
+  options: {
+    sermonTitle?: string | null;
+    sermonTitleSectionName?: string;
+  } = {}
+): PptxExportScriptureData {
+  const sermonTitle = options.sermonTitle
+    ?.replace(/\r?\n|\r/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+
+  return {
+    section_name: sectionName,
+    reference,
+    pages: pages.map((page) => ({
+      title: page.title,
+      text: page.text,
+      verse_start: page.verseStart,
+      verse_end: page.verseEnd,
+    })),
+    ...(sermonTitle ? { sermon_title: sermonTitle } : {}),
+    ...(options.sermonTitleSectionName ? { sermon_title_section_name: options.sermonTitleSectionName } : {}),
+  };
+}
+
+export function findAllowedPptxFile(
+  files: PptxDriveFile[],
+  fileId: string
+): PptxDriveFile | null {
+  return files.find((file) => file.file_id === fileId) ?? null;
 }
