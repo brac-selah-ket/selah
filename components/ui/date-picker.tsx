@@ -39,22 +39,24 @@ export function DatePicker({ value, onChange, className }: DatePickerProps) {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger>
-        <Button
-          variant="outline"
-          className={cn(
-            "w-full justify-start text-left font-normal",
-            !value && "text-muted-foreground",
-            className
-          )}
-        >
-          <HugeiconsIcon icon={Calendar03Icon} strokeWidth={2} />
-          {value ? (
-            format(selectedDate!, "yyyy년 MM월 dd일", { locale: ko })
-          ) : (
-            <span>날짜를 선택하세요</span>
-          )}
-        </Button>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            className={cn(
+              "w-full justify-start text-left font-normal",
+              !value && "text-muted-foreground",
+              className
+            )}
+          />
+        }
+      >
+        <HugeiconsIcon icon={Calendar03Icon} strokeWidth={2} />
+        {value ? (
+          format(selectedDate!, "yyyy년 MM월 dd일", { locale: ko })
+        ) : (
+          <span>날짜를 선택하세요</span>
+        )}
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar

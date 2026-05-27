@@ -27,38 +27,7 @@ print(module.format_sermon_title_text("모든 사람에게 미치는\\n하나님
   assert.equal(result.stdout.trim(), '“모든 사람에게 미치는 하나님의 의”');
 });
 
-test('applies canonical sermon title textbox layout', () => {
-  const script = `
-import importlib.util
-from pathlib import Path
-
-spec = importlib.util.spec_from_file_location("pptx_api", Path("api/pptx.py"))
-module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(module)
-
-class Shape:
-    left = 1
-    top = 2
-    width = 3
-    height = 4
-
-shape = Shape()
-module.apply_sermon_title_shape_layout(shape)
-print(shape.left, shape.top, shape.width, shape.height)
-`;
-  const result = spawnSync(pythonExecutable, ['-c', script], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  });
-
-  assert.equal(result.status, 0, result.stderr);
-  assert.equal(
-    result.stdout.trim(),
-    '875160 698500 23649681 6350000',
-  );
-});
-
-test('injects sermon title with canonical textbox styling', () => {
+test('injects sermon title while preserving template textbox styling', () => {
   const script = `
 import importlib.util
 from pathlib import Path
@@ -66,7 +35,6 @@ from pathlib import Path
 from lxml import etree
 from pptx import Presentation
 from pptx.oxml.ns import qn
-from pptx.util import Inches
 
 spec = importlib.util.spec_from_file_location("pptx_api", Path("api/pptx.py"))
 module = importlib.util.module_from_spec(spec)
@@ -74,7 +42,7 @@ spec.loader.exec_module(module)
 
 prs = Presentation()
 slide = prs.slides.add_slide(prs.slide_layouts[6])
-shape = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(3), Inches(1))
+shape = slide.shapes.add_textbox(1111, 2222, 3333, 4444)
 
 nv_pr = shape._element.find(qn("p:nvSpPr")).find(qn("p:nvPr"))
 ph = etree.SubElement(nv_pr, qn("p:ph"))
@@ -83,27 +51,40 @@ ph.set("sz", "quarter")
 ph.set("idx", "21")
 
 body_pr = shape.text_frame._txBody.find(qn("a:bodyPr"))
-etree.SubElement(body_pr, qn("a:noAutofit"))
+body_pr.set("anchor", "ctr")
+body_pr.set("wrap", "none")
+etree.SubElement(body_pr, qn("a:spAutoFit"))
+
+lst_style = etree.Element(qn("a:lstStyle"))
+lvl1 = etree.SubElement(lst_style, qn("a:lvl1pPr"))
+lvl1.set("algn", "l")
+body_pr.addnext(lst_style)
 
 p = shape.text_frame.paragraphs[0]._p
 p_pr = etree.SubElement(p, qn("a:pPr"))
-p_pr.set("algn", "ctr")
-etree.SubElement(etree.SubElement(p_pr, qn("a:defRPr")), qn("a:effectLst"))
+p_pr.set("algn", "r")
+run = shape.text_frame.paragraphs[0].add_run()
+run.text = "“이전 제목”"
+r_pr = run._r.find(qn("a:rPr"))
+if r_pr is None:
+    r_pr = etree.SubElement(run._r, qn("a:rPr"))
+r_pr.set("lang", "ko-KR")
+r_pr.set("dirty", "0")
 
 module.inject_sermon_title_into_shape(shape, "모든 사람에게 미치는\\n하나님의 의")
 xml = shape._element.xml
 
-print("quarter" in xml)
-print("noAutofit" in xml)
+print(shape.left, shape.top, shape.width, shape.height)
+print('type="body"' in xml)
+print('sz="quarter"' in xml)
+print('idx="21"' in xml)
 print('wrap="none"' in xml)
 print('anchor="ctr"' in xml)
-print('anchor="t"' in xml)
-print('algn="ctr"' in xml)
-print("outerShdw" in xml)
-print('typeface="Noto Serif KR"' in xml)
-print('spcPct val="120000"' in xml)
+print('spAutoFit' in xml)
+print('algn="l"' in xml)
+print('algn="r"' in xml)
+print('lang="ko-KR"' in xml)
 print(shape.text.strip().replace("\\n", " | "))
-print([r._r.find(qn("a:rPr")).get("lang") for r in shape.text_frame.paragraphs[0].runs])
 `;
   const result = spawnSync(pythonExecutable, ['-c', script], {
     cwd: repoRoot,
@@ -112,16 +93,16 @@ print([r._r.find(qn("a:rPr")).get("lang") for r in shape.text_frame.paragraphs[0
 
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.stdout.trim().split('\n'), [
-    'False',
-    'False',
-    'False',
-    'False',
+    '1111 2222 3333 4444',
+    'True',
+    'True',
+    'True',
+    'True',
     'True',
     'True',
     'True',
     'True',
     'True',
     '“모든 사람에게 미치는 하나님의 의”',
-    "['en-US', 'ko-KR', 'en-US']",
   ]);
 });

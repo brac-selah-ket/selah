@@ -619,6 +619,10 @@ export function WorshipPptxExportButton({
                   <span className="min-w-0 break-words text-right font-medium">{currentScripturePreview.reference}</span>
                 </div>
                 <div className="flex justify-between gap-3 text-sm">
+                  <span className="shrink-0 text-muted-foreground">말씀 제목</span>
+                  <span className="min-w-0 break-words text-right font-medium">{item.title || "-"}</span>
+                </div>
+                <div className="flex justify-between gap-3 text-sm">
                   <span className="shrink-0 text-muted-foreground">말씀 슬라이드</span>
                   <span className="font-medium">{currentScripturePreview.slideCount}장</span>
                 </div>

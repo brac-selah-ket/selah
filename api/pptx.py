@@ -25,37 +25,6 @@ P14_NS = 'http://schemas.microsoft.com/office/powerpoint/2010/main'
 P159_NS = 'http://schemas.microsoft.com/office/powerpoint/2015/09/main'
 MC_NS = 'http://schemas.openxmlformats.org/markup-compatibility/2006'
 R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
-A_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main'
-
-SERMON_TITLE_TEXTBOX_LAYOUT = {
-    'left': 875160,
-    'top': 698500,
-    'width': 23649681,
-    'height': 6350000,
-}
-
-SERMON_TITLE_TEXTBOX_STYLE_XML = (
-    f'<a:lstStyle xmlns:a="{A_NS}">'
-    '<a:lvl1pPr marL="0" indent="0" algn="ctr" defTabSz="1354632">'
-    '<a:lnSpc><a:spcPct val="120000"/></a:lnSpc>'
-    '<a:buSzTx/>'
-    '<a:buNone/>'
-    '<a:defRPr sz="9000" b="1" i="0" spc="-180">'
-    '<a:effectLst>'
-    '<a:outerShdw blurRad="127000" dist="63500" dir="18900000" rotWithShape="0">'
-    '<a:srgbClr val="8B716E"><a:alpha val="70000"/></a:srgbClr>'
-    '</a:outerShdw>'
-    '</a:effectLst>'
-    '<a:latin typeface="Noto Serif KR" panose="02020200000000000000" pitchFamily="18" charset="-128"/>'
-    '<a:ea typeface="Noto Serif KR" panose="02020200000000000000" pitchFamily="18" charset="-128"/>'
-    '<a:cs typeface="+mn-cs"/>'
-    '<a:sym typeface="마루 부리OTF 굵은"/>'
-    '</a:defRPr>'
-    '</a:lvl1pPr>'
-    '</a:lstStyle>'
-)
-
-
 def _pn(tag):
     """Build a namespaced tag for presentationml namespace."""
     return f'{{{P_NS}}}{tag}'
@@ -578,6 +547,10 @@ def find_sermon_title_slide_id(slide_ids, slide_id_map):
         if not slide:
             continue
 
+        layout_name = getattr(getattr(slide, 'slide_layout', None), 'name', '')
+        if layout_name == '말씀 제목':
+            return slide_id
+
         texts = [
             shape.text.strip()
             for shape in slide.shapes
@@ -841,79 +814,10 @@ def format_sermon_title_text(title):
     return f'“{stripped}”'
 
 
-def apply_sermon_title_shape_layout(shape):
-    """Apply the canonical sermon title textbox layout."""
-    shape.left = SERMON_TITLE_TEXTBOX_LAYOUT['left']
-    shape.top = SERMON_TITLE_TEXTBOX_LAYOUT['top']
-    shape.width = SERMON_TITLE_TEXTBOX_LAYOUT['width']
-    shape.height = SERMON_TITLE_TEXTBOX_LAYOUT['height']
-
-
-def apply_sermon_title_shape_style(shape):
-    """Normalize inherited placeholder/textbox style to match sermon title slides."""
-    apply_sermon_title_shape_layout(shape)
-
-    nv_sp_pr = shape._element.find(_pn('nvSpPr'))
-    nv_pr = nv_sp_pr.find(_pn('nvPr')) if nv_sp_pr is not None else None
-    ph = nv_pr.find(_pn('ph')) if nv_pr is not None else None
-    if ph is not None:
-        ph.attrib.clear()
-        ph.set('type', 'body')
-        ph.set('idx', '21')
-
-    body_pr = shape.text_frame._txBody.find(qn('a:bodyPr'))
-    if body_pr is not None:
-        body_pr.attrib.clear()
-        body_pr.set('anchor', 't')
-        for child in list(body_pr):
-            body_pr.remove(child)
-
-    tx_body = shape.text_frame._txBody
-    existing_lst_style = tx_body.find(qn('a:lstStyle'))
-    if existing_lst_style is not None:
-        tx_body.remove(existing_lst_style)
-
-    lst_style = etree.fromstring(SERMON_TITLE_TEXTBOX_STYLE_XML)
-    if body_pr is not None:
-        body_pr.addnext(lst_style)
-    else:
-        tx_body.insert(0, lst_style)
-
-
-def _append_sermon_title_run(paragraph_el, text, lang, alt_lang):
-    run_el = etree.SubElement(paragraph_el, qn('a:r'))
-    run_props = etree.SubElement(run_el, qn('a:rPr'))
-    run_props.set('lang', lang)
-    run_props.set('altLang', alt_lang)
-    run_props.set('dirty', '0')
-    text_el = etree.SubElement(run_el, qn('a:t'))
-    text_el.text = text
-
-
 def inject_sermon_title_into_shape(shape, title):
-    """Replace sermon title text while matching the canonical title shape XML."""
-    apply_sermon_title_shape_style(shape)
-
+    """Replace sermon title text while preserving the template slide formatting."""
     formatted_title = format_sermon_title_text(title)
-    tx_body = shape.text_frame._txBody
-    for paragraph_el in tx_body.findall(qn('a:p')):
-        tx_body.remove(paragraph_el)
-
-    paragraph_el = etree.SubElement(tx_body, qn('a:p'))
-    etree.SubElement(paragraph_el, qn('a:pPr'))
-
-    if formatted_title:
-        _append_sermon_title_run(paragraph_el, '“', 'en-US', 'ko-KR')
-        _append_sermon_title_run(
-            paragraph_el,
-            formatted_title.removeprefix('“').removesuffix('”'),
-            'ko-KR',
-            'en-US',
-        )
-        _append_sermon_title_run(paragraph_el, '”', 'en-US', 'ko-KR')
-
-    end_props = etree.SubElement(paragraph_el, qn('a:endParaRPr'))
-    end_props.set('dirty', '0')
+    inject_text_into_shape(shape, formatted_title)
 
 
 def process_sermon_title_section(prs, scripture, sections, slide_id_map):
@@ -1133,8 +1037,13 @@ def process_export(prs, songs, scripture=None):
                 f"Available sections: {available}"
             )
 
+        in_section_sermon_title_slide_id = find_sermon_title_slide_id(
+            section['slide_ids'][2:],
+            slide_id_map,
+        )
         scripture_slides = process_scripture_section(prs, scripture, section, slide_id_map)
-        process_sermon_title_section(prs, scripture, sections, slide_id_map)
+        if in_section_sermon_title_slide_id is None:
+            process_sermon_title_section(prs, scripture, sections, slide_id_map)
         result['scripture_processed'] = True
         result['scripture_slides_generated'] = scripture_slides
         slide_id_map = get_slide_id_map(prs)

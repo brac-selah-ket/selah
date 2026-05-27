@@ -1,9 +1,9 @@
 import { PageHeader } from '@/components/layout/page-header';
 import { PrepAutomationPanel } from '@/components/worship-prep/prep-automation-panel';
 import { PrepElementCards } from '@/components/worship-prep/prep-element-cards';
+import { WorshipDateSelector } from '@/components/worship-prep/worship-date-selector';
 import { WorshipPptxExportButton } from '@/components/worship-prep/worship-pptx-export-button';
 import { getWorshipPrepDetail } from '@/lib/queries/worship-prep';
-import { Button } from '@/components/ui/button';
 import { getConti, getContiByDate, getContis } from '@/lib/queries/contis';
 
 export const dynamic = 'force-dynamic';
@@ -52,17 +52,7 @@ export default async function WorshipPrepPage({
           />
         )}
       </PageHeader>
-      <form className='flex flex-wrap items-center gap-2' method='GET'>
-        <input
-          type='date'
-          name='date'
-          defaultValue={selectedDate}
-          className='h-9 rounded-md border border-input bg-background px-3 text-sm'
-        />
-        <Button type='submit' variant='outline'>
-          주차 변경
-        </Button>
-      </form>
+      <WorshipDateSelector selectedDate={selectedDate} />
       <PrepAutomationPanel />
       {!item ? (
         <div className='flex flex-col items-center justify-center py-12 text-center'>

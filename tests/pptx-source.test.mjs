@@ -61,9 +61,14 @@ test('sermon title slide is updated in the existing sermon title section', async
   const source = await readFile(new URL('../api/pptx.py', import.meta.url), 'utf8');
 
   assert.match(source, /def format_sermon_title_text\(title\):/);
-  assert.match(source, /def apply_sermon_title_shape_layout\(shape\):/);
-  assert.match(source, /SERMON_TITLE_TEXTBOX_STYLE_XML/);
   assert.match(source, /def inject_sermon_title_into_shape\(shape, title\):/);
+  assert.match(
+    source,
+    /def inject_sermon_title_into_shape\(shape, title\):[\s\S]+formatted_title = format_sermon_title_text\(title\)[\s\S]+inject_text_into_shape\(shape, formatted_title\)/,
+  );
+  assert.doesNotMatch(source, /SERMON_TITLE_TEXTBOX_LAYOUT/);
+  assert.doesNotMatch(source, /SERMON_TITLE_TEXTBOX_STYLE_XML/);
+  assert.doesNotMatch(source, /apply_sermon_title_shape_layout/);
   assert.match(source, /return f'“\{stripped\}”'/);
   assert.match(source, /def process_sermon_title_section\(prs, scripture, sections, slide_id_map\):/);
   assert.match(source, /sermon_title_section_name/);
@@ -72,7 +77,7 @@ test('sermon title slide is updated in the existing sermon title section', async
   assert.match(source, /inject_sermon_title_into_shape\(title_shape, sermon_title\)/);
   assert.match(
     source,
-    /process_scripture_section\(prs, scripture, section, slide_id_map\)[\s\S]+process_sermon_title_section\(prs, scripture, sections, slide_id_map\)/,
+    /in_section_sermon_title_slide_id = find_sermon_title_slide_id\([\s\S]+process_scripture_section\(prs, scripture, section, slide_id_map\)[\s\S]+if in_section_sermon_title_slide_id is None:[\s\S]+process_sermon_title_section\(prs, scripture, sections, slide_id_map\)/,
   );
 });
 
@@ -80,6 +85,8 @@ test('scripture section preserves an in-section sermon title slide after generat
   const source = await readFile(new URL('../api/pptx.py', import.meta.url), 'utf8');
 
   assert.match(source, /def find_sermon_title_slide_id\(slide_ids, slide_id_map\):/);
+  assert.match(source, /layout_name = getattr\(getattr\(slide, 'slide_layout', None\), 'name', ''\)/);
+  assert.match(source, /if layout_name == '말씀 제목':[\s\S]+return slide_id/);
   assert.match(source, /preserved_sermon_title_slide_id = find_sermon_title_slide_id\(slide_ids\[2:\], slide_id_map\)/);
   assert.match(
     source,
