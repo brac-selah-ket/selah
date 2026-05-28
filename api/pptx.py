@@ -1174,8 +1174,7 @@ def process_export(prs, songs, scripture=None, text_overrides=None):
         slide_id_map = get_slide_id_map(prs)
 
     result.update(process_all_songs(prs, songs, sections, slide_id_map))
-    if text_overrides:
-        result.update(apply_text_overrides(prs, text_overrides))
+    result.update(apply_text_overrides(prs, text_overrides or []))
     return result
 
 
@@ -1304,13 +1303,12 @@ class handler(BaseHTTPRequestHandler):
                     "web_view_link": result.get('webViewLink', ''),
                     "songs_processed": result_stats['songs_processed'],
                     "slides_generated": result_stats['slides_generated'],
+                    "text_overrides_applied": result_stats['text_overrides_applied'],
+                    "text_overrides_skipped": result_stats['text_overrides_skipped'],
                 }
                 if 'scripture_processed' in result_stats:
                     response_data["scripture_processed"] = result_stats['scripture_processed']
                     response_data["scripture_slides_generated"] = result_stats['scripture_slides_generated']
-                if 'text_overrides_applied' in result_stats:
-                    response_data["text_overrides_applied"] = result_stats['text_overrides_applied']
-                    response_data["text_overrides_skipped"] = result_stats['text_overrides_skipped']
 
                 self.send_json(200, {
                     "success": True,
@@ -1327,13 +1325,12 @@ class handler(BaseHTTPRequestHandler):
                         "download_url": download_url,
                         "songs_processed": result_stats['songs_processed'],
                         "slides_generated": result_stats['slides_generated'],
+                        "text_overrides_applied": result_stats['text_overrides_applied'],
+                        "text_overrides_skipped": result_stats['text_overrides_skipped'],
                     }
                     if 'scripture_processed' in result_stats:
                         response_data["scripture_processed"] = result_stats['scripture_processed']
                         response_data["scripture_slides_generated"] = result_stats['scripture_slides_generated']
-                    if 'text_overrides_applied' in result_stats:
-                        response_data["text_overrides_applied"] = result_stats['text_overrides_applied']
-                        response_data["text_overrides_skipped"] = result_stats['text_overrides_skipped']
 
                     self.send_json(200, {
                         "success": True,

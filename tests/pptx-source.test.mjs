@@ -116,7 +116,16 @@ test('pptx handler applies text overrides after generated export content', async
   assert.match(source, /def process_export\(prs, songs, scripture=None, text_overrides=None\):/);
   assert.match(
     source,
-    /result\.update\(process_all_songs\(prs, songs, sections, slide_id_map\)\)[\s\S]+if text_overrides:[\s\S]+result\.update\(apply_text_overrides\(prs, text_overrides\)\)/,
+    /result\.update\(process_all_songs\(prs, songs, sections, slide_id_map\)\)\s+result\.update\(apply_text_overrides\(prs, text_overrides or \[\]\)\)\s+return result/,
   );
+  assert.doesNotMatch(source, /if text_overrides:/);
   assert.match(source, /body\.get\('text_overrides', \[\]\)/);
+  assert.equal(
+    (source.match(/"text_overrides_applied": result_stats\['text_overrides_applied'\]/g) || []).length,
+    2,
+  );
+  assert.equal(
+    (source.match(/"text_overrides_skipped": result_stats\['text_overrides_skipped'\]/g) || []).length,
+    2,
+  );
 });
