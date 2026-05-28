@@ -97,3 +97,26 @@ test('scripture section preserves an in-section sermon title slide after generat
     /if preserved_sermon_title_slide_id:[\s\S]+inject_sermon_title_into_shape\([\s\S]+sermon_title_shape,[\s\S]+scripture.get\('sermon_title', ''\)[\s\S]+\)[\s\S]+move_slide_id_after\(prs, preserved_sermon_title_slide_id, last_slide_id\)[\s\S]+scripture_section_slide_ids.append\(preserved_sermon_title_slide_id\)/,
   );
 });
+
+test('pptx handler can inspect editable text sections', async () => {
+  const source = await readFile(new URL('../api/pptx.py', import.meta.url), 'utf8');
+
+  assert.match(source, /def get_shape_stable_id\(shape, fallback_index\):/);
+  assert.match(source, /def inspect_text_template\(pptx_path, file_id=''\):/);
+  assert.match(source, /'X-Action', 'health'/);
+  assert.match(source, /action == 'inspect-text'/);
+  assert.match(source, /inspect_text_template\(template_path, file_id\)/);
+});
+
+test('pptx handler applies text overrides after generated export content', async () => {
+  const source = await readFile(new URL('../api/pptx.py', import.meta.url), 'utf8');
+
+  assert.match(source, /def find_shape_by_stable_id\(slide, shape_id\):/);
+  assert.match(source, /def apply_text_overrides\(prs, text_overrides\):/);
+  assert.match(source, /def process_export\(prs, songs, scripture=None, text_overrides=None\):/);
+  assert.match(
+    source,
+    /result\.update\(process_all_songs\(prs, songs, sections, slide_id_map\)\)[\s\S]+if text_overrides:[\s\S]+result\.update\(apply_text_overrides\(prs, text_overrides\)\)/,
+  );
+  assert.match(source, /body\.get\('text_overrides', \[\]\)/);
+});
