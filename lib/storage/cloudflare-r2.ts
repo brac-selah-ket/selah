@@ -14,6 +14,7 @@ export const cloudflareR2Storage: ObjectStorage = {
       Key: key,
       Body: bytes,
       ContentType: options?.contentType,
+      IfNoneMatch: options?.allowOverwrite ? undefined : '*',
     }));
 
     return {

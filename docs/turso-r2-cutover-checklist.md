@@ -23,9 +23,11 @@ R2_ACCESS_KEY_ID=<secret>
 R2_SECRET_ACCESS_KEY=<secret>
 R2_BUCKET_NAME=storyboard-assets
 R2_PUBLIC_BASE_URL=<public bucket or custom domain URL>
+CRON_SECRET=<secret used by Vercel Cron Authorization header>
 ```
 
 Keep `BLOB_READ_WRITE_TOKEN` until legacy Vercel Blob objects are migrated or intentionally left behind.
+Keep `DISCORD_CRON_SECRET` only as a manual legacy fallback; Vercel Cron itself uses `CRON_SECRET`.
 
 ## R2 Requirements
 

@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isCronAuthorized } from '@/lib/cron-auth';
 import { createForumThread, sendDropdownMessage } from '@/lib/discord-sync/discord-client';
 import { buildInitialMessage, buildThreadName, formatToYYMMDD, getUpcomingSundayDate } from '@/lib/discord-sync/thread-template';
 import { readRoleOptionsFromSheet } from '@/lib/discord-sync/google-sheets';
 
 export const maxDuration = 60;
-
-function isCronAuthorized(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET ?? process.env.DISCORD_CRON_SECRET;
-  const auth = request.headers.get('authorization');
-  return Boolean(secret && auth === `Bearer ${secret}`);
-}
 
 export async function GET(request: NextRequest) {
   if (!isCronAuthorized(request)) {
@@ -20,14 +15,29 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const dryRun = searchParams.get('dryRun') === 'true';
 
+    const sundayDate = getUpcomingSundayDate();
+    const yymmdd = formatToYYMMDD(sundayDate);
+    const threadName = buildThreadName(yymmdd);
+
+    if (dryRun) {
+      return NextResponse.json({
+        success: true,
+        message: `Dry run: thread not created: ${threadName}`,
+        data: {
+          threadId: null,
+          threadName,
+          sundayDate: yymmdd,
+          dryRun: true,
+          wouldCreateThread: true,
+          wouldSendDropdowns: true,
+        },
+      });
+    }
+
     const channelId = process.env.DISCORD_CHANNEL_ID;
     if (!channelId) {
       throw new Error('DISCORD_CHANNEL_ID is not set');
     }
-
-    const sundayDate = getUpcomingSundayDate();
-    const yymmdd = formatToYYMMDD(sundayDate);
-    const threadName = buildThreadName(yymmdd);
 
     const thread = await createForumThread(channelId, threadName, buildInitialMessage(sundayDate));
 

@@ -1,9 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { isCronAuthorized } from '@/lib/cron-auth';
 import { getActiveForumThreads, getChannel, sendDropdownMessage } from '@/lib/discord-sync/discord-client';
 import { resolveGuildId, selectTargetWorshipThread } from '@/lib/discord-sync/cron-state';
 import { readRoleOptionsFromSheet } from '@/lib/discord-sync/google-sheets';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  if (!isCronAuthorized(request)) {
+    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+  }
+
   const configuredGuildId = process.env.DISCORD_GUILD_ID;
   const channelId = process.env.DISCORD_CHANNEL_ID;
   if (!channelId) {

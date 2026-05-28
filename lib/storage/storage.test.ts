@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
@@ -10,6 +11,8 @@ import {
 
 test('storage provider defaults to Vercel Blob', () => {
   assert.equal(getStorageProviderName({}), 'vercel-blob');
+  assert.equal(getStorageProviderName({ STORAGE_PROVIDER: '' }), 'vercel-blob');
+  assert.equal(getStorageProviderName({ STORAGE_PROVIDER: '   ' }), 'vercel-blob');
 });
 
 test('storage provider accepts Cloudflare R2 aliases', () => {
@@ -39,4 +42,10 @@ test('R2 public URLs round-trip object keys', () => {
 
   assert.equal(url, 'https://assets.example.com/nested/sheet-music/song%201/%EC%A3%BC%EB%8B%98.pdf');
   assert.equal(getObjectKeyFromPublicUrl(baseUrl, url), key);
+});
+
+test('Cloudflare R2 put protects existing objects unless overwrite is explicit', async () => {
+  const source = await readFile(new URL('./cloudflare-r2.ts', import.meta.url), 'utf8');
+
+  assert.match(source, /IfNoneMatch: options\?\.allowOverwrite \? undefined : '\*'/);
 });

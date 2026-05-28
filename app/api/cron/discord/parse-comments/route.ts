@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isCronAuthorized } from '@/lib/cron-auth';
 import { addMessageReaction, getActiveForumThreads, getChannel, getThreadMessages } from '@/lib/discord-sync/discord-client';
 import { parseDiscordMessages } from '@/lib/discord-parser';
 import { correctSpelling } from '@/lib/discord-sync/spell-checker';
 import { findRowByDate, updateWorshipData } from '@/lib/discord-sync/google-sheets';
 import {
-  IGNORED_REACTION,
   PARSED_REACTION,
   hasProcessedReaction,
   resolveGuildId,
@@ -14,12 +14,6 @@ import {
 
 export const maxDuration = 60;
 const SHEET_NAME = 'DB';
-
-function isCronAuthorized(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET ?? process.env.DISCORD_CRON_SECRET;
-  const auth = request.headers.get('authorization');
-  return Boolean(secret && auth === `Bearer ${secret}`);
-}
 
 function hasParsedData(data?: { preacher?: string; leader?: string; worshipLeader?: string; title?: string; scripture?: string; songs?: string[] }): boolean {
   if (!data) return false;
@@ -122,19 +116,18 @@ export async function GET(request: NextRequest) {
       await updateWorshipData(SHEET_NAME, targetRow, mergedData);
     }
 
-    for (const message of newMessages) {
-      const reaction = parsedMessageIds.has(message.id) ? PARSED_REACTION : IGNORED_REACTION;
+    for (const message of newMessages.filter((message) => parsedMessageIds.has(message.id))) {
       try {
-        await addMessageReaction(message.channel_id, message.id, reaction);
+        await addMessageReaction(message.channel_id, message.id, PARSED_REACTION);
       } catch {}
     }
 
     return NextResponse.json({
       success: true,
-      message: Object.keys(mergedData).length > 0 ? `Processed ${newMessages.length} new messages` : 'No parsable data',
+      message: Object.keys(mergedData).length > 0 ? `Processed ${parsedMessageIds.size} parsed messages` : 'No parsable data',
       data: {
         threadId: activeThread.id,
-        processedCount: newMessages.length,
+        processedCount: parsedMessageIds.size,
       },
     });
   } catch (error) {
