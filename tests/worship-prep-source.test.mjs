@@ -200,6 +200,42 @@ test('PPT text editor drawer keeps outside click disabled and uses a full-row na
   assert.doesNotMatch(drawerSource, /Checkbox/);
 });
 
+test('conti and song drawer subdialogs opt above drawer without changing PPT export dialog layer', async () => {
+  const dialogSource = await readFile(
+    new URL('../components/ui/dialog.tsx', import.meta.url),
+    'utf8',
+  );
+  const alertDialogSource = await readFile(
+    new URL('../components/ui/alert-dialog.tsx', import.meta.url),
+    'utf8',
+  );
+  const ocrSource = await readFile(
+    new URL('../components/contis/ocr-region-selector.tsx', import.meta.url),
+    'utf8',
+  );
+  const arrangementSource = await readFile(
+    new URL('../components/shared/arrangement-editor/arrangement-editor.tsx', import.meta.url),
+    'utf8',
+  );
+  const worshipExportSource = await readFile(
+    new URL('../components/worship-prep/worship-pptx-export-button.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(dialogSource, /overlayClassName/);
+  assert.match(dialogSource, /<DialogOverlay className=\{overlayClassName\} \/>/);
+  assert.match(alertDialogSource, /overlayClassName/);
+  assert.match(alertDialogSource, /<AlertDialogOverlay className=\{overlayClassName\} \/>/);
+
+  assert.match(ocrSource, /overlayClassName="z-\[70\]"/);
+  assert.match(ocrSource, /className="z-\[70\] h-\[92vh\] flex flex-col"/);
+  assert.match(arrangementSource, /<DialogContent[\s\S]+overlayClassName="z-\[70\]"[\s\S]+className="z-\[70\] !w-screen/);
+  assert.match(arrangementSource, /<AlertDialogContent[\s\S]+overlayClassName="z-\[70\]"[\s\S]+className="z-\[70\]"/);
+
+  assert.match(worshipExportSource, /modal=\{pptxTextDrawerOpen \? false : true\}/);
+  assert.doesNotMatch(worshipExportSource, /overlayClassName="z-\[70\]"/);
+});
+
 test('PPT text editor labels text boxes by order and keeps content as a preview', async () => {
   const drawerSource = await readFile(
     new URL('../components/worship-prep/pptx-text-editor-drawer.tsx', import.meta.url),

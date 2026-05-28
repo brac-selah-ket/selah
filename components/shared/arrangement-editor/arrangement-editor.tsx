@@ -516,7 +516,10 @@ export function ArrangementEditor({
 
       {mode === "preset" && (
         <Dialog open={pdfEditorOpen} onOpenChange={setPdfEditorOpen}>
-          <DialogContent className="!w-screen !h-[100dvh] !max-w-none sm:!max-w-none rounded-none overflow-x-hidden overflow-y-auto p-3 sm:p-4 flex flex-col">
+          <DialogContent
+            overlayClassName="z-[70]"
+            className="z-[70] !w-screen !h-[100dvh] !max-w-none sm:!max-w-none rounded-none overflow-x-hidden overflow-y-auto p-3 sm:p-4 flex flex-col"
+          >
             <div className="min-h-0 flex-1">
               <PresetPdfEditor
                 songName={draft.name.trim() || songName}
@@ -532,7 +535,11 @@ export function ArrangementEditor({
       )}
 
       <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
-        <AlertDialogContent size="sm">
+        <AlertDialogContent
+          overlayClassName="z-[70]"
+          className="z-[70]"
+          size="sm"
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>저장하지 않은 변경사항</AlertDialogTitle>
             <AlertDialogDescription>

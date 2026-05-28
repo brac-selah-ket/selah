@@ -259,7 +259,8 @@ export function OcrRegionSelector({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="h-[92vh] flex flex-col"
+        overlayClassName="z-[70]"
+        className="z-[70] h-[92vh] flex flex-col"
         style={{
           maxWidth: imageAspectRatio
             ? `min(95vw, calc(92vh * ${imageAspectRatio} + 3rem))`
