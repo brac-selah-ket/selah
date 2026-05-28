@@ -36,3 +36,22 @@ test('worship prep date selector refreshes immediately on calendar change', asyn
   assert.match(selectorSource, /onChange=\{handleChange\}/);
   assert.match(selectorSource, /router\.push\(`\$\{pathname\}\?\$\{params\.toString\(\)\}`\)/);
 });
+
+test('PPT text editor drawer defaults to prayer offering announcement section and renders whitespace editor', async () => {
+  const drawerSource = await readFile(
+    new URL('../components/worship-prep/pptx-text-editor-drawer.tsx', import.meta.url),
+    'utf8',
+  );
+  const whitespaceSource = await readFile(
+    new URL('../components/worship-prep/visible-whitespace-textarea.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(drawerSource, /DEFAULT_PPT_TEXT_SECTION_NAME/);
+  assert.match(drawerSource, /getDefaultPptxTextSectionName\(structure\)/);
+  assert.match(drawerSource, /PPT 텍스트 수정/);
+  assert.match(drawerSource, /VisibleWhitespaceTextarea/);
+  assert.match(whitespaceSource, /toVisibleWhitespaceText\(value\)/);
+  assert.match(whitespaceSource, /text-transparent/);
+  assert.match(whitespaceSource, /caret-foreground/);
+});
