@@ -28,16 +28,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { PptxTextEditorDrawer } from "@/components/worship-prep/pptx-text-editor-drawer"
 import { listPptxFiles } from "@/lib/actions/pptx-export"
 import {
   exportWorshipToPptx,
   getContiForWorshipPptxExport,
+  inspectWorshipPptxText,
   previewScripturePptx,
 } from "@/lib/actions/worship-pptx-export"
 import { DEFAULT_SCRIPTURE_VERSE_TEXT_FORMAT } from "@/lib/scripture/pagination"
 import { buildPptxSongData } from "@/lib/utils/pptx-helpers"
+import {
+  buildInitialPptxTextDrafts,
+  buildPptxTextOverrides,
+} from "@/lib/utils/pptx-text-overrides"
 import type { WorshipPrepSummary } from "@/lib/queries/worship-prep"
-import type { Conti, ContiWithSongs, PptxDriveFile, PptxExportScripturePageData } from "@/lib/types"
+import type {
+  Conti,
+  ContiWithSongs,
+  PptxDriveFile,
+  PptxExportScripturePageData,
+  PptxTextStructure,
+} from "@/lib/types"
 
 type Step = "file-list" | "worship-data" | "mode-select" | "confirm"
 
@@ -89,6 +101,11 @@ export function WorshipPptxExportButton({
     slideCount: number
     pages: PptxExportScripturePageData[]
   } | null>(null)
+  const [pptxTextDrawerOpen, setPptxTextDrawerOpen] = useState(false)
+  const [pptxTextStructure, setPptxTextStructure] = useState<PptxTextStructure | null>(null)
+  const [pptxTextLoading, setPptxTextLoading] = useState(false)
+  const [pptxTextError, setPptxTextError] = useState<string | null>(null)
+  const [pptxTextDrafts, setPptxTextDrafts] = useState<Record<string, string>>({})
 
   const selectedConti = selectedContiId ? loadedContis[selectedContiId] ?? null : null
   const currentScriptureReference = scriptureReference.trim()
@@ -106,6 +123,11 @@ export function WorshipPptxExportButton({
     if (!selectedConti) return []
     return buildPptxSongData(selectedConti.songs, SECTION_PREFIX)
   }, [selectedConti])
+
+  const textOverrides = useMemo(
+    () => buildPptxTextOverrides(pptxTextStructure, pptxTextDrafts),
+    [pptxTextDrafts, pptxTextStructure]
+  )
 
   const selectedContiLabel = useMemo(() => {
     const conti = contis.find((item) => item.id === selectedContiId) ?? selectedConti
@@ -131,6 +153,11 @@ export function WorshipPptxExportButton({
     setOverwrite(true)
     setOutputFileName("")
     setScripturePreview(null)
+    setPptxTextDrawerOpen(false)
+    setPptxTextStructure(null)
+    setPptxTextLoading(false)
+    setPptxTextError(null)
+    setPptxTextDrafts({})
     setContiError(null)
   }
 
@@ -186,6 +213,9 @@ export function WorshipPptxExportButton({
   function handleSelectFile(file: PptxDriveFile) {
     setSelectedFile(file)
     setOutputFileName(file.name)
+    setPptxTextStructure(null)
+    setPptxTextError(null)
+    setPptxTextDrafts({})
     setStep("worship-data")
   }
 
@@ -280,6 +310,35 @@ export function WorshipPptxExportButton({
     }
   }
 
+  async function handleOpenPptxTextEditor() {
+    if (!selectedFile) {
+      toast.error("PPT 파일을 선택해 주세요")
+      return
+    }
+
+    setPptxTextDrawerOpen(true)
+    if (pptxTextStructure) return
+
+    setPptxTextLoading(true)
+    setPptxTextError(null)
+    const result = await inspectWorshipPptxText(selectedFile.file_id)
+    setPptxTextLoading(false)
+
+    if (!result.success || !result.data) {
+      const message = result.error || "PPT 텍스트를 불러오지 못했습니다"
+      setPptxTextError(message)
+      toast.error(message)
+      return
+    }
+
+    setPptxTextStructure(result.data)
+    setPptxTextDrafts(buildInitialPptxTextDrafts(result.data))
+  }
+
+  function handleResetPptxTextDrafts() {
+    setPptxTextDrafts(buildInitialPptxTextDrafts(pptxTextStructure))
+  }
+
   function handleExport() {
     if (!selectedFile || !selectedConti) return
 
@@ -303,6 +362,7 @@ export function WorshipPptxExportButton({
         versesPerSlide,
         verseTextFormat: effectiveVerseTextFormat,
         sermonTitle: item.title,
+        textOverrides,
       })
 
       if (!result.success || !result.data) {
@@ -349,7 +409,7 @@ export function WorshipPptxExportButton({
         예배 PPT 내보내기
       </Button>
 
-      <Dialog open={open} onOpenChange={handleOpenChange}>
+      <Dialog open={open} onOpenChange={handleOpenChange} modal={pptxTextDrawerOpen ? false : true}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] grid-rows-[auto_1fr_auto]">
           <DialogHeader>
             <DialogTitle>
@@ -692,6 +752,16 @@ export function WorshipPptxExportButton({
             )}
             {step === "confirm" && (
               <Button
+                type="button"
+                variant="outline"
+                onClick={handleOpenPptxTextEditor}
+                disabled={isPending || pptxTextLoading}
+              >
+                {pptxTextLoading ? "불러오는 중..." : "PPT 텍스트 수정"}
+              </Button>
+            )}
+            {step === "confirm" && (
+              <Button
                 onClick={handleExport}
                 disabled={isPending}
               >
@@ -704,6 +774,18 @@ export function WorshipPptxExportButton({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PptxTextEditorDrawer
+        open={pptxTextDrawerOpen}
+        onOpenChange={setPptxTextDrawerOpen}
+        fileName={selectedFile?.name ?? ""}
+        structure={pptxTextStructure}
+        loading={pptxTextLoading}
+        error={pptxTextError}
+        drafts={pptxTextDrafts}
+        onDraftsChange={setPptxTextDrafts}
+        onReset={handleResetPptxTextDrafts}
+      />
     </>
   )
 }

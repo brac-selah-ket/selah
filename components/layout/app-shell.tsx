@@ -33,15 +33,14 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         ref={portalRef}
         className={cn(
           "shrink-0 flex flex-col bg-background overflow-hidden",
-          // Mobile: fixed bottom sheet with definite height for inner scroll
-          "fixed inset-x-0 bottom-0 z-50 h-[90vh] rounded-t-2xl shadow-xl",
+          "fixed inset-x-0 bottom-0 h-[90vh] rounded-t-2xl shadow-xl",
           "transition-transform duration-300 ease-in-out",
+          isOpen ? "z-[60]" : "z-50",
           isOpen ? "translate-y-0" : "translate-y-full pointer-events-none",
-          // Desktop: in-flow sticky sidebar
-          "md:sticky md:inset-auto md:top-0 md:z-auto md:h-screen md:max-h-none md:rounded-none md:border-l md:shadow-none",
+          "md:sticky md:inset-auto md:top-0 md:h-screen md:max-h-none md:rounded-none md:border-l md:shadow-none",
           "md:transition-[width] md:duration-300 md:ease-in-out",
           "md:translate-y-0 md:pointer-events-auto",
-          isOpen ? "md:w-[40%]" : "md:w-0 md:border-l-0",
+          isOpen ? "md:z-[60] md:w-[40%]" : "md:z-auto md:w-0 md:border-l-0",
         )}
       />
     </div>

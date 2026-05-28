@@ -76,3 +76,24 @@ test('PPT text editor drawer uses updater drafts and textarea keeps overlay scro
   assert.match(whitespaceSource, /overlayRef\.current\.scrollTop = event\.currentTarget\.scrollTop/);
   assert.match(whitespaceSource, /onScroll=\{handleScroll\}/);
 });
+
+test('worship pptx confirm step opens text editor drawer and exports text overrides', async () => {
+  const source = await readFile(
+    new URL('../components/worship-prep/worship-pptx-export-button.tsx', import.meta.url),
+    'utf8',
+  );
+  const appShellSource = await readFile(
+    new URL('../components/layout/app-shell.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /PptxTextEditorDrawer/);
+  assert.match(source, /inspectWorshipPptxText/);
+  assert.match(source, /buildInitialPptxTextDrafts/);
+  assert.match(source, /buildPptxTextOverrides/);
+  assert.match(source, /modal=\{pptxTextDrawerOpen \? false : true\}/);
+  assert.match(source, /PPT 텍스트 수정/);
+  assert.match(source, /textOverrides/);
+  assert.match(appShellSource, /isOpen \? "z-\[60\]" : "z-50"/);
+  assert.match(appShellSource, /isOpen \? "md:z-\[60\] md:w-\[40%\]" : "md:z-auto md:w-0 md:border-l-0"/);
+});
