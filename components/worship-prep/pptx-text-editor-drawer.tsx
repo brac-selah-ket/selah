@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils"
 import type { PptxTextSection, PptxTextStructure } from "@/lib/types"
 import {
   DEFAULT_PPT_TEXT_SECTION_NAME,
-  getDefaultPptxTextSectionName,
+  getDefaultPptxTextSectionId,
+  getPptxTextSectionId,
   makePptxTextOverrideKey,
 } from "@/lib/utils/pptx-text-overrides"
 
@@ -37,17 +38,17 @@ export function PptxTextEditorDrawer({
   onDraftsChange,
   onReset,
 }: PptxTextEditorDrawerProps) {
-  const [selectedSectionName, setSelectedSectionName] = React.useState("")
+  const [selectedSectionId, setSelectedSectionId] = React.useState("")
 
   React.useEffect(() => {
     if (!open) return
 
-    setSelectedSectionName(getDefaultPptxTextSectionName(structure))
+    setSelectedSectionId(getDefaultPptxTextSectionId(structure))
   }, [open, structure])
 
   const sections = structure?.sections ?? []
   const selectedSection =
-    sections.find((section) => section.name === selectedSectionName) ??
+    sections.find((section, index) => getPptxTextSectionId(section, index) === selectedSectionId) ??
     sections.find((section) => section.name === DEFAULT_PPT_TEXT_SECTION_NAME) ??
     sections[0]
 
@@ -110,8 +111,8 @@ export function PptxTextEditorDrawer({
           <>
             <SectionButtons
               sections={sections}
-              selectedSectionName={selectedSection?.name ?? ""}
-              onSelect={setSelectedSectionName}
+              selectedSectionId={selectedSectionId}
+              onSelect={setSelectedSectionId}
             />
 
             <div className="space-y-4">
@@ -174,28 +175,32 @@ export function PptxTextEditorDrawer({
 
 interface SectionButtonsProps {
   sections: PptxTextSection[]
-  selectedSectionName: string
-  onSelect: (sectionName: string) => void
+  selectedSectionId: string
+  onSelect: (sectionId: string) => void
 }
 
-function SectionButtons({ sections, selectedSectionName, onSelect }: SectionButtonsProps) {
+function SectionButtons({ sections, selectedSectionId, onSelect }: SectionButtonsProps) {
   if (sections.length === 0) return null
 
   return (
     <div className="flex flex-wrap gap-2" aria-label="PPT 텍스트 섹션">
-      {sections.map((section) => (
-        <Button
-          key={section.name}
-          type="button"
-          size="sm"
-          variant={section.name === selectedSectionName ? "default" : "outline"}
-          className={cn("max-w-full", section.name === DEFAULT_PPT_TEXT_SECTION_NAME && "font-bold")}
-          onClick={() => onSelect(section.name)}
-          aria-pressed={section.name === selectedSectionName}
-        >
-          <span className="truncate">{section.name}</span>
-        </Button>
-      ))}
+      {sections.map((section, index) => {
+        const sectionId = getPptxTextSectionId(section, index)
+
+        return (
+          <Button
+            key={sectionId}
+            type="button"
+            size="sm"
+            variant={sectionId === selectedSectionId ? "default" : "outline"}
+            className={cn("max-w-full", section.name === DEFAULT_PPT_TEXT_SECTION_NAME && "font-bold")}
+            onClick={() => onSelect(sectionId)}
+            aria-pressed={sectionId === selectedSectionId}
+          >
+            <span className="truncate">{section.name}</span>
+          </Button>
+        )
+      })}
     </div>
   )
 }

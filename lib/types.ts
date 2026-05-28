@@ -215,6 +215,7 @@ export interface PptxTextSlide {
 }
 
 export interface PptxTextSection {
+  section_id: string;
   name: string;
   slide_ids: number[];
   slides: PptxTextSlide[];

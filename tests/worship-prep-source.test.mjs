@@ -48,7 +48,8 @@ test('PPT text editor drawer defaults to prayer offering announcement section an
   );
 
   assert.match(drawerSource, /DEFAULT_PPT_TEXT_SECTION_NAME/);
-  assert.match(drawerSource, /getDefaultPptxTextSectionName\(structure\)/);
+  assert.match(drawerSource, /getDefaultPptxTextSectionId\(structure\)/);
+  assert.match(drawerSource, /selectedSectionId/);
   assert.match(drawerSource, /PPT 텍스트 수정/);
   assert.match(drawerSource, /VisibleWhitespaceTextarea/);
   assert.match(whitespaceSource, /toVisibleWhitespaceText\(value\)/);

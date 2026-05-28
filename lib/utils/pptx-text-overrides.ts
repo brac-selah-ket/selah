@@ -1,9 +1,21 @@
-import type { PptxTextOverride, PptxTextStructure } from '@/lib/types';
+import type { PptxTextOverride, PptxTextSection, PptxTextStructure } from '@/lib/types';
 
 export const DEFAULT_PPT_TEXT_SECTION_NAME = '기도 봉헌 광고';
 
 export function makePptxTextOverrideKey(slideId: number, shapeId: string): string {
   return `${slideId}:${shapeId}`;
+}
+
+export function getPptxTextSectionId(section: PptxTextSection, index: number): string {
+  return section.section_id || `${section.name}:${index}`;
+}
+
+export function getDefaultPptxTextSectionId(structure: PptxTextStructure | null): string {
+  if (!structure || structure.sections.length === 0) return '';
+  const section =
+    structure.sections.find((item) => item.name === DEFAULT_PPT_TEXT_SECTION_NAME) ??
+    structure.sections[0];
+  return getPptxTextSectionId(section, structure.sections.indexOf(section));
 }
 
 export function getDefaultPptxTextSectionName(structure: PptxTextStructure | null): string {

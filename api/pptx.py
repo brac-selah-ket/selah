@@ -555,6 +555,20 @@ def get_shape_text_title(shape, fallback_title):
     return first_line[:40] if first_line else fallback_title
 
 
+def iter_text_shapes(shapes, parent_id=''):
+    """Yield text-bearing shapes, including shapes nested in PowerPoint groups."""
+    for shape_index, shape in enumerate(shapes):
+        shape_id = get_shape_stable_id(shape, shape_index)
+        stable_id = f'{parent_id}/{shape_id}' if parent_id else shape_id
+
+        if shape.has_text_frame:
+            yield shape, stable_id, shape_index
+
+        child_shapes = getattr(shape, 'shapes', None)
+        if child_shapes is not None:
+            yield from iter_text_shapes(child_shapes, stable_id)
+
+
 def get_generated_section_slide_ids(section):
     """Return durable slide ids for generated sections, otherwise every section slide."""
     slide_ids = section.get('slide_ids', [])
@@ -592,14 +606,10 @@ def inspect_text_template(pptx_path, file_id=''):
                 continue
 
             shapes = []
-            for shape_index, shape in enumerate(slide.shapes):
-                if not shape.has_text_frame:
-                    continue
-
-                shape_id = get_shape_stable_id(shape, shape_index)
+            for text_shape_index, (shape, shape_id, shape_index) in enumerate(iter_text_shapes(slide.shapes)):
                 shapes.append({
                     'shape_id': shape_id,
-                    'shape_name': getattr(shape, 'name', '') or f'TextBox {shape_index + 1}',
+                    'shape_name': getattr(shape, 'name', '') or f'TextBox {text_shape_index + 1}',
                     'text': shape.text_frame.text,
                     'left': int(shape.left or 0),
                     'top': int(shape.top or 0),
@@ -611,17 +621,19 @@ def inspect_text_template(pptx_path, file_id=''):
                 continue
 
             slide_number = entry['index'] + 1
+            title_shape = next((shape for shape, _, _ in iter_text_shapes(slide.shapes)), None)
             slides.append({
                 'slide_id': slide_id,
                 'slide_index': entry['index'],
                 'section_name': section['name'],
-                'title': get_shape_text_title(slide.shapes[0], f"{section['name']} {slide_number}p")
-                    if len(slide.shapes) > 0 else f"{section['name']} {slide_number}p",
+                'title': get_shape_text_title(title_shape, f"{section['name']} {slide_number}p")
+                    if title_shape is not None else f"{section['name']} {slide_number}p",
                 'shapes': shapes,
             })
 
         if slides:
             editable_sections.append({
+                'section_id': section.get('id') or f'section-{len(editable_sections) + 1}',
                 'name': section['name'],
                 'slide_ids': section['slide_ids'],
                 'slides': slides,
@@ -1115,8 +1127,8 @@ def has_scripture_payload(scripture):
 def find_shape_by_stable_id(slide, shape_id):
     """Find a shape on a slide by the stable id used by inspect_text_template."""
     target = str(shape_id)
-    for shape_index, shape in enumerate(slide.shapes):
-        if get_shape_stable_id(shape, shape_index) == target:
+    for shape, stable_id, _ in iter_text_shapes(slide.shapes):
+        if stable_id == target:
             return shape
     return None
 
