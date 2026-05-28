@@ -115,7 +115,6 @@ export function Drawer({
           "fixed inset-0 z-[55] bg-black/40 transition-opacity duration-300 md:bg-transparent",
           open ? "opacity-100" : "pointer-events-none opacity-0",
         )}
-        onClick={handleClose}
         aria-hidden="true"
       />
 

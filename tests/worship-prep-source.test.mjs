@@ -168,7 +168,7 @@ test('PPT text editor drawer highlights changed text and can show only changed i
   assert.match(drawerSource, /변경 없음/);
 });
 
-test('PPT text editor drawer closes from outside click and uses a full-row native checkbox filter', async () => {
+test('PPT text editor drawer keeps outside click disabled and uses a full-row native checkbox filter', async () => {
   const drawerSource = await readFile(
     new URL('../components/worship-prep/pptx-text-editor-drawer.tsx', import.meta.url),
     'utf8',
@@ -184,7 +184,12 @@ test('PPT text editor drawer closes from outside click and uses a full-row nativ
 
   assert.match(drawerPrimitiveSource, /fixed inset-0 z-\[55\] bg-black\/40/);
   assert.match(drawerPrimitiveSource, /md:bg-transparent/);
-  assert.match(drawerPrimitiveSource, /onClick=\{handleClose\}/);
+  const backdropSource = drawerPrimitiveSource.match(
+    /\{\/\* Backdrop \*\/\}[\s\S]+?aria-hidden="true"[\s\S]+?\/>/,
+  )?.[0];
+  assert.ok(backdropSource);
+  assert.doesNotMatch(backdropSource, /onClick=\{handleClose\}/);
+  assert.match(drawerPrimitiveSource, /<Button[\s\S]+onClick=\{handleClose\}/);
   assert.doesNotMatch(drawerPrimitiveSource, /bg-black\/40[^\n"]*md:hidden/);
   assert.match(appShellSource, /md:w-\[min\(640px,76vw\)\] xl:w-\[40%\]/);
   assert.doesNotMatch(appShellSource, /md:w-\[40%\]/);
