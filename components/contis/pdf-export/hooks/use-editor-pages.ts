@@ -4,6 +4,7 @@ import {
   findPresetPdfPageMetadata,
   mergePresetOverlays,
 } from "@/lib/utils/pdf-export-helpers";
+import { getSheetMusicAssetUrl } from "@/lib/sheet-music-assets";
 import { getPdfPageCount, renderPdfPageToDataUrl } from "@/lib/utils/pdfjs";
 import { applySavedCrop } from "../utils";
 import type {
@@ -61,6 +62,7 @@ export function useEditorPages(
         }
 
         for (const file of sheetMusic) {
+          const assetUrl = getSheetMusicAssetUrl(file);
           if (file.fileType.includes("image")) {
             const defaultOverlays = buildDefaultOverlays(
               songIdx,
@@ -78,7 +80,7 @@ export function useEditorPages(
             editorPages.push({
               songIndex: songIdx,
               sheetMusicFileId: file.id,
-              imageUrl: file.fileUrl,
+              imageUrl: assetUrl,
               pdfPageIndex: null,
               overlays:
                 saved?.overlays ??
@@ -97,17 +99,20 @@ export function useEditorPages(
               cropWidth: saved?.cropWidth ?? preset?.cropWidth ?? null,
               cropHeight: saved?.cropHeight ?? preset?.cropHeight ?? null,
               originalImageUrl:
-                saved?.originalImageUrl ??
-                ((preset?.cropX !== undefined ||
+                (saved?.cropX !== undefined ||
+                  saved?.cropY !== undefined ||
+                  saved?.cropWidth !== undefined ||
+                  saved?.cropHeight !== undefined ||
+                  preset?.cropX !== undefined ||
                   preset?.cropY !== undefined ||
                   preset?.cropWidth !== undefined ||
                   preset?.cropHeight !== undefined)
-                  ? file.fileUrl
-                  : null),
+                  ? assetUrl
+                  : null,
             });
           } else if (file.fileType.includes("pdf")) {
             try {
-              const pageCount = await getPdfPageCount(file.fileUrl);
+              const pageCount = await getPdfPageCount(assetUrl);
               for (let p = 0; p < pageCount; p++) {
                 const defaultOverlays = buildDefaultOverlays(
                   songIdx,
@@ -292,23 +297,23 @@ export function useEditorPages(
       renderingPageRef.current.add(currentPageIndex);
 
       // Find the file URL from conti data
-      let fileUrl: string | null = null;
+      let assetUrl: string | null = null;
       for (const cs of conti.songs) {
         for (const sm of cs.sheetMusic) {
           if (sm.id === page.sheetMusicFileId) {
-            fileUrl = sm.fileUrl;
+            assetUrl = getSheetMusicAssetUrl(sm);
             break;
           }
         }
-        if (fileUrl) break;
+        if (assetUrl) break;
       }
-      if (!fileUrl) {
+      if (!assetUrl) {
         renderingPageRef.current.delete(currentPageIndex);
         return prev;
       }
 
       const pageIdx = currentPageIndex;
-      renderPdfPageToDataUrl(fileUrl, page.pdfPageIndex + 1)
+      renderPdfPageToDataUrl(assetUrl, page.pdfPageIndex + 1)
         .then(async (dataUrl) => {
           let finalUrl = dataUrl;
           if (

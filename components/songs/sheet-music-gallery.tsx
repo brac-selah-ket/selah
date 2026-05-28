@@ -6,6 +6,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { Cancel01Icon } from '@hugeicons/core-free-icons';
 import type { SheetMusicFile } from '@/lib/types';
 import { deleteSheetMusic } from '@/lib/actions/sheet-music';
+import { getSheetMusicAssetUrl } from '@/lib/sheet-music-assets';
 import { getPdfPageCount, renderPdfPagesToDataUrls } from '@/lib/utils/pdfjs';
 import {
   Dialog,
@@ -62,11 +63,12 @@ export function SheetMusicGallery({ files, editable = false, onDeleted }: SheetM
       const result: GalleryItem[] = [];
 
       for (const file of currentFiles) {
+        const assetUrl = getSheetMusicAssetUrl(file);
         if (file.fileType.startsWith('image/')) {
-          result.push({ file, thumbnailUrl: file.fileUrl, pdfPage: null, pdfTotalPages: null });
+          result.push({ file, thumbnailUrl: assetUrl, pdfPage: null, pdfTotalPages: null });
         } else if (file.fileType === 'application/pdf') {
           try {
-            const pageCount = await getPdfPageCount(file.fileUrl);
+            const pageCount = await getPdfPageCount(assetUrl);
             // Placeholder items so the grid appears immediately
             const startIdx = result.length;
             for (let p = 1; p <= pageCount; p++) {
@@ -76,7 +78,7 @@ export function SheetMusicGallery({ files, editable = false, onDeleted }: SheetM
 
             // Render all pages from this PDF in one document open
             const pageNums = Array.from({ length: pageCount }, (_, i) => i + 1);
-            const dataUrls = await renderPdfPagesToDataUrls(file.fileUrl, pageNums, 1);
+            const dataUrls = await renderPdfPagesToDataUrls(assetUrl, pageNums, 1);
             if (!cancelled) {
               for (let p = 0; p < dataUrls.length; p++) {
                 result[startIdx + p] = { ...result[startIdx + p], thumbnailUrl: dataUrls[p] };
