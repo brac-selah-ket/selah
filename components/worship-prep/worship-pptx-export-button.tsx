@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
+import { useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { toast } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
@@ -67,6 +67,14 @@ function formatContiLabel(conti: Pick<Conti, "date" | "title">): string {
   return `${conti.date} - ${conti.title || "콘티"}`
 }
 
+function getScripturePreviewRequestKey(
+  scriptureReference: string,
+  versesPerSlide: number,
+  verseTextFormat: string
+): string {
+  return JSON.stringify([scriptureReference.trim(), versesPerSlide, verseTextFormat])
+}
+
 export function WorshipPptxExportButton({
   item,
   contis,
@@ -75,6 +83,9 @@ export function WorshipPptxExportButton({
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState<Step>("file-list")
   const [isPending, startTransition] = useTransition()
+  const pptxTextRequestSeqRef = useRef(0)
+  const selectedFileIdRef = useRef<string | null>(null)
+  const scripturePreviewRequestKeyRef = useRef("")
 
   const [files, setFiles] = useState<PptxDriveFile[]>([])
   const [filesLoading, setFilesLoading] = useState(false)
@@ -112,12 +123,31 @@ export function WorshipPptxExportButton({
   const effectiveVerseTextFormat = verseTextFormat.trim()
     ? verseTextFormat
     : DEFAULT_SCRIPTURE_VERSE_TEXT_FORMAT
+  const currentScripturePreviewRequestKey = getScripturePreviewRequestKey(
+    currentScriptureReference,
+    versesPerSlide,
+    effectiveVerseTextFormat
+  )
+  useEffect(() => {
+    selectedFileIdRef.current = selectedFile?.file_id ?? null
+  }, [selectedFile])
+
+  useEffect(() => {
+    scripturePreviewRequestKeyRef.current = currentScripturePreviewRequestKey
+  }, [currentScripturePreviewRequestKey])
+
+  function isCurrentScripturePreview(preview: NonNullable<typeof scripturePreview>): boolean {
+    return (
+      getScripturePreviewRequestKey(
+        preview.requestedReference,
+        preview.requestedVersesPerSlide,
+        preview.requestedVerseTextFormat
+      ) === currentScripturePreviewRequestKey
+    )
+  }
+
   const currentScripturePreview =
-    scripturePreview?.requestedReference === currentScriptureReference &&
-    scripturePreview.requestedVersesPerSlide === versesPerSlide &&
-    scripturePreview.requestedVerseTextFormat === effectiveVerseTextFormat
-      ? scripturePreview
-      : null
+    scripturePreview && isCurrentScripturePreview(scripturePreview) ? scripturePreview : null
 
   const songData = useMemo(() => {
     if (!selectedConti) return []
@@ -141,7 +171,18 @@ export function WorshipPptxExportButton({
 
   const canOpen = contis.length > 0
 
+  function invalidatePptxTextRequest() {
+    pptxTextRequestSeqRef.current += 1
+  }
+
   function resetDialog() {
+    invalidatePptxTextRequest()
+    selectedFileIdRef.current = null
+    scripturePreviewRequestKeyRef.current = getScripturePreviewRequestKey(
+      item.scripture ?? "",
+      2,
+      DEFAULT_SCRIPTURE_VERSE_TEXT_FORMAT
+    )
     setStep("file-list")
     setFiles([])
     setFilesError(null)
@@ -211,9 +252,13 @@ export function WorshipPptxExportButton({
   }
 
   function handleSelectFile(file: PptxDriveFile) {
+    invalidatePptxTextRequest()
+    selectedFileIdRef.current = file.file_id
     setSelectedFile(file)
     setOutputFileName(file.name)
+    setPptxTextDrawerOpen(false)
     setPptxTextStructure(null)
+    setPptxTextLoading(false)
     setPptxTextError(null)
     setPptxTextDrafts({})
     setStep("worship-data")
@@ -251,12 +296,17 @@ export function WorshipPptxExportButton({
     })
   }
 
-  async function loadScripturePreview(): Promise<boolean> {
+  async function loadScripturePreview(): Promise<NonNullable<typeof scripturePreview> | null> {
     const scripture = scriptureReference.trim()
     if (!scripture) {
       toast.error("말씀 본문을 입력해 주세요")
-      return false
+      return null
     }
+    const requestKey = getScripturePreviewRequestKey(
+      scripture,
+      versesPerSlide,
+      effectiveVerseTextFormat
+    )
 
     const result = await previewScripturePptx({
       scriptureReference: scripture,
@@ -266,18 +316,24 @@ export function WorshipPptxExportButton({
 
     if (!result.success || !result.data) {
       toast.error(result.error || "말씀 본문을 확인하지 못했습니다")
-      return false
+      return null
     }
 
-    setScripturePreview({
+    const currentKey = scripturePreviewRequestKeyRef.current
+    if (currentKey !== requestKey) {
+      return null
+    }
+
+    const preview = {
       requestedReference: scripture,
       requestedVersesPerSlide: versesPerSlide,
       requestedVerseTextFormat: effectiveVerseTextFormat,
       reference: result.data.reference,
       slideCount: result.data.slideCount,
       pages: result.data.pages,
-    })
-    return true
+    }
+    setScripturePreview(preview)
+    return preview
   }
 
   function handlePreviewScripture() {
@@ -293,8 +349,8 @@ export function WorshipPptxExportButton({
     }
 
     startTransition(async () => {
-      const ready = currentScripturePreview || (await loadScripturePreview())
-      if (!ready) return
+      const preview = currentScripturePreview || (await loadScripturePreview())
+      if (!preview || !isCurrentScripturePreview(preview)) return
       setStep("confirm")
     })
   }
@@ -303,6 +359,7 @@ export function WorshipPptxExportButton({
     if (step === "worship-data") {
       setStep("file-list")
       setSelectedFile(null)
+      selectedFileIdRef.current = null
     } else if (step === "mode-select") {
       setStep("worship-data")
     } else if (step === "confirm") {
@@ -317,11 +374,17 @@ export function WorshipPptxExportButton({
     }
 
     setPptxTextDrawerOpen(true)
-    if (pptxTextStructure) return
+    if (pptxTextStructure?.file_id === selectedFile.file_id) return
 
+    const inspectedFileId = selectedFile.file_id
+    const requestSeq = pptxTextRequestSeqRef.current + 1
+    pptxTextRequestSeqRef.current = requestSeq
     setPptxTextLoading(true)
     setPptxTextError(null)
-    const result = await inspectWorshipPptxText(selectedFile.file_id)
+    const result = await inspectWorshipPptxText(inspectedFileId)
+    if (requestSeq !== pptxTextRequestSeqRef.current || selectedFileIdRef.current !== inspectedFileId) {
+      return
+    }
     setPptxTextLoading(false)
 
     if (!result.success || !result.data) {
@@ -720,7 +783,7 @@ export function WorshipPptxExportButton({
               <Button
                 variant="outline"
                 onClick={handleBack}
-                disabled={isPending}
+                disabled={isPending || pptxTextDrawerOpen}
               >
                 <HugeiconsIcon icon={ArrowLeft02Icon} strokeWidth={2} data-icon="inline-start" />
                 뒤로
@@ -755,7 +818,7 @@ export function WorshipPptxExportButton({
                 type="button"
                 variant="outline"
                 onClick={handleOpenPptxTextEditor}
-                disabled={isPending || pptxTextLoading}
+                disabled={isPending || pptxTextLoading || pptxTextDrawerOpen}
               >
                 {pptxTextLoading ? "불러오는 중..." : "PPT 텍스트 수정"}
               </Button>
@@ -763,7 +826,7 @@ export function WorshipPptxExportButton({
             {step === "confirm" && (
               <Button
                 onClick={handleExport}
-                disabled={isPending}
+                disabled={isPending || pptxTextDrawerOpen}
               >
                 {isPending && (
                   <HugeiconsIcon icon={Loading03Icon} strokeWidth={2} className="animate-spin" data-icon="inline-start" />

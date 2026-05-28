@@ -97,3 +97,24 @@ test('worship pptx confirm step opens text editor drawer and exports text overri
   assert.match(appShellSource, /isOpen \? "z-\[60\]" : "z-50"/);
   assert.match(appShellSource, /isOpen \? "md:z-\[60\] md:w-\[40%\]" : "md:z-auto md:w-0 md:border-l-0"/);
 });
+
+test('worship pptx export guards stale drawer and scripture preview async results', async () => {
+  const source = await readFile(
+    new URL('../components/worship-prep/worship-pptx-export-button.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /useRef/);
+  assert.match(source, /pptxTextRequestSeqRef/);
+  assert.match(source, /pptxTextRequestSeqRef\.current \+= 1/);
+  assert.match(source, /pptxTextStructure\?\.file_id === selectedFile\.file_id/);
+  assert.match(source, /const inspectedFileId = selectedFile\.file_id/);
+  assert.match(source, /selectedFileIdRef\.current !== inspectedFileId/);
+  assert.match(source, /requestSeq !== pptxTextRequestSeqRef\.current/);
+  assert.match(source, /getScripturePreviewRequestKey/);
+  assert.match(source, /const requestKey = getScripturePreviewRequestKey/);
+  assert.match(source, /currentKey !== requestKey/);
+  assert.match(source, /if \(!preview \|\| !isCurrentScripturePreview\(preview\)\) return/);
+  assert.match(source, /disabled=\{isPending \|\| pptxTextDrawerOpen\}/);
+  assert.match(source, /disabled=\{isPending \|\| pptxTextLoading \|\| pptxTextDrawerOpen\}/);
+});
