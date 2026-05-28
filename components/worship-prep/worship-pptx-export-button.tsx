@@ -242,6 +242,10 @@ export function WorshipPptxExportButton({
   }
 
   function handleOpenChange(newOpen: boolean) {
+    if (!newOpen && pptxTextDrawerOpen) {
+      return
+    }
+
     setOpen(newOpen)
     if (newOpen) {
       loadFilesIfNeeded()

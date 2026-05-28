@@ -92,6 +92,7 @@ test('worship pptx confirm step opens text editor drawer and exports text overri
   assert.match(source, /buildInitialPptxTextDrafts/);
   assert.match(source, /buildPptxTextOverrides/);
   assert.match(source, /modal=\{pptxTextDrawerOpen \? false : true\}/);
+  assert.match(source, /if \(!newOpen && pptxTextDrawerOpen\) \{\s*return\s*\}/);
   assert.match(source, /PPT 텍스트 수정/);
   assert.match(source, /textOverrides/);
   assert.match(appShellSource, /isOpen \? "z-\[60\]" : "z-50"/);
