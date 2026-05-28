@@ -570,7 +570,7 @@ def get_generated_section_slide_ids(section):
         or '찬양'
     )
 
-    if section_name == scripture_name or re.match(rf'^{re.escape(song_prefix)}\d+$', section_name):
+    if section_name == scripture_name or re.match(rf'^{re.escape(song_prefix)}\s*\d+$', section_name):
         return slide_ids[:1]
     return slide_ids
 

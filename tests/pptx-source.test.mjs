@@ -107,7 +107,7 @@ test('pptx handler can inspect editable text sections', async () => {
   assert.match(source, /NEXT_PUBLIC_PPTX_SCRIPTURE_SECTION_NAME/);
   assert.match(source, /PPTX_SECTION_PREFIX/);
   assert.match(source, /NEXT_PUBLIC_PPTX_SECTION_PREFIX/);
-  assert.match(source, /re\.match\(rf'\^\{re\.escape\(song_prefix\)\}\\d\+\$'/);
+  assert.match(source, /re\.match\(rf'\^\{re\.escape\(song_prefix\)\}\\s\*\\d\+\$'/);
   assert.match(source, /def inspect_text_template\(pptx_path, file_id=''\):/);
   assert.match(
     source,
