@@ -331,6 +331,14 @@ export async function sendPptxTextInspectRequest(
       return { success: false, error: result.error };
     }
 
+    if (
+      !result.data ||
+      typeof result.data.file_id !== 'string' ||
+      !Array.isArray(result.data.sections)
+    ) {
+      return { success: false, error: 'PPT 텍스트 응답 형식이 올바르지 않습니다' };
+    }
+
     return { success: true, data: result.data };
   } catch (error) {
     console.error('[sendPptxTextInspectRequest]', error);
