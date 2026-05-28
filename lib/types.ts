@@ -196,6 +196,42 @@ export interface PptxExportScriptureData {
   sermon_title_section_name?: string;
 }
 
+export interface PptxTextShape {
+  shape_id: string;
+  shape_name: string;
+  text: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+export interface PptxTextSlide {
+  slide_id: number;
+  slide_index: number;
+  section_name: string;
+  title: string;
+  shapes: PptxTextShape[];
+}
+
+export interface PptxTextSection {
+  section_id: string;
+  name: string;
+  slide_ids: number[];
+  slides: PptxTextSlide[];
+}
+
+export interface PptxTextStructure {
+  file_id: string;
+  sections: PptxTextSection[];
+}
+
+export interface PptxTextOverride {
+  slide_id: number;
+  shape_id: string;
+  text: string;
+}
+
 export interface PptxExportRequest {
   action: 'export_lyrics';
   file_id: string;
@@ -204,6 +240,7 @@ export interface PptxExportRequest {
   output_folder_id?: string;
   songs: PptxExportSongData[];
   scripture?: PptxExportScriptureData;
+  text_overrides?: PptxTextOverride[];
 }
 
 export interface PptxExportResult {
@@ -215,6 +252,8 @@ export interface PptxExportResult {
   slides_generated: number;
   scripture_processed?: boolean;
   scripture_slides_generated?: number;
+  text_overrides_applied?: number;
+  text_overrides_skipped?: number;
 }
 
 export interface PptxTemplateSectionInfo {

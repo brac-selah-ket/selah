@@ -1,6 +1,6 @@
 'use server';
 
-import { ensurePptxFileAllowed, sendPptxExportRequest } from '@/lib/pptx/export-service';
+import { ensurePptxFileAllowed, sendPptxExportRequest, sendPptxTextInspectRequest } from '@/lib/pptx/export-service';
 import { getConti } from '@/lib/queries/contis';
 import { paginateScriptureVerses } from '@/lib/scripture/pagination';
 import { fetchScriptureVerses } from '@/lib/scripture/provider';
@@ -11,6 +11,8 @@ import type {
   PptxExportResult,
   PptxExportScriptureData,
   PptxExportScripturePageData,
+  PptxTextOverride,
+  PptxTextStructure,
 } from '@/lib/types';
 import { buildPptxScriptureData, buildPptxSongData } from '@/lib/utils/pptx-helpers';
 
@@ -113,6 +115,27 @@ export async function getContiForWorshipPptxExport(
   }
 }
 
+export async function inspectWorshipPptxText(
+  fileId: string
+): Promise<ActionResult<PptxTextStructure>> {
+  try {
+    const allowedFile = await ensurePptxFileAllowed(fileId);
+    if (!allowedFile.success) {
+      return { success: false, error: allowedFile.error };
+    }
+
+    return sendPptxTextInspectRequest(allowedFile.data!.file_id);
+  } catch (error) {
+    console.error('[inspectWorshipPptxText]', error);
+    return {
+      success: false,
+      error: error instanceof Error
+        ? error.message
+        : 'PPT 텍스트를 불러오는 중 오류가 발생했습니다',
+    };
+  }
+}
+
 export async function exportWorshipToPptx(options: {
   fileId: string;
   overwrite: boolean;
@@ -122,6 +145,7 @@ export async function exportWorshipToPptx(options: {
   versesPerSlide?: number;
   verseTextFormat?: string;
   sermonTitle?: string | null;
+  textOverrides?: PptxTextOverride[];
   outputFolderId?: string;
 }): Promise<ActionResult<PptxExportResult>> {
   try {
@@ -159,6 +183,7 @@ export async function exportWorshipToPptx(options: {
       outputFolderId: options.outputFolderId,
       songs,
       scripture,
+      textOverrides: options.textOverrides,
     });
   } catch (error) {
     console.error('[exportWorshipToPptx]', error);

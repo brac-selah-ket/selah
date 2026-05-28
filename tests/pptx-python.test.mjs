@@ -106,3 +106,178 @@ print(shape.text.strip().replace("\\n", " | "))
     '“모든 사람에게 미치는 하나님의 의”',
   ]);
 });
+
+test('inspect text template skips volatile generated section slides', () => {
+  const script = `
+import importlib.util
+import json
+import tempfile
+from pathlib import Path
+
+from lxml import etree
+from pptx import Presentation
+
+spec = importlib.util.spec_from_file_location("pptx_api", Path("api/pptx.py"))
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+prs = Presentation()
+blank = prs.slide_layouts[6]
+
+def add_text_slide(text):
+    slide = prs.slides.add_slide(blank)
+    shape = slide.shapes.add_textbox(1000, 1000, 4000, 1000)
+    shape.text = text
+    return slide
+
+for section_name in ["봉독 말씀", "찬양 1", "기도 봉헌 광고"]:
+    add_text_slide(f"{section_name} title")
+    add_text_slide(f"{section_name} body")
+
+slide_id_map = module.get_slide_id_map(prs)
+slide_ids = list(slide_id_map.keys())
+section_lst = etree.SubElement(prs._element, module._pn("sectionLst"))
+
+for index, section_name in enumerate(["봉독 말씀", "찬양 1", "기도 봉헌 광고"]):
+    section = etree.SubElement(section_lst, module._pn("section"))
+    section.set("name", section_name)
+    section.set("id", f"section-{index + 1}")
+    sld_id_lst = etree.SubElement(section, module._pn("sldIdLst"))
+    for slide_id in slide_ids[index * 2:index * 2 + 2]:
+        sld_id = etree.SubElement(sld_id_lst, module._pn("sldId"))
+        sld_id.set("id", str(slide_id))
+
+with tempfile.NamedTemporaryFile(suffix=".pptx") as tmp:
+    prs.save(tmp.name)
+    data = module.inspect_text_template(tmp.name, "file-1")
+
+counts = {section["name"]: len(section["slides"]) for section in data["sections"]}
+print(json.dumps({
+    "file_id": data["file_id"],
+    "section_ids": [section["section_id"] for section in data["sections"]],
+    "counts": counts,
+}, ensure_ascii=False))
+`;
+  const result = spawnSync(pythonExecutable, ['-c', script], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout.trim()), {
+    file_id: 'file-1',
+    section_ids: ['section-1', 'section-2', 'section-3'],
+    counts: {
+      '봉독 말씀': 1,
+      '찬양 1': 1,
+      '기도 봉헌 광고': 2,
+    },
+  });
+});
+
+test('text overrides skip malformed slide ids and apply valid edits', () => {
+  const script = `
+import importlib.util
+import json
+from pathlib import Path
+
+from pptx import Presentation
+
+spec = importlib.util.spec_from_file_location("pptx_api", Path("api/pptx.py"))
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+prs = Presentation()
+slide = prs.slides.add_slide(prs.slide_layouts[6])
+shape = slide.shapes.add_textbox(1000, 1000, 4000, 1000)
+shape.text = "before"
+
+slide_id = next(iter(module.get_slide_id_map(prs).keys()))
+shape_id = module.get_shape_stable_id(shape, 0)
+stats = module.apply_text_overrides(prs, [
+    {"slide_id": "abc", "shape_id": shape_id, "text": "bad"},
+    {"slide_id": slide_id, "shape_id": shape_id, "text": "after"},
+])
+
+print(json.dumps({
+    "stats": stats,
+    "text": shape.text,
+}, ensure_ascii=False))
+`;
+  const result = spawnSync(pythonExecutable, ['-c', script], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout.trim()), {
+    stats: {
+      text_overrides_applied: 1,
+      text_overrides_skipped: 1,
+    },
+    text: 'after',
+  });
+});
+
+test('inspect text template and overrides include grouped text shapes', () => {
+  const script = `
+import importlib.util
+import json
+import tempfile
+from pathlib import Path
+
+from lxml import etree
+from pptx import Presentation
+
+spec = importlib.util.spec_from_file_location("pptx_api", Path("api/pptx.py"))
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+prs = Presentation()
+slide = prs.slides.add_slide(prs.slide_layouts[6])
+group = slide.shapes.add_group_shape()
+shape = group.shapes.add_textbox(1000, 1000, 4000, 1000)
+shape.name = "Grouped Notice"
+shape.text = "before grouped"
+
+slide_id = next(iter(module.get_slide_id_map(prs).keys()))
+section_lst = etree.SubElement(prs._element, module._pn("sectionLst"))
+section = etree.SubElement(section_lst, module._pn("section"))
+section.set("name", "기도 봉헌 광고")
+section.set("id", "section-1")
+sld_id_lst = etree.SubElement(section, module._pn("sldIdLst"))
+sld_id = etree.SubElement(sld_id_lst, module._pn("sldId"))
+sld_id.set("id", str(slide_id))
+
+with tempfile.NamedTemporaryFile(suffix=".pptx") as tmp:
+    prs.save(tmp.name)
+    data = module.inspect_text_template(tmp.name, "file-1")
+
+inspected_shape = data["sections"][0]["slides"][0]["shapes"][0]
+stats = module.apply_text_overrides(prs, [
+    {"slide_id": slide_id, "shape_id": inspected_shape["shape_id"], "text": "after grouped"},
+])
+
+print(json.dumps({
+    "shape_name": inspected_shape["shape_name"],
+    "text": inspected_shape["text"],
+    "stats": stats,
+    "updated_text": shape.text,
+}, ensure_ascii=False))
+`;
+  const result = spawnSync(pythonExecutable, ['-c', script], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout.trim()), {
+    shape_name: 'Grouped Notice',
+    text: 'before grouped',
+    stats: {
+      text_overrides_applied: 1,
+      text_overrides_skipped: 0,
+    },
+    updated_text: 'after grouped',
+  });
+});

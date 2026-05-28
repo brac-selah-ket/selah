@@ -2,6 +2,7 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import hmac
+import re
 import tempfile
 import traceback
 import shutil
@@ -539,6 +540,111 @@ def get_first_textbox(slide):
     return None
 
 
+def get_shape_stable_id(shape, fallback_index):
+    """Return a stable shape id from slide XML, falling back to slide-local index."""
+    c_nv_pr = shape._element.find(f'.//{_pn("cNvPr")}')
+    if c_nv_pr is not None and c_nv_pr.get('id'):
+        return str(c_nv_pr.get('id'))
+    return f'shape-{fallback_index}'
+
+
+def get_shape_text_title(shape, fallback_title):
+    """Return a compact title for a text shape."""
+    text = shape.text_frame.text if shape.has_text_frame else ''
+    first_line = next((line.strip() for line in text.splitlines() if line.strip()), '')
+    return first_line[:40] if first_line else fallback_title
+
+
+def iter_text_shapes(shapes, parent_id=''):
+    """Yield text-bearing shapes, including shapes nested in PowerPoint groups."""
+    for shape_index, shape in enumerate(shapes):
+        shape_id = get_shape_stable_id(shape, shape_index)
+        stable_id = f'{parent_id}/{shape_id}' if parent_id else shape_id
+
+        if shape.has_text_frame:
+            yield shape, stable_id, shape_index
+
+        child_shapes = getattr(shape, 'shapes', None)
+        if child_shapes is not None:
+            yield from iter_text_shapes(child_shapes, stable_id)
+
+
+def get_generated_section_slide_ids(section):
+    """Return durable slide ids for generated sections, otherwise every section slide."""
+    slide_ids = section.get('slide_ids', [])
+    section_name = section.get('name', '')
+    scripture_name = (
+        os.environ.get('PPTX_SCRIPTURE_SECTION_NAME')
+        or os.environ.get('NEXT_PUBLIC_PPTX_SCRIPTURE_SECTION_NAME')
+        or '봉독 말씀'
+    )
+    song_prefix = (
+        os.environ.get('PPTX_SECTION_PREFIX')
+        or os.environ.get('NEXT_PUBLIC_PPTX_SECTION_PREFIX')
+        or '찬양'
+    )
+
+    if section_name == scripture_name or re.match(rf'^{re.escape(song_prefix)}\s*\d+$', section_name):
+        return slide_ids[:1]
+    return slide_ids
+
+
+def inspect_text_template(pptx_path, file_id=''):
+    """Return section/slide/text-shape data for the PPT text editor."""
+    prs = Presentation(pptx_path)
+    sections = parse_sections(prs)
+    slide_id_map = get_slide_id_map(prs)
+    editable_sections = []
+
+    for section in sections:
+        slides = []
+        slide_ids = get_generated_section_slide_ids(section)
+        for slide_id in slide_ids:
+            entry = slide_id_map.get(slide_id)
+            slide = entry.get('slide') if entry else None
+            if slide is None:
+                continue
+
+            shapes = []
+            for text_shape_index, (shape, shape_id, shape_index) in enumerate(iter_text_shapes(slide.shapes)):
+                shapes.append({
+                    'shape_id': shape_id,
+                    'shape_name': getattr(shape, 'name', '') or f'TextBox {text_shape_index + 1}',
+                    'text': shape.text_frame.text,
+                    'left': int(shape.left or 0),
+                    'top': int(shape.top or 0),
+                    'width': int(shape.width or 0),
+                    'height': int(shape.height or 0),
+                })
+
+            if not shapes:
+                continue
+
+            slide_number = entry['index'] + 1
+            title_shape = next((shape for shape, _, _ in iter_text_shapes(slide.shapes)), None)
+            slides.append({
+                'slide_id': slide_id,
+                'slide_index': entry['index'],
+                'section_name': section['name'],
+                'title': get_shape_text_title(title_shape, f"{section['name']} {slide_number}p")
+                    if title_shape is not None else f"{section['name']} {slide_number}p",
+                'shapes': shapes,
+            })
+
+        if slides:
+            editable_sections.append({
+                'section_id': section.get('id') or f'section-{len(editable_sections) + 1}',
+                'name': section['name'],
+                'slide_ids': section['slide_ids'],
+                'slides': slides,
+            })
+
+    return {
+        'file_id': file_id,
+        'sections': editable_sections,
+    }
+
+
 def find_sermon_title_slide_id(slide_ids, slide_id_map):
     """Find a title slide already living inside a scripture section."""
     for slide_id in reversed(slide_ids):
@@ -1018,7 +1124,66 @@ def has_scripture_payload(scripture):
     return isinstance(scripture, dict) and bool(scripture.get('pages'))
 
 
-def process_export(prs, songs, scripture=None):
+def find_shape_by_stable_id(slide, shape_id):
+    """Find a shape on a slide by the stable id used by inspect_text_template."""
+    target = str(shape_id)
+    for shape, stable_id, _ in iter_text_shapes(slide.shapes):
+        if stable_id == target:
+            return shape
+    return None
+
+
+def apply_text_overrides(prs, text_overrides):
+    """Apply user-edited text overrides after generated export content."""
+    if not isinstance(text_overrides, list) or not text_overrides:
+        return {
+            'text_overrides_applied': 0,
+            'text_overrides_skipped': 0,
+        }
+
+    slide_id_map = get_slide_id_map(prs)
+    applied = 0
+    skipped = 0
+
+    for override in text_overrides:
+        if not isinstance(override, dict):
+            skipped += 1
+            continue
+
+        slide_id = override.get('slide_id')
+        shape_id = override.get('shape_id')
+        text = override.get('text', '')
+        if slide_id is None or not shape_id:
+            skipped += 1
+            continue
+
+        try:
+            slide_id_int = int(slide_id)
+        except (TypeError, ValueError):
+            skipped += 1
+            continue
+
+        entry = slide_id_map.get(slide_id_int)
+        slide = entry.get('slide') if entry else None
+        if slide is None:
+            skipped += 1
+            continue
+
+        shape = find_shape_by_stable_id(slide, shape_id)
+        if shape is None or not shape.has_text_frame:
+            skipped += 1
+            continue
+
+        inject_text_into_shape(shape, str(text))
+        applied += 1
+
+    return {
+        'text_overrides_applied': applied,
+        'text_overrides_skipped': skipped,
+    }
+
+
+def process_export(prs, songs, scripture=None, text_overrides=None):
     """Process optional scripture before existing song export."""
     sections = parse_sections(prs)
     slide_id_map = get_slide_id_map(prs)
@@ -1049,6 +1214,7 @@ def process_export(prs, songs, scripture=None):
         slide_id_map = get_slide_id_map(prs)
 
     result.update(process_all_songs(prs, songs, sections, slide_id_map))
+    result.update(apply_text_overrides(prs, text_overrides or []))
     return result
 
 
@@ -1160,7 +1326,12 @@ class handler(BaseHTTPRequestHandler):
             download_file_by_id(service, file_id, template_path)
 
             prs = Presentation(template_path)
-            result_stats = process_export(prs, songs, body.get('scripture'))
+            result_stats = process_export(
+                prs,
+                songs,
+                body.get('scripture'),
+                body.get('text_overrides', []),
+            )
             prs.save(output_path)
             cleanup_orphaned_parts(output_path)
 
@@ -1172,6 +1343,8 @@ class handler(BaseHTTPRequestHandler):
                     "web_view_link": result.get('webViewLink', ''),
                     "songs_processed": result_stats['songs_processed'],
                     "slides_generated": result_stats['slides_generated'],
+                    "text_overrides_applied": result_stats['text_overrides_applied'],
+                    "text_overrides_skipped": result_stats['text_overrides_skipped'],
                 }
                 if 'scripture_processed' in result_stats:
                     response_data["scripture_processed"] = result_stats['scripture_processed']
@@ -1192,6 +1365,8 @@ class handler(BaseHTTPRequestHandler):
                         "download_url": download_url,
                         "songs_processed": result_stats['songs_processed'],
                         "slides_generated": result_stats['slides_generated'],
+                        "text_overrides_applied": result_stats['text_overrides_applied'],
+                        "text_overrides_skipped": result_stats['text_overrides_skipped'],
                     }
                     if 'scripture_processed' in result_stats:
                         response_data["scripture_processed"] = result_stats['scripture_processed']
@@ -1239,6 +1414,23 @@ class handler(BaseHTTPRequestHandler):
                 try:
                     download_file_by_id(service, file_id, template_path)
                     structure = inspect_template(template_path)
+                    self.send_json(200, {"success": True, "data": structure})
+                finally:
+                    shutil.rmtree(tmp_dir, ignore_errors=True)
+            elif action == 'inspect-text':
+                file_id = self.headers.get('X-File-Id', '')
+
+                if not file_id:
+                    self.send_json(400, {"success": False, "error": "X-File-Id header required"})
+                    return
+
+                service = get_drive_service()
+                tmp_dir = tempfile.mkdtemp()
+                template_path = os.path.join(tmp_dir, 'template.pptx')
+
+                try:
+                    download_file_by_id(service, file_id, template_path)
+                    structure = inspect_text_template(template_path, file_id)
                     self.send_json(200, {"success": True, "data": structure})
                 finally:
                     shutil.rmtree(tmp_dir, ignore_errors=True)
