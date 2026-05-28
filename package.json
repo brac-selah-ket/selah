@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --experimental-strip-types --test lib/utils/youtube.test.ts lib/utils/preset-overrides.test.ts components/shared/arrangement-editor/save-rules.test.ts",
+    "db:turso:generate": "drizzle-kit generate --config=drizzle.turso.config.ts",
+    "db:turso:push": "drizzle-kit push --config=drizzle.turso.config.ts",
     "db:export:neon": "node scripts/storyboard-migration/export-neon.mjs",
     "db:import:turso": "node scripts/storyboard-migration/import-turso.mjs",
     "db:verify:turso": "node scripts/storyboard-migration/verify-turso.mjs"

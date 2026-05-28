@@ -53,6 +53,9 @@ settings.local.json
 # superpowers local brainstorm artifacts
 .superpowers/
 
+# local migration snapshots
+/tmp/storyboard-migration/
+
 # python
 .venv/
 __pycache__/
