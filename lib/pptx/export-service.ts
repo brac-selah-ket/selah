@@ -6,6 +6,8 @@ import type {
   PptxExportScriptureData,
   PptxExportSongData,
   PptxTemplateStructure,
+  PptxTextOverride,
+  PptxTextStructure,
 } from '@/lib/types';
 import { findAllowedPptxFile } from '@/lib/utils/pptx-helpers';
 
@@ -211,6 +213,7 @@ export async function sendPptxExportRequest(options: {
   outputFileName?: string;
   songs: PptxExportSongData[];
   scripture?: PptxExportScriptureData;
+  textOverrides?: PptxTextOverride[];
   outputFolderId?: string;
 }): Promise<ActionResult<PptxExportResult>> {
   try {
@@ -227,6 +230,10 @@ export async function sendPptxExportRequest(options: {
 
     if (options.scripture) {
       body.scripture = options.scripture;
+    }
+
+    if (options.textOverrides && options.textOverrides.length > 0) {
+      body.text_overrides = options.textOverrides;
     }
 
     const response = await fetch(url, {
@@ -296,5 +303,37 @@ export async function sendPptxInspectRequest(
   } catch (error) {
     console.error('[sendPptxInspectRequest]', error);
     return { success: false, error: '템플릿 검사 중 오류가 발생했습니다' };
+  }
+}
+
+export async function sendPptxTextInspectRequest(
+  fileId: string
+): Promise<ActionResult<PptxTextStructure>> {
+  try {
+    const response = await fetch(getPptxApiUrl(), {
+      method: 'GET',
+      headers: getPptxHeaders({
+        'X-Action': 'inspect-text',
+        'X-File-Id': fileId,
+      }),
+    });
+
+    const text = await response.text();
+    let result: { success: boolean; error?: string; data?: PptxTextStructure };
+    try {
+      result = JSON.parse(text);
+    } catch {
+      console.error('[sendPptxTextInspectRequest] Non-JSON response:', response.status, text.slice(0, 500));
+      return { success: false, error: `PPT 서버 오류 (${response.status}): 응답을 처리할 수 없습니다` };
+    }
+
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+
+    return { success: true, data: result.data };
+  } catch (error) {
+    console.error('[sendPptxTextInspectRequest]', error);
+    return { success: false, error: 'PPT 텍스트를 불러오는 중 오류가 발생했습니다' };
   }
 }
