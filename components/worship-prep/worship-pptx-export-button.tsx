@@ -40,6 +40,7 @@ import { DEFAULT_SCRIPTURE_VERSE_TEXT_FORMAT } from "@/lib/scripture/pagination"
 import { buildPptxSongData } from "@/lib/utils/pptx-helpers"
 import {
   buildInitialPptxTextDrafts,
+  buildPptxTextChangeSummary,
   buildPptxTextOverrides,
 } from "@/lib/utils/pptx-text-overrides"
 import type { WorshipPrepSummary } from "@/lib/queries/worship-prep"
@@ -156,6 +157,10 @@ export function WorshipPptxExportButton({
 
   const textOverrides = useMemo(
     () => buildPptxTextOverrides(pptxTextStructure, pptxTextDrafts),
+    [pptxTextDrafts, pptxTextStructure]
+  )
+  const pptxTextChangeSummary = useMemo(
+    () => buildPptxTextChangeSummary(pptxTextStructure, pptxTextDrafts),
     [pptxTextDrafts, pptxTextStructure]
   )
 
@@ -761,6 +766,14 @@ export function WorshipPptxExportButton({
                   <span className="shrink-0 text-muted-foreground">콘티</span>
                   <span className="min-w-0 break-words text-right font-medium">{selectedContiLabel}</span>
                 </div>
+                {pptxTextChangeSummary.total > 0 && (
+                  <div className="flex justify-between gap-3 text-sm">
+                    <span className="shrink-0 text-muted-foreground">PPT 텍스트</span>
+                    <span className="min-w-0 break-words text-right font-medium text-primary">
+                      {pptxTextChangeSummary.total}곳 수정됨
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -824,7 +837,13 @@ export function WorshipPptxExportButton({
                 onClick={handleOpenPptxTextEditor}
                 disabled={isPending || pptxTextLoading || pptxTextDrawerOpen}
               >
-                {pptxTextLoading ? "불러오는 중..." : "PPT 텍스트 수정"}
+                {pptxTextLoading ? (
+                  "불러오는 중..."
+                ) : pptxTextChangeSummary.total > 0 ? (
+                  <>PPT 텍스트 수정 · {pptxTextChangeSummary.total}</>
+                ) : (
+                  "PPT 텍스트 수정"
+                )}
               </Button>
             )}
             {step === "confirm" && (

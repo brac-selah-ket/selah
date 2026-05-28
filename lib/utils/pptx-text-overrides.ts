@@ -2,6 +2,13 @@ import type { PptxTextOverride, PptxTextSection, PptxTextStructure } from '@/lib
 
 export const DEFAULT_PPT_TEXT_SECTION_NAME = '기도 봉헌 광고';
 
+export interface PptxTextChangeSummary {
+  total: number;
+  bySectionId: Record<string, number>;
+  bySlideId: Record<number, number>;
+  byShapeKey: Record<string, boolean>;
+}
+
 export function makePptxTextOverrideKey(slideId: number, shapeId: string): string {
   return `${slideId}:${shapeId}`;
 }
@@ -63,4 +70,37 @@ export function buildPptxTextOverrides(
     }
   }
   return overrides;
+}
+
+export function buildPptxTextChangeSummary(
+  structure: PptxTextStructure | null,
+  drafts: Record<string, string>
+): PptxTextChangeSummary {
+  const summary: PptxTextChangeSummary = {
+    total: 0,
+    bySectionId: {},
+    bySlideId: {},
+    byShapeKey: {},
+  };
+
+  if (!structure) return summary;
+
+  structure.sections.forEach((section, sectionIndex) => {
+    const sectionId = getPptxTextSectionId(section, sectionIndex);
+
+    for (const slide of section.slides) {
+      for (const shape of slide.shapes) {
+        const key = makePptxTextOverrideKey(slide.slide_id, shape.shape_id);
+        const draftText = drafts[key];
+        if (draftText === undefined || draftText === shape.text) continue;
+
+        summary.total += 1;
+        summary.bySectionId[sectionId] = (summary.bySectionId[sectionId] ?? 0) + 1;
+        summary.bySlideId[slide.slide_id] = (summary.bySlideId[slide.slide_id] ?? 0) + 1;
+        summary.byShapeKey[key] = true;
+      }
+    }
+  });
+
+  return summary;
 }

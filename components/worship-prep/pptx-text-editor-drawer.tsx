@@ -7,6 +7,7 @@ import { Drawer } from "@/components/ui/drawer"
 import { cn } from "@/lib/utils"
 import type { PptxTextSection, PptxTextStructure } from "@/lib/types"
 import {
+  buildPptxTextChangeSummary,
   DEFAULT_PPT_TEXT_SECTION_NAME,
   getDefaultPptxTextSectionId,
   getPptxTextSectionId,
@@ -14,6 +15,11 @@ import {
 } from "@/lib/utils/pptx-text-overrides"
 
 import { VisibleWhitespaceTextarea } from "./visible-whitespace-textarea"
+
+function getPptxTextShapePreview(value: string): string {
+  const preview = value.replace(/\s+/g, " ").trim()
+  return preview || "빈 텍스트"
+}
 
 interface PptxTextEditorDrawerProps {
   open: boolean
@@ -39,18 +45,30 @@ export function PptxTextEditorDrawer({
   onReset,
 }: PptxTextEditorDrawerProps) {
   const [selectedSectionId, setSelectedSectionId] = React.useState("")
+  const [showChangedOnly, setShowChangedOnly] = React.useState(false)
 
   React.useEffect(() => {
     if (!open) return
 
     setSelectedSectionId(getDefaultPptxTextSectionId(structure))
+    setShowChangedOnly(false)
   }, [open, structure])
 
   const sections = structure?.sections ?? []
+  const changeSummary = React.useMemo(
+    () => buildPptxTextChangeSummary(structure, drafts),
+    [drafts, structure],
+  )
   const selectedSection =
     sections.find((section, index) => getPptxTextSectionId(section, index) === selectedSectionId) ??
     sections.find((section) => section.name === DEFAULT_PPT_TEXT_SECTION_NAME) ??
     sections[0]
+  const selectedSlides = selectedSection?.slides ?? []
+  const changedShapeKeys = changeSummary.byShapeKey
+  const changedSlides = selectedSlides.filter(
+    (slide) => (changeSummary.bySlideId[slide.slide_id] ?? 0) > 0,
+  )
+  const visibleSlides = showChangedOnly ? changedSlides : selectedSlides
 
   const handleShapeTextChange = React.useCallback(
     (key: string, value: string) => {
@@ -113,15 +131,52 @@ export function PptxTextEditorDrawer({
               sections={sections}
               selectedSectionId={selectedSectionId}
               onSelect={setSelectedSectionId}
+              changeCountsBySectionId={changeSummary.bySectionId}
             />
 
+            <label
+              className={cn(
+                "flex cursor-pointer items-center justify-between gap-3 rounded-md border bg-muted/30 px-3 py-2",
+                changeSummary.total === 0 && "cursor-not-allowed opacity-70",
+              )}
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-medium">수정된 텍스트만 보기</p>
+                <p className="text-xs text-muted-foreground">
+                  {changeSummary.total > 0
+                    ? `${changeSummary.total}곳 수정됨`
+                    : "변경 없음"}
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={showChangedOnly}
+                onChange={(event) => setShowChangedOnly(event.target.checked)}
+                disabled={changeSummary.total === 0}
+                aria-label="수정된 텍스트만 보기"
+                className="size-4 accent-primary disabled:opacity-40"
+              />
+            </label>
+
             <div className="space-y-4">
-              {selectedSection?.slides.length ? (
-                selectedSection.slides.map((slide) => (
-                  <article
-                    key={slide.slide_id}
-                    className="space-y-3 rounded-md border bg-card p-4"
-                  >
+              {visibleSlides.length ? (
+                visibleSlides.map((slide) => {
+                  const slideChangeCount = changeSummary.bySlideId[slide.slide_id] ?? 0
+                  const visibleShapes = showChangedOnly
+                    ? slide.shapes.filter((shape) => {
+                        const key = makePptxTextOverrideKey(slide.slide_id, shape.shape_id)
+                        return changedShapeKeys[key]
+                      })
+                    : slide.shapes
+
+                  return (
+                    <article
+                      key={slide.slide_id}
+                      className={cn(
+                        "space-y-3 rounded-md border bg-card p-4",
+                        slideChangeCount > 0 && "border-primary/50 bg-primary/5",
+                      )}
+                    >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h3 className="truncate text-base font-semibold">
@@ -131,27 +186,45 @@ export function PptxTextEditorDrawer({
                           슬라이드 {slide.slide_index + 1}
                         </p>
                       </div>
-                      <span className="shrink-0 rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-                        {slide.shapes.length}개 텍스트
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground",
+                          slideChangeCount > 0 && "bg-primary/10 text-primary",
+                        )}
+                      >
+                        {slideChangeCount > 0
+                          ? `${slideChangeCount}곳 수정`
+                          : `${slide.shapes.length}개 텍스트`}
                       </span>
                     </div>
 
                     <div className="space-y-4">
-                      {slide.shapes.map((shape) => {
+                      {visibleShapes.map((shape, shapeIndex) => {
                         const key = makePptxTextOverrideKey(slide.slide_id, shape.shape_id)
                         const value = drafts[key] ?? shape.text
+                        const isChanged = Boolean(changedShapeKeys[key])
+                        const shapePreview = getPptxTextShapePreview(value)
 
                         return (
                           <div key={key} className="space-y-2">
                             <label
                               htmlFor={`pptx-text-${slide.slide_id}-${shape.shape_id}`}
-                              className="block text-sm font-medium"
+                              className="flex items-center gap-2 text-sm font-medium"
                             >
-                              {shape.shape_name || `텍스트 ${shape.shape_id}`}
+                              <span>{`텍스트 ${shapeIndex + 1}`}</span>
+                              <span className="min-w-0 truncate text-xs font-normal text-muted-foreground">
+                                {shapePreview}
+                              </span>
+                              {isChanged && (
+                                <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+                                  수정됨
+                                </span>
+                              )}
                             </label>
                             <VisibleWhitespaceTextarea
                               id={`pptx-text-${slide.slide_id}-${shape.shape_id}`}
                               value={value}
+                              className={cn(isChanged && "border-primary/60 focus-visible:border-primary")}
                               onChange={(nextValue) => handleShapeTextChange(key, nextValue)}
                             />
                           </div>
@@ -159,10 +232,13 @@ export function PptxTextEditorDrawer({
                       })}
                     </div>
                   </article>
-                ))
+                  )
+                })
               ) : (
                 <div className="rounded-md border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-                  이 섹션에는 수정할 텍스트가 없습니다.
+                  {showChangedOnly
+                    ? "변경 없음: 이 섹션에는 수정된 텍스트가 없습니다."
+                    : "이 섹션에는 수정할 텍스트가 없습니다."}
                 </div>
               )}
             </div>
@@ -177,15 +253,22 @@ interface SectionButtonsProps {
   sections: PptxTextSection[]
   selectedSectionId: string
   onSelect: (sectionId: string) => void
+  changeCountsBySectionId: Record<string, number>
 }
 
-function SectionButtons({ sections, selectedSectionId, onSelect }: SectionButtonsProps) {
+function SectionButtons({
+  sections,
+  selectedSectionId,
+  onSelect,
+  changeCountsBySectionId,
+}: SectionButtonsProps) {
   if (sections.length === 0) return null
 
   return (
     <div className="flex flex-wrap gap-2" aria-label="PPT 텍스트 섹션">
       {sections.map((section, index) => {
         const sectionId = getPptxTextSectionId(section, index)
+        const changeCount = changeCountsBySectionId[sectionId] ?? 0
 
         return (
           <Button
@@ -198,6 +281,9 @@ function SectionButtons({ sections, selectedSectionId, onSelect }: SectionButton
             aria-pressed={sectionId === selectedSectionId}
           >
             <span className="truncate">{section.name}</span>
+            {changeCount > 0 && (
+              <span className="shrink-0 text-xs opacity-80">· {changeCount}</span>
+            )}
           </Button>
         )
       })}
