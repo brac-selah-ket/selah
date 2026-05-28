@@ -75,7 +75,7 @@ export function Drawer({
   if ((!open && !mounted) || !portalNode) return null;
 
   const drawerContent = (
-    <div className="flex h-full min-w-0 md:min-w-[40%] flex-col">
+    <div className="flex h-full min-w-0 flex-col">
       {/* Mobile drag handle */}
       <div className="flex justify-center pt-3 pb-2 md:hidden">
         <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
@@ -109,11 +109,11 @@ export function Drawer({
 
   return (
     <>
-      {/* Mobile backdrop */}
+      {/* Backdrop */}
       <div
         className={cn(
-          "fixed inset-0 z-40 bg-black/40 transition-opacity duration-300 md:hidden",
-          open ? "opacity-100" : "opacity-0 pointer-events-none",
+          "fixed inset-0 z-[55] bg-black/40 transition-opacity duration-300 md:bg-transparent",
+          open ? "opacity-100" : "pointer-events-none opacity-0",
         )}
         onClick={handleClose}
         aria-hidden="true"
