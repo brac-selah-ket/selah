@@ -1,8 +1,8 @@
 'use server';
 
-import { put, del } from '@vercel/blob';
 import type { ActionResult, SongPageImage } from '@/lib/types';
 import { getStoryboardRepository } from '@/lib/repositories/storyboard';
+import { deleteObject, putObject } from '@/lib/storage';
 
 export async function saveSongPageImageFromForm(formData: FormData): Promise<ActionResult<SongPageImage>> {
   try {
@@ -18,16 +18,16 @@ export async function saveSongPageImageFromForm(formData: FormData): Promise<Act
       return { success: false, error: '필수 데이터가 누락되었습니다' };
     }
 
-    const blob = await put(
+    const object = await putObject(
       `song-pages/${songId}/${contiId}-p${pageIndex}.jpg`,
       file,
-      { access: 'public' }
+      { allowOverwrite: true, contentType: file.type || 'image/jpeg' }
     );
 
     const record = await getStoryboardRepository().createSongPageImage({
       songId,
       contiId,
-      imageUrl: blob.url,
+      imageUrl: object.url,
       pageIndex,
       sheetMusicFileId,
       pdfPageIndex: pdfPageIndex ? parseInt(pdfPageIndex, 10) : null,
@@ -45,7 +45,7 @@ export async function deletePageImagesForConti(contiId: string): Promise<ActionR
     const existing = await repository.getPageImagesForConti(contiId);
 
     await Promise.allSettled(
-      existing.map(img => del(img.imageUrl).catch(() => {}))
+      existing.map(img => deleteObject(img.imageUrl).catch(() => {}))
     );
 
     await repository.deletePageImagesForConti(contiId);

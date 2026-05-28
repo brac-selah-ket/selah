@@ -1,9 +1,10 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { put, del } from '@vercel/blob';
 import type { ActionResult, SheetMusicFile } from '@/lib/types';
 import { getStoryboardRepository } from '@/lib/repositories/storyboard';
+import { deleteObject, putObject } from '@/lib/storage';
+import { createUploadObjectKey } from '@/lib/storage/keys';
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -36,14 +37,13 @@ export async function uploadSheetMusic(
       };
     }
 
-    // Upload to Vercel Blob
-    const blob = await put(file.name, file, {
-      access: 'public',
+    const object = await putObject(createUploadObjectKey(`sheet-music/${songId}`, file.name), file, {
+      contentType: file.type,
     });
 
     const sheetMusicFile = await getStoryboardRepository().createSheetMusicFile({
       songId,
-      fileUrl: blob.url,
+      fileUrl: object.url,
       fileName: file.name,
       fileType: file.type,
     });
@@ -73,10 +73,8 @@ export async function deleteSheetMusic(fileId: string): Promise<ActionResult> {
       };
     }
 
-    // Delete from Vercel Blob
-    await del(file.fileUrl);
+    await deleteObject(file.fileUrl);
 
-    // Delete DB record
     await repository.deleteSheetMusicFile(fileId);
     revalidatePath('/songs');
 

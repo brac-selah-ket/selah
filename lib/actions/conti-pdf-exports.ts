@@ -1,9 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { put, del } from '@vercel/blob';
 import type { ActionResult, ContiPdfExport } from '@/lib/types';
 import { getStoryboardRepository } from '@/lib/repositories/storyboard';
+import { deleteObject, putObject } from '@/lib/storage';
 
 export async function saveContiPdfLayout(
   contiId: string,
@@ -40,31 +40,29 @@ export async function exportContiPdf(
       };
     }
 
-    // Check for existing export to clean up old blob
     const repository = getStoryboardRepository();
     const existing = await repository.getContiPdfExport(contiId);
 
-    // Delete old blob if exists
     if (existing?.pdfUrl) {
       try {
-        await del(existing.pdfUrl);
+        await deleteObject(existing.pdfUrl);
       } catch {
-        // Ignore blob deletion errors (file may already be gone)
+        // Ignore deletion errors; the old file may already be gone.
       }
     }
 
-    // Upload new PDF to Vercel Blob
-    const blob = await put(`conti-exports/${contiId}.pdf`, file, {
-      access: 'public',
+    const object = await putObject(`conti-exports/${contiId}.pdf`, file, {
+      allowOverwrite: true,
+      contentType: file.type || 'application/pdf',
     });
 
-    await repository.upsertContiPdfExport(contiId, { pdfUrl: blob.url });
+    await repository.upsertContiPdfExport(contiId, { pdfUrl: object.url });
 
     revalidatePath('/contis');
 
     return {
       success: true,
-      data: { pdfUrl: blob.url },
+      data: { pdfUrl: object.url },
     };
   } catch (error) {
     return {
@@ -88,12 +86,11 @@ export async function deleteContiPdfExport(
       };
     }
 
-    // Delete blob if exists
     if (existing.pdfUrl) {
       try {
-        await del(existing.pdfUrl);
+        await deleteObject(existing.pdfUrl);
       } catch {
-        // Ignore blob deletion errors
+        // Ignore deletion errors; the old file may already be gone.
       }
     }
 
