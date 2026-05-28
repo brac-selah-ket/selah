@@ -102,7 +102,17 @@ test('pptx handler can inspect editable text sections', async () => {
   const source = await readFile(new URL('../api/pptx.py', import.meta.url), 'utf8');
 
   assert.match(source, /def get_shape_stable_id\(shape, fallback_index\):/);
+  assert.match(source, /def get_generated_section_slide_ids\(section\):/);
+  assert.match(source, /PPTX_SCRIPTURE_SECTION_NAME/);
+  assert.match(source, /NEXT_PUBLIC_PPTX_SCRIPTURE_SECTION_NAME/);
+  assert.match(source, /PPTX_SECTION_PREFIX/);
+  assert.match(source, /NEXT_PUBLIC_PPTX_SECTION_PREFIX/);
+  assert.match(source, /re\.match\(rf'\^\{re\.escape\(song_prefix\)\}\\d\+\$'/);
   assert.match(source, /def inspect_text_template\(pptx_path, file_id=''\):/);
+  assert.match(
+    source,
+    /slide_ids = get_generated_section_slide_ids\(section\)[\s\S]+for slide_id in slide_ids:/,
+  );
   assert.match(source, /'X-Action', 'health'/);
   assert.match(source, /action == 'inspect-text'/);
   assert.match(source, /inspect_text_template\(template_path, file_id\)/);
@@ -113,6 +123,11 @@ test('pptx handler applies text overrides after generated export content', async
 
   assert.match(source, /def find_shape_by_stable_id\(slide, shape_id\):/);
   assert.match(source, /def apply_text_overrides\(prs, text_overrides\):/);
+  assert.match(
+    source,
+    /try:\s+slide_id_int = int\(slide_id\)\s+except \(TypeError, ValueError\):\s+skipped \+= 1\s+continue/,
+  );
+  assert.match(source, /entry = slide_id_map\.get\(slide_id_int\)/);
   assert.match(source, /def process_export\(prs, songs, scripture=None, text_overrides=None\):/);
   assert.match(
     source,

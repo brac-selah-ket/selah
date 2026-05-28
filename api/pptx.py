@@ -2,6 +2,7 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import hmac
+import re
 import tempfile
 import traceback
 import shutil
@@ -554,6 +555,26 @@ def get_shape_text_title(shape, fallback_title):
     return first_line[:40] if first_line else fallback_title
 
 
+def get_generated_section_slide_ids(section):
+    """Return durable slide ids for generated sections, otherwise every section slide."""
+    slide_ids = section.get('slide_ids', [])
+    section_name = section.get('name', '')
+    scripture_name = (
+        os.environ.get('PPTX_SCRIPTURE_SECTION_NAME')
+        or os.environ.get('NEXT_PUBLIC_PPTX_SCRIPTURE_SECTION_NAME')
+        or '봉독 말씀'
+    )
+    song_prefix = (
+        os.environ.get('PPTX_SECTION_PREFIX')
+        or os.environ.get('NEXT_PUBLIC_PPTX_SECTION_PREFIX')
+        or '찬양'
+    )
+
+    if section_name == scripture_name or re.match(rf'^{re.escape(song_prefix)}\d+$', section_name):
+        return slide_ids[:1]
+    return slide_ids
+
+
 def inspect_text_template(pptx_path, file_id=''):
     """Return section/slide/text-shape data for the PPT text editor."""
     prs = Presentation(pptx_path)
@@ -563,7 +584,8 @@ def inspect_text_template(pptx_path, file_id=''):
 
     for section in sections:
         slides = []
-        for slide_id in section['slide_ids']:
+        slide_ids = get_generated_section_slide_ids(section)
+        for slide_id in slide_ids:
             entry = slide_id_map.get(slide_id)
             slide = entry.get('slide') if entry else None
             if slide is None:
@@ -1123,7 +1145,13 @@ def apply_text_overrides(prs, text_overrides):
             skipped += 1
             continue
 
-        entry = slide_id_map.get(int(slide_id))
+        try:
+            slide_id_int = int(slide_id)
+        except (TypeError, ValueError):
+            skipped += 1
+            continue
+
+        entry = slide_id_map.get(slide_id_int)
         slide = entry.get('slide') if entry else None
         if slide is None:
             skipped += 1
