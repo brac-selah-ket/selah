@@ -55,3 +55,24 @@ test('PPT text editor drawer defaults to prayer offering announcement section an
   assert.match(whitespaceSource, /text-transparent/);
   assert.match(whitespaceSource, /caret-foreground/);
 });
+
+test('PPT text editor drawer uses updater drafts and textarea keeps overlay scroll aligned', async () => {
+  const drawerSource = await readFile(
+    new URL('../components/worship-prep/pptx-text-editor-drawer.tsx', import.meta.url),
+    'utf8',
+  );
+  const whitespaceSource = await readFile(
+    new URL('../components/worship-prep/visible-whitespace-textarea.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(drawerSource, /React\.Dispatch<React\.SetStateAction<Record<string, string>>>/);
+  assert.match(drawerSource, /onDraftsChange\(\(current\) => \(\{/);
+  assert.doesNotMatch(drawerSource, /aria-label=\{`\$\{slide\.title/);
+
+  assert.match(whitespaceSource, /overlayRef/);
+  assert.match(whitespaceSource, /textareaRef/);
+  assert.match(whitespaceSource, /handleScroll/);
+  assert.match(whitespaceSource, /overlayRef\.current\.scrollTop = event\.currentTarget\.scrollTop/);
+  assert.match(whitespaceSource, /onScroll=\{handleScroll\}/);
+});

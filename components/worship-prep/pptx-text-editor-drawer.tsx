@@ -22,7 +22,7 @@ interface PptxTextEditorDrawerProps {
   loading: boolean
   error: string | null
   drafts: Record<string, string>
-  onDraftsChange: (drafts: Record<string, string>) => void
+  onDraftsChange: React.Dispatch<React.SetStateAction<Record<string, string>>>
   onReset: () => void
 }
 
@@ -53,12 +53,12 @@ export function PptxTextEditorDrawer({
 
   const handleShapeTextChange = React.useCallback(
     (key: string, value: string) => {
-      onDraftsChange({
-        ...drafts,
+      onDraftsChange((current) => ({
+        ...current,
         [key]: value,
-      })
+      }))
     },
-    [drafts, onDraftsChange],
+    [onDraftsChange],
   )
 
   return (
@@ -152,7 +152,6 @@ export function PptxTextEditorDrawer({
                               id={`pptx-text-${slide.slide_id}-${shape.shape_id}`}
                               value={value}
                               onChange={(nextValue) => handleShapeTextChange(key, nextValue)}
-                              aria-label={`${slide.title || "슬라이드"} ${shape.shape_name}`}
                             />
                           </div>
                         )
