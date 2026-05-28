@@ -53,6 +53,7 @@ test('worship PPT action exposes text inspection and passes overrides', async ()
   const actionSource = await readFile(new URL('../lib/actions/worship-pptx-export.ts', import.meta.url), 'utf8');
 
   assert.match(actionSource, /export async function inspectWorshipPptxText/);
+  assert.match(actionSource, /ensurePptxFileAllowed\(fileId\)/);
   assert.match(actionSource, /sendPptxTextInspectRequest\(allowedFile\.data!\.file_id\)/);
   assert.match(actionSource, /textOverrides\?: PptxTextOverride\[\]/);
   assert.match(actionSource, /textOverrides: options\.textOverrides/);
