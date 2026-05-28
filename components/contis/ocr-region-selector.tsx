@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import { extractTextFromRegions } from "@/lib/actions/ocr"
 import { checkSpelling } from "@/lib/actions/spell-check"
+import { getSheetMusicAssetUrl } from "@/lib/sheet-music-assets"
 import { computeWordDiff, getOriginalParts, getCorrectedParts } from "@/lib/utils/text-diff"
 import { getPdfPageCount, renderPdfPagesToDataUrls } from "@/lib/utils/pdfjs"
 import type { SheetMusicFile } from "@/lib/types"
@@ -106,13 +107,14 @@ export function OcrRegionSelector({
     async function loadPages() {
       const result: DisplayPage[] = []
       for (const file of sheetMusicFiles) {
+        const assetUrl = getSheetMusicAssetUrl(file)
         if (file.fileType.startsWith('image/')) {
-          result.push({ src: file.fileUrl, label: file.fileName, isDataUrl: false })
+          result.push({ src: assetUrl, label: file.fileName, isDataUrl: false })
         } else if (file.fileType === 'application/pdf') {
           try {
-            const pageCount = await getPdfPageCount(file.fileUrl)
+            const pageCount = await getPdfPageCount(assetUrl)
             const pageNums = Array.from({ length: pageCount }, (_, i) => i + 1)
-            const dataUrls = await renderPdfPagesToDataUrls(file.fileUrl, pageNums, 2)
+            const dataUrls = await renderPdfPagesToDataUrls(assetUrl, pageNums, 2)
             for (let i = 0; i < dataUrls.length; i++) {
               result.push({
                 src: dataUrls[i],

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
+import { getSheetMusicAssetUrl } from "@/lib/sheet-music-assets";
 import { generatePdfFilename } from "@/lib/utils/pdf-export-helpers";
 import { renderPdfPageToDataUrl } from "@/lib/utils/pdfjs";
 import {
@@ -95,20 +96,20 @@ export function usePdfExport(
           page.pdfPageIndex !== null &&
           page.sheetMusicFileId
         ) {
-          let fileUrl: string | null = null;
+          let assetUrl: string | null = null;
           for (const cs of conti.songs) {
             for (const sm of cs.sheetMusic) {
               if (sm.id === page.sheetMusicFileId) {
-                fileUrl = sm.fileUrl;
+                assetUrl = getSheetMusicAssetUrl(sm);
                 break;
               }
             }
-            if (fileUrl) break;
+            if (assetUrl) break;
           }
-          if (fileUrl) {
+          if (assetUrl) {
             try {
               const renderedUrl = await renderPdfPageToDataUrl(
-                fileUrl,
+                assetUrl,
                 page.pdfPageIndex + 1,
               );
               if (
