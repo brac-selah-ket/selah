@@ -1,22 +1,15 @@
 'use server';
 
-import { db } from '@/lib/db';
-import { contiSongs, contiPdfExports, songPresets, presetSheetMusic } from '@/lib/db/schema';
-import { and, eq, max, asc } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
-import { stringifyContiSongOverrides, parseContiSongOverrides } from '@/lib/db/helpers';
 import type {
   ActionResult,
   ContiSong,
   ContiSongOverrides,
   PdfLayoutState,
-  PresetPdfMetadata,
 } from '@/lib/types';
 import { createSongPreset, updateSongPreset } from './song-presets';
-import { insertContiSong, insertSong, insertSongPreset, updateSongPresetYoutubeRef } from '@/lib/db/insert-helpers';
-import { extractPresetPdfMetadataFromLayout } from '@/lib/utils/pdf-export-helpers';
-import { songPresetToContiOverrides } from '@/lib/utils/preset-overrides';
 import { z } from 'zod';
+import { getStoryboardRepository } from '@/lib/repositories/storyboard';
 
 export async function addSongToConti(
   contiId: string,
@@ -24,14 +17,7 @@ export async function addSongToConti(
   initialOverrides?: Partial<ContiSongOverrides>
 ): Promise<ActionResult<ContiSong>> {
   try {
-    const maxSortOrderResult = await db
-      .select({ maxOrder: max(contiSongs.sortOrder) })
-      .from(contiSongs)
-      .where(eq(contiSongs.contiId, contiId));
-
-    const nextSortOrder = (maxSortOrderResult[0]?.maxOrder ?? -1) + 1;
-
-    const contiSong = await insertContiSong(db, contiId, songId, nextSortOrder, initialOverrides);
+    const contiSong = await getStoryboardRepository().addSongToConti(contiId, songId, initialOverrides);
     revalidatePath('/contis');
 
     return {
@@ -48,7 +34,7 @@ export async function addSongToConti(
 
 export async function removeSongFromConti(contiSongId: string): Promise<ActionResult> {
   try {
-    await db.delete(contiSongs).where(eq(contiSongs.id, contiSongId));
+    await getStoryboardRepository().removeContiSong(contiSongId);
     revalidatePath('/contis');
 
     return {
@@ -67,13 +53,7 @@ export async function updateContiSong(
   data: Partial<ContiSongOverrides>
 ): Promise<ActionResult> {
   try {
-    const serialized = stringifyContiSongOverrides(data);
-    const updatedData = {
-      ...serialized,
-      updatedAt: new Date(),
-    };
-
-    await db.update(contiSongs).set(updatedData).where(eq(contiSongs.id, contiSongId));
+    await getStoryboardRepository().updateContiSong(contiSongId, data);
     revalidatePath('/contis');
 
     return {
@@ -92,13 +72,7 @@ export async function reorderContiSongs(
   orderedIds: string[]
 ): Promise<ActionResult> {
   try {
-    for (let i = 0; i < orderedIds.length; i++) {
-      await db
-        .update(contiSongs)
-        .set({ sortOrder: i })
-        .where(eq(contiSongs.id, orderedIds[i]));
-    }
-
+    await getStoryboardRepository().reorderContiSongs(contiId, orderedIds);
     revalidatePath('/contis');
 
     return {
@@ -119,44 +93,10 @@ export async function saveContiSongAsPreset(
   options: { youtubeReference?: string | null; youtubeTitle?: string | null } = {},
 ): Promise<ActionResult> {
   try {
-    const contiSongRow = await db
-      .select()
-      .from(contiSongs)
-      .where(eq(contiSongs.id, contiSongId))
-      .limit(1);
+    const source = await getStoryboardRepository().getContiSongPresetSource(contiSongId);
 
-    if (contiSongRow.length === 0) {
+    if (!source) {
       return { success: false, error: '콘티 곡을 찾을 수 없습니다' };
-    }
-
-    const cs = contiSongRow[0];
-    const overrides = parseContiSongOverrides(cs);
-
-    const orderedSongs = await db
-      .select({ id: contiSongs.id })
-      .from(contiSongs)
-      .where(eq(contiSongs.contiId, cs.contiId))
-      .orderBy(asc(contiSongs.sortOrder));
-
-    const songIndex = orderedSongs.findIndex((item) => item.id === contiSongId);
-
-    const contiExport = await db
-      .select({ layoutState: contiPdfExports.layoutState })
-      .from(contiPdfExports)
-      .where(eq(contiPdfExports.contiId, cs.contiId))
-      .limit(1);
-
-    let pdfMetadata: PresetPdfMetadata | null = null;
-    if (songIndex >= 0) {
-      const layoutStateText = contiExport[0]?.layoutState;
-      if (layoutStateText) {
-        try {
-          const parsed = JSON.parse(layoutStateText) as PdfLayoutState;
-          pdfMetadata = extractPresetPdfMetadataFromLayout(parsed.pages, songIndex);
-        } catch {
-          pdfMetadata = null;
-        }
-      }
     }
 
     let result;
@@ -169,27 +109,27 @@ export async function saveContiSongAsPreset(
     if (existingPresetId) {
       result = await updateSongPreset(existingPresetId, {
         name: presetName,
-        keys: overrides.keys,
-        tempos: overrides.tempos,
-        sectionOrder: overrides.sectionOrder,
-        lyrics: overrides.lyrics,
-        sectionLyricsMap: overrides.sectionLyricsMap,
-        notes: overrides.notes,
-        sheetMusicFileIds: overrides.sheetMusicFileIds ?? [],
-        pdfMetadata,
+        keys: source.overrides.keys,
+        tempos: source.overrides.tempos,
+        sectionOrder: source.overrides.sectionOrder,
+        lyrics: source.overrides.lyrics,
+        sectionLyricsMap: source.overrides.sectionLyricsMap,
+        notes: source.overrides.notes,
+        sheetMusicFileIds: source.overrides.sheetMusicFileIds ?? [],
+        pdfMetadata: source.pdfMetadata,
         ...youtubePayload,
       });
     } else {
-      result = await createSongPreset(cs.songId, {
+      result = await createSongPreset(source.songId, {
         name: presetName,
-        keys: overrides.keys,
-        tempos: overrides.tempos,
-        sectionOrder: overrides.sectionOrder,
-        lyrics: overrides.lyrics,
-        sectionLyricsMap: overrides.sectionLyricsMap,
-        notes: overrides.notes,
-        sheetMusicFileIds: overrides.sheetMusicFileIds ?? [],
-        pdfMetadata,
+        keys: source.overrides.keys,
+        tempos: source.overrides.tempos,
+        sectionOrder: source.overrides.sectionOrder,
+        lyrics: source.overrides.lyrics,
+        sectionLyricsMap: source.overrides.sectionLyricsMap,
+        notes: source.overrides.notes,
+        sheetMusicFileIds: source.overrides.sheetMusicFileIds ?? [],
+        pdfMetadata: source.pdfMetadata,
         isDefault: false,
         ...youtubePayload,
       });
@@ -211,33 +151,11 @@ export async function syncPresetPdfMetadataFromContiLayout(
 ): Promise<ActionResult<{ updatedPresetCount: number }>> {
   try {
     const parsed = JSON.parse(layoutStateText) as PdfLayoutState;
-
-    const orderedSongs = await db
-      .select({ id: contiSongs.id, presetId: contiSongs.presetId })
-      .from(contiSongs)
-      .where(eq(contiSongs.contiId, contiId))
-      .orderBy(asc(contiSongs.sortOrder));
-
-    let updatedPresetCount = 0;
-
-    for (let songIndex = 0; songIndex < orderedSongs.length; songIndex++) {
-      const presetId = orderedSongs[songIndex].presetId;
-      if (!presetId) continue;
-
-      const metadata = extractPresetPdfMetadataFromLayout(parsed.pages, songIndex);
-      await db
-        .update(songPresets)
-        .set({
-          pdfMetadata: metadata ? JSON.stringify(metadata) : null,
-          updatedAt: new Date(),
-        })
-        .where(eq(songPresets.id, presetId));
-      updatedPresetCount += 1;
-    }
+    const result = await getStoryboardRepository().syncPresetPdfMetadataFromContiLayout(contiId, parsed);
 
     return {
       success: true,
-      data: { updatedPresetCount },
+      data: result,
     };
   } catch {
     return {
@@ -262,27 +180,6 @@ const batchImportSchema = z.object({
   contiId: z.string().min(1),
   items: z.array(batchImportItemSchema).min(1, '가져올 곡이 없습니다'),
 })
-
-async function getPresetOverridesForSong(presetId: string, songId: string) {
-  const presetRows = await db
-    .select()
-    .from(songPresets)
-    .where(and(eq(songPresets.id, presetId), eq(songPresets.songId, songId)))
-    .limit(1)
-
-  if (presetRows.length === 0) return null
-
-  const sheetMusicRows = await db
-    .select({ sheetMusicFileId: presetSheetMusic.sheetMusicFileId })
-    .from(presetSheetMusic)
-    .where(eq(presetSheetMusic.presetId, presetId))
-    .orderBy(presetSheetMusic.sortOrder)
-
-  return songPresetToContiOverrides(
-    presetRows[0],
-    sheetMusicRows.map((row) => row.sheetMusicFileId),
-  )
-}
 
 export async function batchImportSongsToConti(
   contiId: string,
@@ -312,109 +209,25 @@ export async function batchImportSongsToConti(
       }
     }
 
-    let created = 0
-    let presetUpdated = 0
-
-    const maxResult = await db
-      .select({ maxOrder: max(contiSongs.sortOrder) })
-      .from(contiSongs)
-      .where(eq(contiSongs.contiId, contiId))
-
-    let nextSortOrder = (maxResult[0]?.maxOrder ?? -1) + 1
-
-    // Deduplicate new song names within the batch
-    const newSongMap = new Map<string, string>() // normalized name -> created song ID
-
-    for (const item of validatedItems) {
-      let resolvedSongId: string
-      let appliedPresetId = item.presetId ?? null
-      let appliedPresetOverrides: ContiSongOverrides | null = null
-
-      if (item.songId) {
-        resolvedSongId = item.songId
-      } else {
-        const trimmedName = item.newSongName!.trim()
-        const normalizedKey = trimmedName.toLowerCase()
-
-        if (newSongMap.has(normalizedKey)) {
-          resolvedSongId = newSongMap.get(normalizedKey)!
-        } else {
-          const newSong = await insertSong(db, trimmedName)
-          newSongMap.set(normalizedKey, newSong.id)
-          resolvedSongId = newSong.id
-          created++
-        }
-      }
-
-      // Preset logic for YouTube import
-      if (item.videoId) {
-        if (!item.songId && item.createNewPreset !== false) {
-          // New song: auto-create preset with youtube reference
-          const preset = await insertSongPreset(db, resolvedSongId, {
-            name: item.presetName || 'YouTube Import',
-            youtubeReference: item.videoId,
-            youtubeTitle: item.title,
-          })
-          appliedPresetId = preset.id
-          appliedPresetOverrides = songPresetToContiOverrides(preset)
-        } else if (item.songId && item.presetId) {
-          // Existing song: update selected preset's youtube reference
-          appliedPresetOverrides = await getPresetOverridesForSong(item.presetId, resolvedSongId)
-          if (!appliedPresetOverrides) {
-            return { success: false, error: '선택한 프리셋을 찾을 수 없습니다' }
-          }
-          await updateSongPresetYoutubeRef(db, item.presetId, item.videoId, item.title)
-          appliedPresetId = item.presetId
-        } else if (item.songId && item.createNewPreset) {
-          // Existing song: create new preset with youtube reference
-          const preset = await insertSongPreset(db, resolvedSongId, {
-            name: item.presetName || 'YouTube Import',
-            youtubeReference: item.videoId,
-            youtubeTitle: item.title,
-          })
-          appliedPresetId = preset.id
-          appliedPresetOverrides = songPresetToContiOverrides(preset)
-        }
-      }
-
-      if (appliedPresetId && !appliedPresetOverrides) {
-        appliedPresetOverrides = await getPresetOverridesForSong(appliedPresetId, resolvedSongId)
-        if (!appliedPresetOverrides) {
-          return { success: false, error: '선택한 프리셋을 찾을 수 없습니다' }
-        }
-      }
-
-      if (item.alreadyInConti) {
-        if (appliedPresetOverrides) {
-          const serialized = stringifyContiSongOverrides(appliedPresetOverrides)
-          await db
-            .update(contiSongs)
-            .set({ ...serialized, updatedAt: new Date() })
-            .where(and(eq(contiSongs.contiId, contiId), eq(contiSongs.songId, resolvedSongId)))
-        }
-        presetUpdated++
-      } else {
-        await insertContiSong(
-          db,
-          contiId,
-          resolvedSongId,
-          nextSortOrder++,
-          appliedPresetOverrides ?? undefined,
-        )
-      }
-    }
+    const result = await getStoryboardRepository().batchImportSongsToConti(contiId, validatedItems)
 
     revalidatePath('/contis')
     revalidatePath('/songs')
 
     return {
       success: true,
-      data: { added: validatedItems.length - presetUpdated, created, presetUpdated },
+      data: result,
     }
   } catch (error) {
     console.error('[batchImportSongsToConti]', error)
     const message = error instanceof Error ? error.message : ''
-    if (message.includes('conti_song_unique')) {
+    if (message === 'PRESET_NOT_FOUND') {
+      return { success: false, error: '선택한 프리셋을 찾을 수 없습니다' }
+    }
+    if (
+      message.includes('conti_song_unique') ||
+      message.includes('UNIQUE constraint failed: conti_songs.conti_id, conti_songs.song_id')
+    ) {
       return {
         success: false,
         error: '이미 콘티에 포함된 곡이 있습니다. 중복 곡을 제거하고 다시 시도해주세요',

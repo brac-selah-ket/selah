@@ -1,55 +1,22 @@
 'use server';
 
-import { db } from '@/lib/db';
-import { contiPdfExports } from '@/lib/db/schema';
-import { generateId } from '@/lib/id';
-import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { put, del } from '@vercel/blob';
 import type { ActionResult, ContiPdfExport } from '@/lib/types';
+import { getStoryboardRepository } from '@/lib/repositories/storyboard';
 
 export async function saveContiPdfLayout(
   contiId: string,
   layoutState: string,
 ): Promise<ActionResult<ContiPdfExport>> {
   try {
-    // Check if export already exists for this conti
-    const existing = await db
-      .select()
-      .from(contiPdfExports)
-      .where(eq(contiPdfExports.contiId, contiId))
-      .limit(1);
-
-    const now = new Date();
-
-    if (existing.length > 0) {
-      // Update existing
-      await db
-        .update(contiPdfExports)
-        .set({ layoutState, updatedAt: now })
-        .where(eq(contiPdfExports.id, existing[0].id));
-
-      return {
-        success: true,
-        data: { ...existing[0], layoutState, updatedAt: now },
-      };
-    }
-
-    // Create new
-    const newExport: ContiPdfExport = {
-      id: generateId(),
-      contiId,
-      pdfUrl: null,
+    const pdfExport = await getStoryboardRepository().upsertContiPdfExport(contiId, {
       layoutState,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await db.insert(contiPdfExports).values(newExport);
+    });
 
     return {
       success: true,
-      data: newExport,
+      data: pdfExport,
     };
   } catch (error) {
     return {
@@ -74,16 +41,13 @@ export async function exportContiPdf(
     }
 
     // Check for existing export to clean up old blob
-    const existing = await db
-      .select()
-      .from(contiPdfExports)
-      .where(eq(contiPdfExports.contiId, contiId))
-      .limit(1);
+    const repository = getStoryboardRepository();
+    const existing = await repository.getContiPdfExport(contiId);
 
     // Delete old blob if exists
-    if (existing.length > 0 && existing[0].pdfUrl) {
+    if (existing?.pdfUrl) {
       try {
-        await del(existing[0].pdfUrl);
+        await del(existing.pdfUrl);
       } catch {
         // Ignore blob deletion errors (file may already be gone)
       }
@@ -94,25 +58,7 @@ export async function exportContiPdf(
       access: 'public',
     });
 
-    const now = new Date();
-
-    if (existing.length > 0) {
-      // Update existing record
-      await db
-        .update(contiPdfExports)
-        .set({ pdfUrl: blob.url, updatedAt: now })
-        .where(eq(contiPdfExports.id, existing[0].id));
-    } else {
-      // Create new record
-      await db.insert(contiPdfExports).values({
-        id: generateId(),
-        contiId,
-        pdfUrl: blob.url,
-        layoutState: null,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
+    await repository.upsertContiPdfExport(contiId, { pdfUrl: blob.url });
 
     revalidatePath('/contis');
 
@@ -132,13 +78,10 @@ export async function deleteContiPdfExport(
   exportId: string,
 ): Promise<ActionResult> {
   try {
-    const existing = await db
-      .select()
-      .from(contiPdfExports)
-      .where(eq(contiPdfExports.id, exportId))
-      .limit(1);
+    const repository = getStoryboardRepository();
+    const existing = await repository.getContiPdfExportById(exportId);
 
-    if (existing.length === 0) {
+    if (!existing) {
       return {
         success: false,
         error: 'PDF 내보내기를 찾을 수 없습니다',
@@ -146,15 +89,15 @@ export async function deleteContiPdfExport(
     }
 
     // Delete blob if exists
-    if (existing[0].pdfUrl) {
+    if (existing.pdfUrl) {
       try {
-        await del(existing[0].pdfUrl);
+        await del(existing.pdfUrl);
       } catch {
         // Ignore blob deletion errors
       }
     }
 
-    await db.delete(contiPdfExports).where(eq(contiPdfExports.id, exportId));
+    await repository.deleteContiPdfExport(exportId);
     revalidatePath('/contis');
 
     return { success: true };

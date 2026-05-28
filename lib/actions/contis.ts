@@ -1,12 +1,9 @@
 'use server';
 
-import { db } from '@/lib/db';
-import { contis } from '@/lib/db/schema';
-import { generateId } from '@/lib/id';
-import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { ActionResult, Conti } from '@/lib/types';
+import { getStoryboardRepository } from '@/lib/repositories/storyboard';
 
 const contiSchema = z.object({
   title: z.string().transform(v => v.trim() || null),
@@ -29,17 +26,11 @@ export async function createConti(formData: FormData): Promise<ActionResult<Cont
       };
     }
 
-    const now = new Date();
-    const conti = {
-      id: generateId(),
+    const conti = await getStoryboardRepository().createConti({
       title: validation.data.title,
       date: validation.data.date,
       description: validation.data.description || null,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await db.insert(contis).values(conti);
+    });
     revalidatePath('/contis');
 
     return {
@@ -69,21 +60,16 @@ export async function updateConti(id: string, formData: FormData): Promise<Actio
       };
     }
 
-    const updatedConti = {
+    const result = await getStoryboardRepository().updateConti(id, {
       title: validation.data.title,
       date: validation.data.date,
       description: validation.data.description || null,
-      updatedAt: new Date(),
-    };
-
-    await db.update(contis).set(updatedConti).where(eq(contis.id, id));
+    });
     revalidatePath('/contis');
-
-    const result = await db.select().from(contis).where(eq(contis.id, id)).limit(1);
 
     return {
       success: true,
-      data: result[0],
+      data: result ?? undefined,
     };
   } catch (error) {
     return {
@@ -95,7 +81,7 @@ export async function updateConti(id: string, formData: FormData): Promise<Actio
 
 export async function deleteConti(id: string): Promise<ActionResult> {
   try {
-    await db.delete(contis).where(eq(contis.id, id));
+    await getStoryboardRepository().deleteConti(id);
     revalidatePath('/contis');
 
     return {

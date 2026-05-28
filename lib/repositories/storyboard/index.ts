@@ -1,7 +1,8 @@
 import { neonStoryboardRepository } from './neon-repository';
 import { tursoStoryboardRepository } from './turso-repository';
+import type { StoryboardRepository } from './types';
 
-export function getStoryboardRepository() {
+export function getStoryboardRepository(): StoryboardRepository {
   const provider = process.env.DATABASE_PROVIDER ?? 'neon';
 
   if (provider === 'neon') {

@@ -1,26 +1,65 @@
 import { db } from '@/lib/db';
-import { parseContiSongOverrides, parsePresetPdfMetadata } from '@/lib/db/helpers';
+import { parseContiSongOverrides, parsePresetPdfMetadata, stringifyContiSongOverrides } from '@/lib/db/helpers';
+import { insertContiSong, insertSong, insertSongPreset, updateSongPresetYoutubeRef } from '@/lib/db/insert-helpers';
 import {
   contiPdfExports,
   contis,
   contiSongs,
   presetSheetMusic,
   sheetMusicFiles,
+  songPageImages,
   songPresets,
   songs,
 } from '@/lib/db/schema';
+import { generateId } from '@/lib/id';
 import type {
+  ContiSongOverrides,
   ContiPdfExport,
   ContiWithSongSummaries,
   ContiWithSongs,
   ContiWithSongsAndSheetMusic,
+  PdfLayoutState,
   PresetPdfMetadata,
+  SongPreset,
   SongPresetWithSheetMusic,
   SongWithSheetMusic,
 } from '@/lib/types';
-import { desc, eq, ilike, inArray } from 'drizzle-orm';
+import type {
+  BatchImportSongsToContiItem,
+  BatchImportSongsToContiResult,
+  ContiInput,
+  ResolvedYouTubeMetadata,
+  SheetMusicFileInput,
+  SongPageImageInput,
+  StoryboardRepository,
+} from './types';
+import { extractPresetPdfMetadataFromLayout } from '@/lib/utils/pdf-export-helpers';
+import { songPresetToContiOverrides } from '@/lib/utils/preset-overrides';
+import { normalizeYouTubeReference } from '@/lib/utils/youtube';
+import { and, asc, desc, eq, ilike, inArray, max } from 'drizzle-orm';
 
-export const neonStoryboardRepository = {
+async function getPresetOverridesForSong(presetId: string, songId: string): Promise<ContiSongOverrides | null> {
+  const presetRows = await db
+    .select()
+    .from(songPresets)
+    .where(and(eq(songPresets.id, presetId), eq(songPresets.songId, songId)))
+    .limit(1);
+
+  if (presetRows.length === 0) return null;
+
+  const sheetMusicRows = await db
+    .select({ sheetMusicFileId: presetSheetMusic.sheetMusicFileId })
+    .from(presetSheetMusic)
+    .where(eq(presetSheetMusic.presetId, presetId))
+    .orderBy(presetSheetMusic.sortOrder);
+
+  return songPresetToContiOverrides(
+    presetRows[0],
+    sheetMusicRows.map((row) => row.sheetMusicFileId),
+  );
+}
+
+export const neonStoryboardRepository: StoryboardRepository = {
   async getSongs() {
     return await db.select().from(songs).orderBy(desc(songs.createdAt));
   },
@@ -82,6 +121,35 @@ export const neonStoryboardRepository = {
     );
 
     return presetsWithSheetMusic;
+  },
+
+  async getSongPresetWithSheetMusic(presetId: string): Promise<SongPresetWithSheetMusic | null> {
+    const presetRows = await db
+      .select()
+      .from(songPresets)
+      .where(eq(songPresets.id, presetId))
+      .limit(1);
+
+    if (presetRows.length === 0) {
+      return null;
+    }
+
+    const sheetMusicFileIds = await this.getPresetSheetMusicFileIds(presetId);
+
+    return {
+      ...presetRows[0],
+      sheetMusicFileIds,
+    };
+  },
+
+  async getPresetSheetMusicFileIds(presetId: string) {
+    const rows = await db
+      .select({ sheetMusicFileId: presetSheetMusic.sheetMusicFileId })
+      .from(presetSheetMusic)
+      .where(eq(presetSheetMusic.presetId, presetId))
+      .orderBy(presetSheetMusic.sortOrder);
+
+    return rows.map((row) => row.sheetMusicFileId);
   },
 
   async getContis() {
@@ -274,5 +342,533 @@ export const neonStoryboardRepository = {
       .limit(1);
 
     return result.length > 0 ? result[0] : null;
+  },
+
+  async getContiPdfExportById(exportId: string): Promise<ContiPdfExport | null> {
+    const result = await db
+      .select()
+      .from(contiPdfExports)
+      .where(eq(contiPdfExports.id, exportId))
+      .limit(1);
+
+    return result[0] ?? null;
+  },
+
+  async getSheetMusicForSong(songId: string) {
+    return await db
+      .select()
+      .from(sheetMusicFiles)
+      .where(eq(sheetMusicFiles.songId, songId))
+      .orderBy(sheetMusicFiles.sortOrder);
+  },
+
+  async getSheetMusicFile(fileId: string) {
+    const result = await db
+      .select()
+      .from(sheetMusicFiles)
+      .where(eq(sheetMusicFiles.id, fileId))
+      .limit(1);
+
+    return result[0] ?? null;
+  },
+
+  async getPageImagesForSong(songId: string) {
+    return await db
+      .select()
+      .from(songPageImages)
+      .where(eq(songPageImages.songId, songId))
+      .orderBy(songPageImages.createdAt);
+  },
+
+  async getPageImagesForConti(contiId: string) {
+    return await db
+      .select()
+      .from(songPageImages)
+      .where(eq(songPageImages.contiId, contiId))
+      .orderBy(songPageImages.createdAt);
+  },
+
+  async createSong(name: string) {
+    return await insertSong(db, name);
+  },
+
+  async updateSong(id: string, data: { name: string }) {
+    await db
+      .update(songs)
+      .set({ name: data.name, updatedAt: new Date() })
+      .where(eq(songs.id, id));
+
+    const result = await db.select().from(songs).where(eq(songs.id, id)).limit(1);
+    return result[0] ?? null;
+  },
+
+  async deleteSong(id: string) {
+    const usedInConti = await db
+      .select({ id: contiSongs.id })
+      .from(contiSongs)
+      .where(eq(contiSongs.songId, id))
+      .limit(1);
+
+    if (usedInConti.length > 0) {
+      return { blockedByConti: true };
+    }
+
+    await db.delete(songs).where(eq(songs.id, id));
+    return { blockedByConti: false };
+  },
+
+  async createConti(data: ContiInput) {
+    const now = new Date();
+    const conti = {
+      id: generateId(),
+      title: data.title,
+      date: data.date,
+      description: data.description,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await db.insert(contis).values(conti);
+    return conti;
+  },
+
+  async updateConti(id: string, data: ContiInput) {
+    await db
+      .update(contis)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(contis.id, id));
+
+    const result = await db.select().from(contis).where(eq(contis.id, id)).limit(1);
+    return result[0] ?? null;
+  },
+
+  async deleteConti(id: string) {
+    await db.delete(contis).where(eq(contis.id, id));
+  },
+
+  async createSheetMusicFile(data: SheetMusicFileInput) {
+    const maxSortOrderResult = await db
+      .select({ maxOrder: max(sheetMusicFiles.sortOrder) })
+      .from(sheetMusicFiles)
+      .where(eq(sheetMusicFiles.songId, data.songId));
+
+    const sheetMusicFile = {
+      id: generateId(),
+      ...data,
+      sortOrder: (maxSortOrderResult[0]?.maxOrder ?? -1) + 1,
+      createdAt: new Date(),
+    };
+
+    await db.insert(sheetMusicFiles).values(sheetMusicFile);
+    return sheetMusicFile;
+  },
+
+  async deleteSheetMusicFile(fileId: string) {
+    const file = await db
+      .select()
+      .from(sheetMusicFiles)
+      .where(eq(sheetMusicFiles.id, fileId))
+      .limit(1);
+
+    if (file.length === 0) {
+      return null;
+    }
+
+    await db.delete(sheetMusicFiles).where(eq(sheetMusicFiles.id, fileId));
+    return file[0];
+  },
+
+  async reorderSheetMusic(songId: string, orderedIds: string[]) {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db
+        .update(sheetMusicFiles)
+        .set({ sortOrder: i })
+        .where(and(eq(sheetMusicFiles.songId, songId), eq(sheetMusicFiles.id, orderedIds[i])));
+    }
+  },
+
+  async addSongToConti(contiId: string, songId: string, initialOverrides?: Partial<ContiSongOverrides>) {
+    const maxSortOrderResult = await db
+      .select({ maxOrder: max(contiSongs.sortOrder) })
+      .from(contiSongs)
+      .where(eq(contiSongs.contiId, contiId));
+
+    return await insertContiSong(
+      db,
+      contiId,
+      songId,
+      (maxSortOrderResult[0]?.maxOrder ?? -1) + 1,
+      initialOverrides,
+    );
+  },
+
+  async removeContiSong(contiSongId: string) {
+    await db.delete(contiSongs).where(eq(contiSongs.id, contiSongId));
+  },
+
+  async updateContiSong(contiSongId: string, data: Partial<ContiSongOverrides>) {
+    await db
+      .update(contiSongs)
+      .set({ ...stringifyContiSongOverrides(data), updatedAt: new Date() })
+      .where(eq(contiSongs.id, contiSongId));
+  },
+
+  async reorderContiSongs(contiId: string, orderedIds: string[]) {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db
+        .update(contiSongs)
+        .set({ sortOrder: i })
+        .where(and(eq(contiSongs.contiId, contiId), eq(contiSongs.id, orderedIds[i])));
+    }
+  },
+
+  async getContiSongPresetSource(contiSongId: string) {
+    const contiSongRow = await db
+      .select()
+      .from(contiSongs)
+      .where(eq(contiSongs.id, contiSongId))
+      .limit(1);
+
+    if (contiSongRow.length === 0) {
+      return null;
+    }
+
+    const cs = contiSongRow[0];
+    const overrides = parseContiSongOverrides(cs);
+    const orderedSongs = await db
+      .select({ id: contiSongs.id })
+      .from(contiSongs)
+      .where(eq(contiSongs.contiId, cs.contiId))
+      .orderBy(asc(contiSongs.sortOrder));
+    const songIndex = orderedSongs.findIndex((item) => item.id === contiSongId);
+    const contiExport = await db
+      .select({ layoutState: contiPdfExports.layoutState })
+      .from(contiPdfExports)
+      .where(eq(contiPdfExports.contiId, cs.contiId))
+      .limit(1);
+
+    let pdfMetadata: PresetPdfMetadata | null = null;
+    if (songIndex >= 0) {
+      const layoutStateText = contiExport[0]?.layoutState;
+      if (layoutStateText) {
+        try {
+          const parsed = JSON.parse(layoutStateText) as PdfLayoutState;
+          pdfMetadata = extractPresetPdfMetadataFromLayout(parsed.pages, songIndex);
+        } catch {
+          pdfMetadata = null;
+        }
+      }
+    }
+
+    return {
+      songId: cs.songId,
+      overrides,
+      pdfMetadata,
+    };
+  },
+
+  async syncPresetPdfMetadataFromContiLayout(contiId: string, layoutState: PdfLayoutState) {
+    const orderedSongs = await db
+      .select({ id: contiSongs.id, presetId: contiSongs.presetId })
+      .from(contiSongs)
+      .where(eq(contiSongs.contiId, contiId))
+      .orderBy(asc(contiSongs.sortOrder));
+
+    let updatedPresetCount = 0;
+
+    for (let songIndex = 0; songIndex < orderedSongs.length; songIndex++) {
+      const presetId = orderedSongs[songIndex].presetId;
+      if (!presetId) continue;
+
+      const metadata = extractPresetPdfMetadataFromLayout(layoutState.pages, songIndex);
+      await db
+        .update(songPresets)
+        .set({
+          pdfMetadata: metadata ? JSON.stringify(metadata) : null,
+          updatedAt: new Date(),
+        })
+        .where(eq(songPresets.id, presetId));
+      updatedPresetCount += 1;
+    }
+
+    return { updatedPresetCount };
+  },
+
+  async batchImportSongsToConti(
+    contiId: string,
+    items: BatchImportSongsToContiItem[],
+  ): Promise<BatchImportSongsToContiResult> {
+    let created = 0;
+    let presetUpdated = 0;
+
+    const maxResult = await db
+      .select({ maxOrder: max(contiSongs.sortOrder) })
+      .from(contiSongs)
+      .where(eq(contiSongs.contiId, contiId));
+
+    let nextSortOrder = (maxResult[0]?.maxOrder ?? -1) + 1;
+    const newSongMap = new Map<string, string>();
+
+    for (const item of items) {
+      let resolvedSongId: string;
+      let appliedPresetId = item.presetId ?? null;
+      let appliedPresetOverrides: ContiSongOverrides | null = null;
+
+      if (item.songId) {
+        resolvedSongId = item.songId;
+      } else {
+        const trimmedName = item.newSongName!.trim();
+        const normalizedKey = trimmedName.toLowerCase();
+
+        if (newSongMap.has(normalizedKey)) {
+          resolvedSongId = newSongMap.get(normalizedKey)!;
+        } else {
+          const newSong = await insertSong(db, trimmedName);
+          newSongMap.set(normalizedKey, newSong.id);
+          resolvedSongId = newSong.id;
+          created++;
+        }
+      }
+
+      if (item.videoId) {
+        if (!item.songId && item.createNewPreset !== false) {
+          const preset = await insertSongPreset(db, resolvedSongId, {
+            name: item.presetName || 'YouTube Import',
+            youtubeReference: item.videoId,
+            youtubeTitle: item.title,
+          });
+          appliedPresetId = preset.id;
+          appliedPresetOverrides = songPresetToContiOverrides(preset);
+        } else if (item.songId && item.presetId) {
+          appliedPresetOverrides = await getPresetOverridesForSong(item.presetId, resolvedSongId);
+          if (!appliedPresetOverrides) {
+            throw new Error('PRESET_NOT_FOUND');
+          }
+          await updateSongPresetYoutubeRef(db, item.presetId, item.videoId, item.title);
+          appliedPresetId = item.presetId;
+        } else if (item.songId && item.createNewPreset) {
+          const preset = await insertSongPreset(db, resolvedSongId, {
+            name: item.presetName || 'YouTube Import',
+            youtubeReference: item.videoId,
+            youtubeTitle: item.title,
+          });
+          appliedPresetId = preset.id;
+          appliedPresetOverrides = songPresetToContiOverrides(preset);
+        }
+      }
+
+      if (appliedPresetId && !appliedPresetOverrides) {
+        appliedPresetOverrides = await getPresetOverridesForSong(appliedPresetId, resolvedSongId);
+        if (!appliedPresetOverrides) {
+          throw new Error('PRESET_NOT_FOUND');
+        }
+      }
+
+      if (item.alreadyInConti) {
+        if (appliedPresetOverrides) {
+          await db
+            .update(contiSongs)
+            .set({ ...stringifyContiSongOverrides(appliedPresetOverrides), updatedAt: new Date() })
+            .where(and(eq(contiSongs.contiId, contiId), eq(contiSongs.songId, resolvedSongId)));
+        }
+        presetUpdated++;
+      } else {
+        await insertContiSong(
+          db,
+          contiId,
+          resolvedSongId,
+          nextSortOrder++,
+          appliedPresetOverrides ?? undefined,
+        );
+      }
+    }
+
+    return { added: items.length - presetUpdated, created, presetUpdated };
+  },
+
+  async createSongPreset(songId: string, data, resolvedYoutube: ResolvedYouTubeMetadata | null) {
+    if (data.isDefault) {
+      await db.update(songPresets).set({ isDefault: false }).where(eq(songPresets.songId, songId));
+    }
+
+    const existing = await this.getSongPresets(songId);
+    const maxSort = existing.length > 0 ? Math.max(...existing.map(p => p.sortOrder)) : -1;
+    const now = new Date();
+    const presetRecord: SongPreset = {
+      id: generateId(),
+      songId,
+      name: data.name,
+      keys: JSON.stringify(data.keys),
+      tempos: JSON.stringify(data.tempos),
+      sectionOrder: JSON.stringify(data.sectionOrder),
+      lyrics: JSON.stringify(data.lyrics),
+      sectionLyricsMap: JSON.stringify(data.sectionLyricsMap),
+      notes: data.notes,
+      youtubeReference: resolvedYoutube?.videoId ?? null,
+      youtubeTitle: resolvedYoutube?.title ?? null,
+      pdfMetadata: data.pdfMetadata ? JSON.stringify(data.pdfMetadata) : null,
+      isDefault: data.isDefault,
+      sortOrder: maxSort + 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await db.insert(songPresets).values(presetRecord);
+
+    if (data.sheetMusicFileIds && data.sheetMusicFileIds.length > 0) {
+      await db.insert(presetSheetMusic).values(
+        data.sheetMusicFileIds.map((fileId, index) => ({
+          id: generateId(),
+          presetId: presetRecord.id,
+          sheetMusicFileId: fileId,
+          sortOrder: index,
+        })),
+      );
+    }
+
+    return presetRecord;
+  },
+
+  async updateSongPreset(presetId: string, data, resolvedYoutube?: ResolvedYouTubeMetadata | null) {
+    const existing = await db.select().from(songPresets).where(eq(songPresets.id, presetId)).limit(1);
+    if (existing.length === 0) {
+      return null;
+    }
+
+    const songId = existing[0].songId;
+    if (data.isDefault) {
+      await db.update(songPresets).set({ isDefault: false }).where(eq(songPresets.songId, songId));
+    }
+
+    const updateData: Record<string, unknown> = { updatedAt: new Date() };
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.keys !== undefined) updateData.keys = JSON.stringify(data.keys);
+    if (data.tempos !== undefined) updateData.tempos = JSON.stringify(data.tempos);
+    if (data.sectionOrder !== undefined) updateData.sectionOrder = JSON.stringify(data.sectionOrder);
+    if (data.lyrics !== undefined) updateData.lyrics = JSON.stringify(data.lyrics);
+    if (data.sectionLyricsMap !== undefined) updateData.sectionLyricsMap = JSON.stringify(data.sectionLyricsMap);
+    if (data.notes !== undefined) updateData.notes = data.notes;
+    if (data.isDefault !== undefined) updateData.isDefault = data.isDefault;
+    if (data.youtubeReference !== undefined) {
+      updateData.youtubeReference = resolvedYoutube?.videoId ?? null;
+      const existingYoutube = normalizeYouTubeReference(existing[0].youtubeReference);
+      const shouldPreserveExistingYoutubeTitle =
+        resolvedYoutube?.videoId &&
+        !resolvedYoutube.title &&
+        !data.youtubeTitle?.trim() &&
+        existingYoutube?.videoId === resolvedYoutube.videoId &&
+        !!existing[0].youtubeTitle?.trim();
+      updateData.youtubeTitle = shouldPreserveExistingYoutubeTitle
+        ? existing[0].youtubeTitle
+        : resolvedYoutube?.title ?? null;
+    } else if (data.youtubeTitle !== undefined && existing[0].youtubeReference) {
+      updateData.youtubeTitle = data.youtubeTitle?.trim() || null;
+    }
+    if (data.pdfMetadata !== undefined) updateData.pdfMetadata = data.pdfMetadata ? JSON.stringify(data.pdfMetadata) : null;
+
+    await db.update(songPresets).set(updateData).where(eq(songPresets.id, presetId));
+
+    if (data.sheetMusicFileIds !== undefined) {
+      await db.delete(presetSheetMusic).where(eq(presetSheetMusic.presetId, presetId));
+      if (data.sheetMusicFileIds.length > 0) {
+        await db.insert(presetSheetMusic).values(
+          data.sheetMusicFileIds.map((fileId, index) => ({
+            id: generateId(),
+            presetId,
+            sheetMusicFileId: fileId,
+            sortOrder: index,
+          })),
+        );
+      }
+    }
+
+    const result = await db.select().from(songPresets).where(eq(songPresets.id, presetId)).limit(1);
+    return result[0] ?? null;
+  },
+
+  async deleteSongPreset(presetId: string) {
+    const existing = await db.select().from(songPresets).where(eq(songPresets.id, presetId)).limit(1);
+    if (existing.length === 0) {
+      return null;
+    }
+
+    await db.delete(songPresets).where(eq(songPresets.id, presetId));
+    return existing[0];
+  },
+
+  async setDefaultPreset(songId: string, presetId: string) {
+    await db.update(songPresets).set({ isDefault: false }).where(eq(songPresets.songId, songId));
+    await db.update(songPresets).set({ isDefault: true, updatedAt: new Date() }).where(eq(songPresets.id, presetId));
+  },
+
+  async upsertContiPdfExport(contiId: string, data: { pdfUrl?: string | null; layoutState?: string | null }) {
+    const existing = await db
+      .select()
+      .from(contiPdfExports)
+      .where(eq(contiPdfExports.contiId, contiId))
+      .limit(1);
+    const now = new Date();
+
+    if (existing.length > 0) {
+      const updateData: Record<string, unknown> = { updatedAt: now };
+      if ('pdfUrl' in data) updateData.pdfUrl = data.pdfUrl ?? null;
+      if ('layoutState' in data) updateData.layoutState = data.layoutState ?? null;
+      await db.update(contiPdfExports).set(updateData).where(eq(contiPdfExports.id, existing[0].id));
+      return {
+        ...existing[0],
+        ...updateData,
+        updatedAt: now,
+      };
+    }
+
+    const newExport: ContiPdfExport = {
+      id: generateId(),
+      contiId,
+      pdfUrl: data.pdfUrl ?? null,
+      layoutState: data.layoutState ?? null,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await db.insert(contiPdfExports).values(newExport);
+    return newExport;
+  },
+
+  async deleteContiPdfExport(exportId: string) {
+    const existing = await db
+      .select()
+      .from(contiPdfExports)
+      .where(eq(contiPdfExports.id, exportId))
+      .limit(1);
+
+    if (existing.length === 0) {
+      return null;
+    }
+
+    await db.delete(contiPdfExports).where(eq(contiPdfExports.id, exportId));
+    return existing[0];
+  },
+
+  async createSongPageImage(data: SongPageImageInput) {
+    const now = new Date();
+    const record = {
+      id: generateId(),
+      ...data,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await db.insert(songPageImages).values(record);
+    return record;
+  },
+
+  async deletePageImagesForConti(contiId: string) {
+    const existing = await db
+      .select()
+      .from(songPageImages)
+      .where(eq(songPageImages.contiId, contiId));
+
+    await db.delete(songPageImages).where(eq(songPageImages.contiId, contiId));
+    return existing;
   },
 };

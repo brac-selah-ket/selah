@@ -1,11 +1,8 @@
 'use server';
 
-import { db } from '@/lib/db';
-import { songPageImages } from '@/lib/db/schema';
-import { generateId } from '@/lib/id';
-import { eq } from 'drizzle-orm';
 import { put, del } from '@vercel/blob';
 import type { ActionResult, SongPageImage } from '@/lib/types';
+import { getStoryboardRepository } from '@/lib/repositories/storyboard';
 
 export async function saveSongPageImageFromForm(formData: FormData): Promise<ActionResult<SongPageImage>> {
   try {
@@ -21,17 +18,13 @@ export async function saveSongPageImageFromForm(formData: FormData): Promise<Act
       return { success: false, error: '필수 데이터가 누락되었습니다' };
     }
 
-    const now = new Date();
-    const id = generateId();
-
     const blob = await put(
       `song-pages/${songId}/${contiId}-p${pageIndex}.jpg`,
       file,
       { access: 'public' }
     );
 
-    const record = {
-      id,
+    const record = await getStoryboardRepository().createSongPageImage({
       songId,
       contiId,
       imageUrl: blob.url,
@@ -39,11 +32,7 @@ export async function saveSongPageImageFromForm(formData: FormData): Promise<Act
       sheetMusicFileId,
       pdfPageIndex: pdfPageIndex ? parseInt(pdfPageIndex, 10) : null,
       presetSnapshot,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await db.insert(songPageImages).values(record);
+    });
     return { success: true, data: record };
   } catch {
     return { success: false, error: '페이지 이미지 저장 중 오류가 발생했습니다' };
@@ -52,16 +41,14 @@ export async function saveSongPageImageFromForm(formData: FormData): Promise<Act
 
 export async function deletePageImagesForConti(contiId: string): Promise<ActionResult> {
   try {
-    const existing = await db
-      .select()
-      .from(songPageImages)
-      .where(eq(songPageImages.contiId, contiId));
+    const repository = getStoryboardRepository();
+    const existing = await repository.getPageImagesForConti(contiId);
 
     await Promise.allSettled(
       existing.map(img => del(img.imageUrl).catch(() => {}))
     );
 
-    await db.delete(songPageImages).where(eq(songPageImages.contiId, contiId));
+    await repository.deletePageImagesForConti(contiId);
     return { success: true };
   } catch {
     return { success: false, error: '페이지 이미지 삭제 중 오류가 발생했습니다' };
@@ -70,11 +57,7 @@ export async function deletePageImagesForConti(contiId: string): Promise<ActionR
 
 export async function getPageImagesForSong(songId: string): Promise<ActionResult<SongPageImage[]>> {
   try {
-    const images = await db
-      .select()
-      .from(songPageImages)
-      .where(eq(songPageImages.songId, songId))
-      .orderBy(songPageImages.createdAt);
+    const images = await getStoryboardRepository().getPageImagesForSong(songId);
     return { success: true, data: images };
   } catch {
     return { success: false, error: '페이지 이미지를 불러올 수 없습니다' };

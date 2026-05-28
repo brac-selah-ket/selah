@@ -1,3 +1,22 @@
+import type {
+  Conti,
+  ContiPdfExport,
+  ContiSong,
+  ContiSongOverrides,
+  ContiWithSongSummaries,
+  ContiWithSongs,
+  ContiWithSongsAndSheetMusic,
+  PdfLayoutState,
+  PresetPdfMetadata,
+  SheetMusicFile,
+  Song,
+  SongPageImage,
+  SongPreset,
+  SongPresetData,
+  SongPresetWithSheetMusic,
+  SongWithSheetMusic,
+} from '@/lib/types';
+
 export interface SnapshotSong {
   id: string;
   name: string;
@@ -113,4 +132,101 @@ export interface VerificationResult {
   ok: boolean;
   counts: SnapshotCounts;
   errors: string[];
+}
+
+export interface ResolvedYouTubeMetadata {
+  videoId: string | null;
+  title: string | null;
+}
+
+export interface ContiInput {
+  title: string | null;
+  date: string;
+  description: string | null;
+}
+
+export interface SheetMusicFileInput {
+  songId: string;
+  fileUrl: string;
+  fileName: string;
+  fileType: string;
+}
+
+export interface SongPageImageInput {
+  songId: string;
+  contiId: string;
+  imageUrl: string;
+  pageIndex: number;
+  sheetMusicFileId: string | null;
+  pdfPageIndex: number | null;
+  presetSnapshot: string | null;
+}
+
+export interface ContiSongPresetSource {
+  songId: string;
+  overrides: ContiSongOverrides;
+  pdfMetadata: PresetPdfMetadata | null;
+}
+
+export interface BatchImportSongsToContiItem {
+  songId: string | null;
+  newSongName: string | null;
+  videoId?: string | null;
+  title?: string | null;
+  presetId?: string | null;
+  createNewPreset?: boolean;
+  presetName?: string | null;
+  alreadyInConti?: boolean;
+}
+
+export interface BatchImportSongsToContiResult {
+  added: number;
+  created: number;
+  presetUpdated: number;
+}
+
+export interface StoryboardRepository {
+  getSongs(): Promise<Song[]>;
+  getSong(id: string): Promise<SongWithSheetMusic | null>;
+  getSongPresets(songId: string): Promise<SongPreset[]>;
+  getSongPresetsWithSheetMusic(songId: string): Promise<SongPresetWithSheetMusic[]>;
+  getSongPresetWithSheetMusic(presetId: string): Promise<SongPresetWithSheetMusic | null>;
+  getPresetSheetMusicFileIds(presetId: string): Promise<string[]>;
+  searchSongs(query: string): Promise<Song[]>;
+  getContis(): Promise<Conti[]>;
+  getContisWithSongSummaries(): Promise<ContiWithSongSummaries[]>;
+  getContiByDate(date: string): Promise<Conti | null>;
+  getConti(id: string): Promise<ContiWithSongs | null>;
+  getContiForExport(id: string): Promise<ContiWithSongsAndSheetMusic | null>;
+  getContiPdfExport(contiId: string): Promise<ContiPdfExport | null>;
+  getContiPdfExportById(exportId: string): Promise<ContiPdfExport | null>;
+  getSheetMusicFile(fileId: string): Promise<SheetMusicFile | null>;
+  getSheetMusicForSong(songId: string): Promise<SheetMusicFile[]>;
+  getPageImagesForConti(contiId: string): Promise<SongPageImage[]>;
+  getPageImagesForSong(songId: string): Promise<SongPageImage[]>;
+
+  createSong(name: string): Promise<Song>;
+  updateSong(id: string, data: { name: string }): Promise<Song | null>;
+  deleteSong(id: string): Promise<{ blockedByConti: boolean }>;
+  createConti(data: ContiInput): Promise<Conti>;
+  updateConti(id: string, data: ContiInput): Promise<Conti | null>;
+  deleteConti(id: string): Promise<void>;
+  createSheetMusicFile(data: SheetMusicFileInput): Promise<SheetMusicFile>;
+  deleteSheetMusicFile(fileId: string): Promise<SheetMusicFile | null>;
+  reorderSheetMusic(songId: string, orderedIds: string[]): Promise<void>;
+  addSongToConti(contiId: string, songId: string, initialOverrides?: Partial<ContiSongOverrides>): Promise<ContiSong>;
+  removeContiSong(contiSongId: string): Promise<void>;
+  updateContiSong(contiSongId: string, data: Partial<ContiSongOverrides>): Promise<void>;
+  reorderContiSongs(contiId: string, orderedIds: string[]): Promise<void>;
+  getContiSongPresetSource(contiSongId: string): Promise<ContiSongPresetSource | null>;
+  syncPresetPdfMetadataFromContiLayout(contiId: string, layoutState: PdfLayoutState): Promise<{ updatedPresetCount: number }>;
+  batchImportSongsToConti(contiId: string, items: BatchImportSongsToContiItem[]): Promise<BatchImportSongsToContiResult>;
+  createSongPreset(songId: string, data: SongPresetData, resolvedYoutube: ResolvedYouTubeMetadata | null): Promise<SongPreset>;
+  updateSongPreset(presetId: string, data: Partial<SongPresetData>, resolvedYoutube?: ResolvedYouTubeMetadata | null): Promise<SongPreset | null>;
+  deleteSongPreset(presetId: string): Promise<SongPreset | null>;
+  setDefaultPreset(songId: string, presetId: string): Promise<void>;
+  upsertContiPdfExport(contiId: string, data: { pdfUrl?: string | null; layoutState?: string | null }): Promise<ContiPdfExport>;
+  deleteContiPdfExport(exportId: string): Promise<ContiPdfExport | null>;
+  createSongPageImage(data: SongPageImageInput): Promise<SongPageImage>;
+  deletePageImagesForConti(contiId: string): Promise<SongPageImage[]>;
 }

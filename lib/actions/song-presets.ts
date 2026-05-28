@@ -1,15 +1,11 @@
 'use server';
 
-import { db } from '@/lib/db';
-import { songPresets, presetSheetMusic } from '@/lib/db/schema';
-import { generateId } from '@/lib/id';
-import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { ActionResult, SongPreset, SongPresetData, SongPresetWithSheetMusic } from '@/lib/types';
 import { getSongPresets, getSongPresetsWithSheetMusic } from '@/lib/queries/songs';
 import { resolveYouTubeReferenceMetadata } from '@/lib/actions/youtube-metadata';
-import { normalizeYouTubeReference } from '@/lib/utils/youtube';
+import { getStoryboardRepository } from '@/lib/repositories/storyboard';
 
 const presetSchema = z.object({
   name: z.string().min(1, '프리셋 이름을 입력해주세요'),
@@ -33,56 +29,13 @@ export async function createSongPreset(songId: string, data: SongPresetData): Pr
       return { success: false, error: validation.error.issues[0].message };
     }
 
-    const d = validation.data;
+    const d = validation.data as SongPresetData;
     const resolvedYoutube = await resolveYouTubeReferenceMetadata(d.youtubeReference, d.youtubeTitle);
 
-    // If this is set as default, unset others
-    if (d.isDefault) {
-      await db.update(songPresets).set({ isDefault: false }).where(eq(songPresets.songId, songId));
-    }
-
-    // Calculate next sort order
-    const existing = await getSongPresets(songId);
-    const maxSort = existing.length > 0 ? Math.max(...existing.map(p => p.sortOrder)) : -1;
-
-    const now = new Date();
-    const presetRecord = {
-      id: generateId(),
-      songId,
-      name: d.name,
-      keys: JSON.stringify(d.keys),
-      tempos: JSON.stringify(d.tempos),
-      sectionOrder: JSON.stringify(d.sectionOrder),
-      lyrics: JSON.stringify(d.lyrics),
-      sectionLyricsMap: JSON.stringify(d.sectionLyricsMap),
-      notes: d.notes,
-      youtubeReference: resolvedYoutube?.videoId ?? null,
-      youtubeTitle: resolvedYoutube?.title ?? null,
-      pdfMetadata: d.pdfMetadata ? JSON.stringify(d.pdfMetadata) : null,
-      isDefault: d.isDefault,
-      sortOrder: maxSort + 1,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await db.insert(songPresets).values(presetRecord);
-
-    // Insert sheet music associations
-    if (d.sheetMusicFileIds && d.sheetMusicFileIds.length > 0) {
-      await db.insert(presetSheetMusic).values(
-        d.sheetMusicFileIds.map((fileId, index) => ({
-          id: generateId(),
-          presetId: presetRecord.id,
-          sheetMusicFileId: fileId,
-          sortOrder: index,
-        }))
-      );
-    }
-
-    const preset = presetRecord;
+    const preset = await getStoryboardRepository().createSongPreset(songId, d, resolvedYoutube);
 
     revalidatePath(`/songs/${songId}`);
-    return { success: true, data: preset as SongPreset };
+    return { success: true, data: preset };
   } catch {
     return { success: false, error: '프리셋 생성 중 오류가 발생했습니다' };
   }
@@ -90,69 +43,18 @@ export async function createSongPreset(songId: string, data: SongPresetData): Pr
 
 export async function updateSongPreset(presetId: string, data: Partial<SongPresetData>): Promise<ActionResult<SongPreset>> {
   try {
-    // Get existing preset to know songId
-    const existing = await db.select().from(songPresets).where(eq(songPresets.id, presetId)).limit(1);
-    if (existing.length === 0) {
-      return { success: false, error: '프리셋을 찾을 수 없습니다' };
-    }
-    const songId = existing[0].songId;
-
-    // If setting as default, unset others
-    if (data.isDefault) {
-      await db.update(songPresets).set({ isDefault: false }).where(eq(songPresets.songId, songId));
-    }
-
     const resolvedYoutube =
       data.youtubeReference !== undefined
         ? await resolveYouTubeReferenceMetadata(data.youtubeReference, data.youtubeTitle)
         : undefined;
 
-    const updateData: Record<string, unknown> = { updatedAt: new Date() };
-    if (data.name !== undefined) updateData.name = data.name;
-    if (data.keys !== undefined) updateData.keys = JSON.stringify(data.keys);
-    if (data.tempos !== undefined) updateData.tempos = JSON.stringify(data.tempos);
-    if (data.sectionOrder !== undefined) updateData.sectionOrder = JSON.stringify(data.sectionOrder);
-    if (data.lyrics !== undefined) updateData.lyrics = JSON.stringify(data.lyrics);
-    if (data.sectionLyricsMap !== undefined) updateData.sectionLyricsMap = JSON.stringify(data.sectionLyricsMap);
-    if (data.notes !== undefined) updateData.notes = data.notes;
-    if (data.isDefault !== undefined) updateData.isDefault = data.isDefault;
-    if (data.youtubeReference !== undefined) {
-      updateData.youtubeReference = resolvedYoutube?.videoId ?? null;
-      const existingYoutube = normalizeYouTubeReference(existing[0].youtubeReference);
-      const shouldPreserveExistingYoutubeTitle =
-        resolvedYoutube?.videoId &&
-        !resolvedYoutube.title &&
-        !data.youtubeTitle?.trim() &&
-        existingYoutube?.videoId === resolvedYoutube.videoId &&
-        !!existing[0].youtubeTitle?.trim();
-      updateData.youtubeTitle = shouldPreserveExistingYoutubeTitle
-        ? existing[0].youtubeTitle
-        : resolvedYoutube?.title ?? null;
-    } else if (data.youtubeTitle !== undefined && existing[0].youtubeReference) {
-      updateData.youtubeTitle = data.youtubeTitle?.trim() || null;
-    }
-    if (data.pdfMetadata !== undefined) updateData.pdfMetadata = data.pdfMetadata ? JSON.stringify(data.pdfMetadata) : null;
-
-    await db.update(songPresets).set(updateData).where(eq(songPresets.id, presetId));
-
-    // Replace sheet music associations if provided
-    if (data.sheetMusicFileIds !== undefined) {
-      await db.delete(presetSheetMusic).where(eq(presetSheetMusic.presetId, presetId));
-      if (data.sheetMusicFileIds && data.sheetMusicFileIds.length > 0) {
-        await db.insert(presetSheetMusic).values(
-          data.sheetMusicFileIds.map((fileId, index) => ({
-            id: generateId(),
-            presetId,
-            sheetMusicFileId: fileId,
-            sortOrder: index,
-          }))
-        );
-      }
+    const updatedPreset = await getStoryboardRepository().updateSongPreset(presetId, data, resolvedYoutube);
+    if (!updatedPreset) {
+      return { success: false, error: '프리셋을 찾을 수 없습니다' };
     }
 
-    revalidatePath(`/songs/${songId}`);
-    const result = await db.select().from(songPresets).where(eq(songPresets.id, presetId)).limit(1);
-    return { success: true, data: result[0] };
+    revalidatePath(`/songs/${updatedPreset.songId}`);
+    return { success: true, data: updatedPreset };
   } catch {
     return { success: false, error: '프리셋 수정 중 오류가 발생했습니다' };
   }
@@ -160,13 +62,12 @@ export async function updateSongPreset(presetId: string, data: Partial<SongPrese
 
 export async function deleteSongPreset(presetId: string): Promise<ActionResult> {
   try {
-    const existing = await db.select().from(songPresets).where(eq(songPresets.id, presetId)).limit(1);
-    if (existing.length === 0) {
+    const existing = await getStoryboardRepository().deleteSongPreset(presetId);
+    if (!existing) {
       return { success: false, error: '프리셋을 찾을 수 없습니다' };
     }
 
-    await db.delete(songPresets).where(eq(songPresets.id, presetId));
-    revalidatePath(`/songs/${existing[0].songId}`);
+    revalidatePath(`/songs/${existing.songId}`);
     return { success: true };
   } catch {
     return { success: false, error: '프리셋 삭제 중 오류가 발생했습니다' };
@@ -175,10 +76,7 @@ export async function deleteSongPreset(presetId: string): Promise<ActionResult> 
 
 export async function setDefaultPreset(songId: string, presetId: string): Promise<ActionResult> {
   try {
-    // Unset all defaults for this song
-    await db.update(songPresets).set({ isDefault: false }).where(eq(songPresets.songId, songId));
-    // Set the selected one as default
-    await db.update(songPresets).set({ isDefault: true, updatedAt: new Date() }).where(eq(songPresets.id, presetId));
+    await getStoryboardRepository().setDefaultPreset(songId, presetId);
     revalidatePath(`/songs/${songId}`);
     return { success: true };
   } catch {
@@ -197,12 +95,7 @@ export async function getPresetsForSong(songId: string): Promise<ActionResult<So
 }
 
 export async function getPresetSheetMusicFileIds(presetId: string): Promise<string[]> {
-  const rows = await db
-    .select({ sheetMusicFileId: presetSheetMusic.sheetMusicFileId })
-    .from(presetSheetMusic)
-    .where(eq(presetSheetMusic.presetId, presetId))
-    .orderBy(presetSheetMusic.sortOrder);
-  return rows.map(r => r.sheetMusicFileId);
+  return await getStoryboardRepository().getPresetSheetMusicFileIds(presetId);
 }
 
 export async function getPresetsForSongWithSheetMusic(songId: string): Promise<ActionResult<SongPresetWithSheetMusic[]>> {
@@ -216,28 +109,14 @@ export async function getPresetsForSongWithSheetMusic(songId: string): Promise<A
 
 export async function getSongPresetWithSheetMusic(presetId: string): Promise<ActionResult<SongPresetWithSheetMusic>> {
   try {
-    const presetRows = await db
-      .select()
-      .from(songPresets)
-      .where(eq(songPresets.id, presetId))
-      .limit(1);
-
-    if (presetRows.length === 0) {
+    const preset = await getStoryboardRepository().getSongPresetWithSheetMusic(presetId);
+    if (!preset) {
       return { success: false, error: '프리셋을 찾을 수 없습니다' };
     }
 
-    const sheetMusicRows = await db
-      .select({ sheetMusicFileId: presetSheetMusic.sheetMusicFileId })
-      .from(presetSheetMusic)
-      .where(eq(presetSheetMusic.presetId, presetId))
-      .orderBy(presetSheetMusic.sortOrder);
-
     return {
       success: true,
-      data: {
-        ...presetRows[0],
-        sheetMusicFileIds: sheetMusicRows.map((row) => row.sheetMusicFileId),
-      },
+      data: preset,
     };
   } catch {
     return { success: false, error: '프리셋을 불러올 수 없습니다' };

@@ -1,12 +1,9 @@
 'use server';
 
-import { db } from '@/lib/db';
-import { sheetMusicFiles } from '@/lib/db/schema';
-import { generateId } from '@/lib/id';
-import { eq, max } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { put, del } from '@vercel/blob';
 import type { ActionResult, SheetMusicFile } from '@/lib/types';
+import { getStoryboardRepository } from '@/lib/repositories/storyboard';
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -44,25 +41,12 @@ export async function uploadSheetMusic(
       access: 'public',
     });
 
-    // Get next sort order
-    const maxSortOrderResult = await db
-      .select({ maxOrder: max(sheetMusicFiles.sortOrder) })
-      .from(sheetMusicFiles)
-      .where(eq(sheetMusicFiles.songId, songId));
-
-    const nextSortOrder = (maxSortOrderResult[0]?.maxOrder ?? -1) + 1;
-
-    const sheetMusicFile = {
-      id: generateId(),
+    const sheetMusicFile = await getStoryboardRepository().createSheetMusicFile({
       songId,
       fileUrl: blob.url,
       fileName: file.name,
       fileType: file.type,
-      sortOrder: nextSortOrder,
-      createdAt: new Date(),
-    };
-
-    await db.insert(sheetMusicFiles).values(sheetMusicFile);
+    });
     revalidatePath('/songs');
 
     return {
@@ -79,13 +63,10 @@ export async function uploadSheetMusic(
 
 export async function deleteSheetMusic(fileId: string): Promise<ActionResult> {
   try {
-    const file = await db
-      .select()
-      .from(sheetMusicFiles)
-      .where(eq(sheetMusicFiles.id, fileId))
-      .limit(1);
+    const repository = getStoryboardRepository();
+    const file = await repository.getSheetMusicFile(fileId);
 
-    if (file.length === 0) {
+    if (!file) {
       return {
         success: false,
         error: '파일을 찾을 수 없습니다',
@@ -93,10 +74,10 @@ export async function deleteSheetMusic(fileId: string): Promise<ActionResult> {
     }
 
     // Delete from Vercel Blob
-    await del(file[0].fileUrl);
+    await del(file.fileUrl);
 
     // Delete DB record
-    await db.delete(sheetMusicFiles).where(eq(sheetMusicFiles.id, fileId));
+    await repository.deleteSheetMusicFile(fileId);
     revalidatePath('/songs');
 
     return {
@@ -115,13 +96,7 @@ export async function reorderSheetMusic(
   orderedIds: string[]
 ): Promise<ActionResult> {
   try {
-    for (let i = 0; i < orderedIds.length; i++) {
-      await db
-        .update(sheetMusicFiles)
-        .set({ sortOrder: i })
-        .where(eq(sheetMusicFiles.id, orderedIds[i]));
-    }
-
+    await getStoryboardRepository().reorderSheetMusic(songId, orderedIds);
     revalidatePath('/songs');
 
     return {
@@ -137,11 +112,7 @@ export async function reorderSheetMusic(
 
 export async function getSheetMusicForSong(songId: string): Promise<ActionResult<SheetMusicFile[]>> {
   try {
-    const files = await db
-      .select()
-      .from(sheetMusicFiles)
-      .where(eq(sheetMusicFiles.songId, songId))
-      .orderBy(sheetMusicFiles.sortOrder);
+    const files = await getStoryboardRepository().getSheetMusicForSong(songId);
     return { success: true, data: files };
   } catch {
     return { success: false, error: '악보 목록을 불러올 수 없습니다' };
