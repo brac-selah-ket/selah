@@ -185,7 +185,7 @@ export async function generateLyricsFromSheetMusicImages(
 
       totalBytes += parsed.decodedBytes
       imageParts.push({
-        text: `이미지 ${index + 1}: ${page.pageLabel} (${page.sourceName})`,
+        text: `이미지 ${index + 1}`,
       })
       imageParts.push({
         inline_data: {
