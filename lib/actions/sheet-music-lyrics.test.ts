@@ -1,8 +1,9 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import test from "node:test"
 
+import { DEFAULT_GEMINI_LYRICS_MODEL } from "./sheet-music-lyrics-config.ts"
 import {
-  DEFAULT_GEMINI_LYRICS_MODEL,
   generateLyricsFromSheetMusicImages,
 } from "./sheet-music-lyrics.ts"
 
@@ -46,6 +47,14 @@ function withEnv<T>(env: Record<string, string | undefined>, fn: () => Promise<T
 
 test("uses Gemini 3 Pro Preview as the default lyrics model", () => {
   assert.equal(DEFAULT_GEMINI_LYRICS_MODEL, "gemini-3-pro-preview")
+})
+
+test("keeps the server action module exports valid for Next.js", () => {
+  const source = readFileSync(new URL("./sheet-music-lyrics.ts", import.meta.url), "utf8")
+
+  assert.match(source, /^'use server'/)
+  assert.doesNotMatch(source, /export const DEFAULT_GEMINI_LYRICS_MODEL/)
+  assert.match(source, /export async function generateLyricsFromSheetMusicImages/)
 })
 
 test("fails when Gemini API key is missing", async () => {

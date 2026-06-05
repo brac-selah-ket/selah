@@ -1,9 +1,8 @@
 'use server'
 
 import { z } from 'zod'
+import { DEFAULT_GEMINI_LYRICS_MODEL } from './sheet-music-lyrics-config.ts'
 import type { ActionResult } from '@/lib/types'
-
-export const DEFAULT_GEMINI_LYRICS_MODEL = 'gemini-3-pro-preview'
 
 const MAX_PAGE_IMAGE_BYTES = 4 * 1024 * 1024
 const MAX_TOTAL_IMAGE_BYTES = 20 * 1024 * 1024
