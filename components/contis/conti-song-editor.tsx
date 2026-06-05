@@ -1,12 +1,13 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   ArrangementEditor,
   type ArrangementDraft,
   type ArrangementEditorPresetOption,
 } from "@/components/shared/arrangement-editor"
+import type { SheetMusicPreviewItem } from "@/components/shared/sheet-music-preview"
 import { SheetMusicUploader } from "@/components/songs/sheet-music-uploader"
 import { SheetMusicGallery } from "@/components/songs/sheet-music-gallery"
 import { updateContiSong, saveContiSongAsPreset } from "@/lib/actions/conti-songs"
@@ -101,9 +102,16 @@ export function ContiSongEditor({
   const router = useRouter()
   const [presets, setPresets] = useState<SongPreset[]>([])
   const [songSheetMusic, setSongSheetMusic] = useState<SheetMusicFile[]>([])
+  const [sheetMusicPreviewItem, setSheetMusicPreviewItem] = useState<SheetMusicPreviewItem | null>(null)
+  const currentSongIdRef = useRef(contiSong.songId)
+  currentSongIdRef.current = contiSong.songId
 
   const refreshPresets = useCallback(async () => {
-    const result = await getPresetsForSong(contiSong.songId)
+    const songId = contiSong.songId
+    const result = await getPresetsForSong(songId)
+    if (currentSongIdRef.current !== songId) {
+      return []
+    }
     if (result.success && result.data) {
       setPresets(result.data)
       return result.data
@@ -112,7 +120,11 @@ export function ContiSongEditor({
   }, [contiSong.songId])
 
   const refreshSheetMusic = useCallback(async () => {
-    const result = await getSheetMusicForSong(contiSong.songId)
+    const songId = contiSong.songId
+    const result = await getSheetMusicForSong(songId)
+    if (currentSongIdRef.current !== songId) {
+      return []
+    }
     if (result.success && result.data) {
       setSongSheetMusic(result.data)
       return result.data
@@ -132,6 +144,16 @@ export function ContiSongEditor({
     }
   }, [open, refreshSheetMusic])
 
+  useEffect(() => {
+    setSheetMusicPreviewItem(null)
+  }, [contiSong.songId])
+
+  useEffect(() => {
+    if (!open) {
+      setSheetMusicPreviewItem(null)
+    }
+  }, [open])
+
   const handleSheetMusicUploaded = (file: SheetMusicFile) => {
     setSongSheetMusic((current) => {
       if (current.some((item) => item.id === file.id)) return current
@@ -142,6 +164,9 @@ export function ContiSongEditor({
 
   const handleSheetMusicDeleted = (fileId: string) => {
     setSongSheetMusic((current) => current.filter((file) => file.id !== fileId))
+    setSheetMusicPreviewItem((current) =>
+      current?.file.id === fileId ? null : current,
+    )
     router.refresh()
   }
 
@@ -154,6 +179,7 @@ export function ContiSongEditor({
       open={open}
       initialDraft={contiSongToDraft(contiSong)}
       availableSheetMusic={songSheetMusic}
+      sheetMusicPreviewItem={sheetMusicPreviewItem}
       sheetMusicManagementSlot={
         <div className="space-y-4 rounded-lg border bg-background/50 p-4">
           <SheetMusicUploader
@@ -166,6 +192,8 @@ export function ContiSongEditor({
               editable
               songId={contiSong.songId}
               onDeleted={handleSheetMusicDeleted}
+              previewMode="controlled"
+              onPreviewChange={setSheetMusicPreviewItem}
             />
           )}
         </div>

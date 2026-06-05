@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import type { SheetMusicPreviewItem } from "@/components/shared/sheet-music-preview"
 import type { PresetPdfMetadata, SheetMusicFile, SongPreset } from "@/lib/types"
 
 export interface ArrangementDraft {
@@ -38,6 +39,7 @@ export interface ArrangementEditorProps {
   initialDraft: ArrangementDraft
   availableSheetMusic: SheetMusicFile[]
   presetOptions?: ArrangementEditorPresetOption[]
+  sheetMusicPreviewItem?: SheetMusicPreviewItem | null
   sheetMusicManagementSlot?: ReactNode
   savingLabel?: string
   onOpenChange: (open: boolean) => void
