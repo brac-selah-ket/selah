@@ -20,9 +20,11 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
 import { SheetMusicSelector } from "@/components/shared/sheet-music-selector"
+import { SheetMusicPreviewPane } from "@/components/shared/sheet-music-preview"
 import { OverrideEditorFields } from "@/components/shared/override-editor-fields"
 import { PresetPdfEditor } from "@/components/songs/preset-pdf-editor"
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes"
+import { cn } from "@/lib/utils"
 import { normalizeYouTubeReference } from "@/lib/utils/youtube"
 import {
   getSheetMusicSelectionSaveError,
@@ -73,6 +75,7 @@ export function ArrangementEditor({
   open,
   initialDraft,
   availableSheetMusic,
+  sheetMusicPreviewItem,
   presetOptions = [],
   sheetMusicManagementSlot,
   savingLabel = "저장",
@@ -110,6 +113,7 @@ export function ArrangementEditor({
   }, [availableSheetMusic, draft.sheetMusicFileIds])
 
   const showYouTubeReferenceField = shouldShowYouTubeReferenceField(mode)
+  const hasDrawerPreview = mode === "conti-song" && availableSheetMusic.length > 0
 
   function pruneUnavailableSheetMusicIds(draftToPrune: ArrangementDraft): ArrangementDraft {
     if (draftToPrune.sheetMusicFileIds === null || allSheetMusicIds.length === 0) {
@@ -321,6 +325,7 @@ export function ArrangementEditor({
           return true
         }}
         title={title}
+        size={hasDrawerPreview ? "wide" : "default"}
         footer={
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1" onClick={handleClose}>
@@ -332,185 +337,210 @@ export function ArrangementEditor({
           </div>
         }
       >
-        <div className="space-y-8">
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground">곡</p>
-              <h3 className="text-xl font-semibold">{songName}</h3>
+        <div
+          className={cn(
+            "min-h-full",
+            hasDrawerPreview &&
+              "md:grid md:grid-cols-[minmax(320px,0.9fr)_minmax(360px,1fr)] md:gap-8",
+          )}
+        >
+          {hasDrawerPreview && (
+            <div className="hidden min-w-0 md:block">
+              <SheetMusicPreviewPane
+                item={sheetMusicPreviewItem ?? null}
+                className="sticky top-0 max-h-[calc(100vh-10rem)] overflow-y-auto"
+              />
+            </div>
+          )}
+
+          <div className="min-w-0 space-y-8">
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground">곡</p>
+                <h3 className="text-xl font-semibold">{songName}</h3>
+              </div>
+
+              {mode === "preset" && (
+                <div className="space-y-3">
+                  <label htmlFor="arrangement-preset-name" className="text-base font-medium">
+                    프리셋 이름 <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    id="arrangement-preset-name"
+                    value={draft.name}
+                    onChange={(event) => updateDraft({ name: event.target.value })}
+                    placeholder="예: 주일 예배"
+                    required
+                  />
+                </div>
+              )}
             </div>
 
-            {mode === "preset" && (
+            {mode === "conti-song" && presetOptions.length > 0 && onLoadPreset && (
               <div className="space-y-3">
-                <label htmlFor="arrangement-preset-name" className="text-base font-medium">
-                  프리셋 이름 <span className="text-destructive">*</span>
+                <h3 className="text-base font-medium">프리셋 불러오기</h3>
+                <div className="flex flex-col gap-1">
+                  {presetOptions.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      className="hover:bg-muted flex min-w-0 items-center justify-between rounded-lg px-3 py-2 text-left text-base transition-colors disabled:opacity-50"
+                      onClick={() => handleLoadPreset(preset.id)}
+                      disabled={isSaving}
+                    >
+                      <span className="truncate font-medium">{preset.name}</span>
+                      {preset.isDefault && (
+                        <span className="text-sm text-muted-foreground">기본</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {showYouTubeReferenceField && (
+              <div className="space-y-2">
+                <label htmlFor="arrangement-youtube-ref" className="text-base font-medium">
+                  YouTube 레퍼런스
                 </label>
                 <Input
-                  id="arrangement-preset-name"
-                  value={draft.name}
-                  onChange={(event) => updateDraft({ name: event.target.value })}
-                  placeholder="예: 주일 예배"
-                  required
+                  id="arrangement-youtube-ref"
+                  value={draft.youtubeReference ?? ""}
+                  onChange={(event) => updateDraft({
+                    youtubeReference: event.target.value || null,
+                    youtubeTitle: null,
+                  })}
+                  placeholder="https://www.youtube.com/watch?v=..."
                 />
               </div>
             )}
-          </div>
 
-          {mode === "conti-song" && presetOptions.length > 0 && onLoadPreset && (
-            <div className="space-y-3">
-              <h3 className="text-base font-medium">프리셋 불러오기</h3>
-              <div className="flex flex-col gap-1">
-                {presetOptions.map((preset) => (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    className="hover:bg-muted flex min-w-0 items-center justify-between rounded-lg px-3 py-2 text-left text-base transition-colors disabled:opacity-50"
-                    onClick={() => handleLoadPreset(preset.id)}
-                    disabled={isSaving}
-                  >
-                    <span className="truncate font-medium">{preset.name}</span>
-                    {preset.isDefault && (
-                      <span className="text-sm text-muted-foreground">기본</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+            <OverrideEditorFields
+              key={editorKey}
+              keys={draft.keys}
+              tempos={draft.tempos}
+              sectionOrder={draft.sectionOrder}
+              lyrics={draft.lyrics}
+              sectionLyricsMap={draft.sectionLyricsMap}
+              notes={draft.notes}
+              sheetMusicFiles={selectedSheetMusic}
+              onKeysTemposChange={(data) => updateDraft(data)}
+              onSectionOrderChange={(data) => updateDraft(data)}
+              onLyricsChange={handleLyricsChange}
+              onSectionLyricsMapChange={(data) => updateDraft(data)}
+              onNotesChange={(notes) => updateDraft({ notes })}
+            />
 
-          {showYouTubeReferenceField && (
-            <div className="space-y-2">
-              <label htmlFor="arrangement-youtube-ref" className="text-base font-medium">
-                YouTube 레퍼런스
-              </label>
-              <Input
-                id="arrangement-youtube-ref"
-                value={draft.youtubeReference ?? ""}
-                onChange={(event) => updateDraft({
-                  youtubeReference: event.target.value || null,
-                  youtubeTitle: null,
-                })}
-                placeholder="https://www.youtube.com/watch?v=..."
-              />
-            </div>
-          )}
-
-          <OverrideEditorFields
-            key={editorKey}
-            keys={draft.keys}
-            tempos={draft.tempos}
-            sectionOrder={draft.sectionOrder}
-            lyrics={draft.lyrics}
-            sectionLyricsMap={draft.sectionLyricsMap}
-            notes={draft.notes}
-            sheetMusicFiles={selectedSheetMusic}
-            onKeysTemposChange={(data) => updateDraft(data)}
-            onSectionOrderChange={(data) => updateDraft(data)}
-            onLyricsChange={handleLyricsChange}
-            onSectionLyricsMapChange={(data) => updateDraft(data)}
-            onNotesChange={(notes) => updateDraft({ notes })}
-          />
-
-          {(availableSheetMusic.length > 0 || sheetMusicManagementSlot) && (
-            <div className="space-y-4 border-t pt-8">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-base font-medium">악보</h3>
-                  <p className="text-sm text-muted-foreground">
-                    PDF 내보내기에 포함할 악보를 선택하세요.
-                  </p>
+            {(availableSheetMusic.length > 0 || sheetMusicManagementSlot) && (
+              <div className="space-y-4 border-t pt-8">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-medium">악보</h3>
+                    <p className="text-sm text-muted-foreground">
+                      PDF 내보내기에 포함할 악보를 선택하세요.
+                    </p>
+                  </div>
+                  {mode === "preset" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPdfEditorOpen(true)}
+                      disabled={selectedSheetMusic.length === 0}
+                    >
+                      PDF 편집
+                    </Button>
+                  )}
                 </div>
-                {mode === "preset" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPdfEditorOpen(true)}
-                    disabled={selectedSheetMusic.length === 0}
-                  >
-                    PDF 편집
-                  </Button>
+
+                {hasDrawerPreview && (
+                  <SheetMusicPreviewPane
+                    item={sheetMusicPreviewItem ?? null}
+                    className="md:hidden"
+                    imageClassName="max-h-[70vh]"
+                  />
+                )}
+
+                {sheetMusicManagementSlot}
+
+                {availableSheetMusic.length > 0 && (
+                  <SheetMusicSelector
+                    songId={songId}
+                    selectedFileIds={selectorFileIds}
+                    onSelectionChange={(ids) => updateDraft({ sheetMusicFileIds: ids })}
+                    availableFiles={availableSheetMusic}
+                  />
                 )}
               </div>
+            )}
 
-              {sheetMusicManagementSlot}
-
-              {availableSheetMusic.length > 0 && (
-                <SheetMusicSelector
-                  songId={songId}
-                  selectedFileIds={selectorFileIds}
-                  onSelectionChange={(ids) => updateDraft({ sheetMusicFileIds: ids })}
-                  availableFiles={availableSheetMusic}
+            {mode === "preset" && (
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="arrangement-preset-default"
+                  checked={draft.isDefault}
+                  onChange={(event) => updateDraft({ isDefault: event.target.checked })}
+                  className="size-5 cursor-pointer rounded"
                 />
-              )}
-            </div>
-          )}
-
-          {mode === "preset" && (
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="arrangement-preset-default"
-                checked={draft.isDefault}
-                onChange={(event) => updateDraft({ isDefault: event.target.checked })}
-                className="size-5 cursor-pointer rounded"
-              />
-              <label htmlFor="arrangement-preset-default" className="text-base cursor-pointer">
-                기본 프리셋으로 설정
-              </label>
-            </div>
-          )}
-
-          {mode === "conti-song" && onSaveAsPreset && (
-            <div className="space-y-3 border-t pt-8">
-              <h3 className="text-base font-medium">프리셋으로 저장</h3>
-              {presetOptions.length > 0 && (
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="arrangement-save-preset-select" className="text-sm text-muted-foreground">
-                    기존 프리셋 업데이트
-                  </label>
-                  <select
-                    id="arrangement-save-preset-select"
-                    className="h-9 rounded-md border border-border bg-background px-3 text-base"
-                    value={selectedPresetId}
-                    onChange={(event) => {
-                      const nextPresetId = event.target.value
-                      setSelectedPresetId(nextPresetId)
-                      const preset = presetOptions.find((option) => option.id === nextPresetId)
-                      setPresetName(preset?.name ?? "")
-                    }}
-                  >
-                    <option value="">새 프리셋 만들기</option>
-                    {presetOptions.map((preset) => (
-                      <option key={preset.id} value={preset.id}>
-                        {preset.name}{preset.isDefault ? " (기본)" : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <div className="flex-1 space-y-1">
-                  <label htmlFor="arrangement-save-preset-name" className="text-sm text-muted-foreground">
-                    프리셋 이름
-                  </label>
-                  <Input
-                    id="arrangement-save-preset-name"
-                    value={presetName}
-                    onChange={(event) => setPresetName(event.target.value)}
-                    placeholder="프리셋 이름"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  onClick={handleSaveAsPreset}
-                  disabled={isPresetSaving}
-                  className="sm:mt-6 sm:w-32"
-                >
-                  {isPresetSaving ? "저장 중..." : selectedPresetId ? "업데이트" : "저장"}
-                </Button>
+                <label htmlFor="arrangement-preset-default" className="text-base cursor-pointer">
+                  기본 프리셋으로 설정
+                </label>
               </div>
-            </div>
-          )}
+            )}
+
+            {mode === "conti-song" && onSaveAsPreset && (
+              <div className="space-y-3 border-t pt-8">
+                <h3 className="text-base font-medium">프리셋으로 저장</h3>
+                {presetOptions.length > 0 && (
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="arrangement-save-preset-select" className="text-sm text-muted-foreground">
+                      기존 프리셋 업데이트
+                    </label>
+                    <select
+                      id="arrangement-save-preset-select"
+                      className="h-9 rounded-md border border-border bg-background px-3 text-base"
+                      value={selectedPresetId}
+                      onChange={(event) => {
+                        const nextPresetId = event.target.value
+                        setSelectedPresetId(nextPresetId)
+                        const preset = presetOptions.find((option) => option.id === nextPresetId)
+                        setPresetName(preset?.name ?? "")
+                      }}
+                    >
+                      <option value="">새 프리셋 만들기</option>
+                      {presetOptions.map((preset) => (
+                        <option key={preset.id} value={preset.id}>
+                          {preset.name}{preset.isDefault ? " (기본)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <div className="flex-1 space-y-1">
+                    <label htmlFor="arrangement-save-preset-name" className="text-sm text-muted-foreground">
+                      프리셋 이름
+                    </label>
+                    <Input
+                      id="arrangement-save-preset-name"
+                      value={presetName}
+                      onChange={(event) => setPresetName(event.target.value)}
+                      placeholder="프리셋 이름"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleSaveAsPreset}
+                    disabled={isPresetSaving}
+                    className="sm:mt-6 sm:w-32"
+                  >
+                    {isPresetSaving ? "저장 중..." : selectedPresetId ? "업데이트" : "저장"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </Drawer>
 
