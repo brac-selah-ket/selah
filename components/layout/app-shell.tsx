@@ -14,8 +14,16 @@ import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/layout/brand-mark";
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
-  const { portalRef, isOpen } = useDrawerPortal();
+  const { portalRef, isOpen, drawerSize } = useDrawerPortal();
   const { setIsOpen: setNavOpen } = useMobileNav();
+  const drawerWidthClassName =
+    drawerSize === "wide"
+      ? "md:w-[min(1040px,calc(100vw-11.25rem))] xl:w-[min(1120px,calc(100vw-11.25rem))]"
+      : "md:w-[min(640px,76vw)] xl:w-[40%]";
+  const sizedDrawerStateClassName = isOpen ? cn("md:z-[60]", drawerWidthClassName) : "md:z-auto md:w-0 md:border-l-0";
+  const defaultDrawerStateClassName = isOpen ? "md:z-[60] md:w-[min(640px,76vw)] xl:w-[40%]" : "md:z-auto md:w-0 md:border-l-0";
+  const drawerStateClassName =
+    drawerSize === "wide" ? sizedDrawerStateClassName : defaultDrawerStateClassName;
 
   return (
     <div className="flex min-h-screen">
@@ -40,7 +48,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           "md:sticky md:inset-auto md:top-0 md:h-screen md:max-h-none md:rounded-none md:border-l md:shadow-none",
           "md:transition-[width] md:duration-300 md:ease-in-out",
           "md:translate-y-0 md:pointer-events-auto",
-          isOpen ? "md:z-[60] md:w-[min(640px,76vw)] xl:w-[40%]" : "md:z-auto md:w-0 md:border-l-0",
+          drawerStateClassName,
         )}
       />
     </div>

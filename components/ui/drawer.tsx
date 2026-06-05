@@ -6,12 +6,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
-import { useDrawerPortal } from "./drawer-context";
+import { useDrawerPortal, type DrawerSize } from "./drawer-context";
 
 interface DrawerProps {
   open: boolean;
   onClose: () => void;
   onBeforeClose?: () => boolean;
+  size?: DrawerSize;
   title: string;
   footer?: React.ReactNode;
   children: React.ReactNode;
@@ -21,22 +22,27 @@ export function Drawer({
   open,
   onClose,
   onBeforeClose,
+  size = "default",
   title,
   footer,
   children,
 }: DrawerProps) {
-  const { portalNode, setIsOpen } = useDrawerPortal();
+  const { portalNode, setIsOpen, setDrawerSize } = useDrawerPortal();
   const [mounted, setMounted] = useState(false);
 
   // Sync open state with layout context
   useEffect(() => {
     setIsOpen(open);
-  }, [open, setIsOpen]);
+    setDrawerSize(open ? size : "default");
+  }, [open, setDrawerSize, setIsOpen, size]);
 
   // Cleanup on unmount
   useEffect(() => {
-    return () => setIsOpen(false);
-  }, [setIsOpen]);
+    return () => {
+      setIsOpen(false);
+      setDrawerSize("default");
+    };
+  }, [setDrawerSize, setIsOpen]);
 
   // Keep content mounted during close animation
   useEffect(() => {
