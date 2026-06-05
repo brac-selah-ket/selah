@@ -23,6 +23,10 @@ test("does not warn for a known line that fits the worship PPT template", () => 
   )
 })
 
+test("allows a single line at the visual length limit", () => {
+  assert.deepEqual(validateLyricsPage("가".repeat(23)), [])
+})
+
 test("warns when a single line exceeds the visual length limit", () => {
   assert.deepEqual(validateLyricsPage("가".repeat(24)), [
     {
