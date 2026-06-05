@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useId } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ export function Drawer({
 }: DrawerProps) {
   const { portalNode, setIsOpen, setDrawerSize } = useDrawerPortal();
   const [mounted, setMounted] = useState(false);
+  const titleId = useId();
 
   // Sync open state with layout context
   useEffect(() => {
@@ -81,7 +82,12 @@ export function Drawer({
   if ((!open && !mounted) || !portalNode) return null;
 
   const drawerContent = (
-    <div className="flex h-full min-w-0 flex-col">
+    <div
+      className="flex h-full min-w-0 flex-col"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+    >
       {/* Mobile drag handle */}
       <div className="flex justify-center pt-3 pb-2 md:hidden">
         <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
@@ -89,7 +95,7 @@ export function Drawer({
 
       {/* Header */}
       <div className="flex items-center justify-between border-b px-6 py-4">
-        <h2 className="text-lg font-semibold">{title}</h2>
+        <h2 id={titleId} className="text-lg font-semibold">{title}</h2>
         <Button
           variant="ghost"
           size="icon"

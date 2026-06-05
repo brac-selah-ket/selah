@@ -49,7 +49,6 @@ export function SheetMusicGallery({
 }: SheetMusicGalleryProps) {
   const [items, setItems] = useState<SheetMusicPreviewItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<SheetMusicPreviewItem | null>(null);
-  const [hoveredFileId, setHoveredFileId] = useState<string | null>(null);
   const previewChangeRef = useRef(onPreviewChange);
   const selectedPreviewKeyRef = useRef<string | null>(null);
 
@@ -192,16 +191,20 @@ export function SheetMusicGallery({
             key={getSheetMusicPreviewKey(item)}
             className="relative group"
             onMouseEnter={() => {
-              setHoveredFileId(getSheetMusicPreviewKey(item));
               if (previewMode === "controlled") {
                 handlePreview(item);
               }
             }}
-            onMouseLeave={() => setHoveredFileId(null)}
           >
-            <div
+            <button
+              type="button"
               onClick={() => handlePreview(item)}
-              className="cursor-pointer rounded-lg overflow-hidden border hover:border-primary/50 transition-colors"
+              onFocus={() => {
+                if (previewMode === "controlled") {
+                  handlePreview(item);
+                }
+              }}
+              className="block w-full cursor-pointer overflow-hidden rounded-lg border text-left transition-colors hover:border-primary/50 focus-visible:border-primary/50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/45"
             >
               {item.thumbnailUrl ? (
                 <img
@@ -219,16 +222,16 @@ export function SheetMusicGallery({
                   {item.pdfPage}/{item.pdfTotalPages}
                 </div>
               )}
-            </div>
+            </button>
 
-            {editable && hoveredFileId === getSheetMusicPreviewKey(item) && (
+            {editable && (
               <AlertDialog>
                 <AlertDialogTrigger
                   render={
                     <Button
                       variant="destructive"
                       size="icon-xs"
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100"
                       onClick={(e) => e.stopPropagation()}
                     />
                   }

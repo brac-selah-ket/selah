@@ -46,9 +46,9 @@ export function SheetMusicPreviewPane({
   className,
   imageClassName,
 }: SheetMusicPreviewPaneProps) {
-  const hasPreviewImage = item
-    ? item.previewState === "ready" && item.thumbnailUrl
-    : false
+  const previewUrl = item && item.previewState === "ready" && item.thumbnailUrl
+    ? item.thumbnailUrl
+    : null
 
   return (
     <section
@@ -72,9 +72,9 @@ export function SheetMusicPreviewPane({
             )}
           </div>
           <div className="overflow-hidden rounded-md border bg-muted/20">
-            {hasPreviewImage ? (
+            {previewUrl ? (
               <img
-                src={item.thumbnailUrl}
+                src={previewUrl}
                 alt={getSheetMusicPreviewLabel(item)}
                 className={cn(
                   "mx-auto h-auto max-h-[calc(100vh-12rem)] w-auto max-w-full object-contain",
