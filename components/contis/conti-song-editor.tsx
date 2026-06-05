@@ -204,7 +204,7 @@ export function ContiSongEditor({
       availableSheetMusic={songSheetMusic}
       sheetMusicPreviewItem={sheetMusicPreviewItem}
       sheetMusicManagementSlot={
-        <div className="space-y-4 rounded-lg border bg-background/50 p-4">
+        <div className="space-y-4">
           <SheetMusicUploader
             songId={contiSong.songId}
             onUploaded={handleSheetMusicUploaded}
