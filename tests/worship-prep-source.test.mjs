@@ -344,6 +344,17 @@ test('conti song drawer uses wide controlled sheet music preview instead of nest
   assert.match(gallerySource, /onFocus=\{\(\) => \{/);
   assert.match(gallerySource, /group-focus-within:opacity-100/);
 
+  assert.match(arrangementSource, /function renderSheetMusicWorkspace/);
+  assert.match(arrangementSource, /data-slot="sheet-music-workspace"/);
+  assert.match(arrangementSource, /hidden min-w-0 md:block/);
+  assert.match(arrangementSource, /renderSheetMusicWorkspace\(\{ mobile: false \}\)/);
+  assert.match(arrangementSource, /renderSheetMusicWorkspace\(\{ mobile: true \}\)/);
+  assert.match(arrangementSource, /SheetMusicSelector/);
+  assert.match(arrangementSource, /sheetMusicManagementSlot/);
+  assert.doesNotMatch(arrangementSource, /space-y-4 border-t pt-8/);
+  assert.match(contiSongEditorSource, /sheetMusicManagementSlot=\{\s*<div className="space-y-4">/);
+  assert.doesNotMatch(contiSongEditorSource, /space-y-4 rounded-lg border bg-background\/50 p-4/);
+
   assert.match(arrangementTypesSource, /sheetMusicPreviewItem\?: SheetMusicPreviewItem \| null/);
   assert.match(arrangementSource, /SheetMusicPreviewPane/);
   assert.match(arrangementSource, /hasDrawerPreview/);
