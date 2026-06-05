@@ -378,3 +378,60 @@ test('conti song drawer uses wide controlled sheet music preview instead of nest
   assert.match(contiSongEditorSource, /onPreviewChange=\{setSheetMusicPreviewItem\}/);
   assert.match(contiSongEditorSource, /sheetMusicPreviewItem=\{sheetMusicPreviewItem\}/);
 });
+
+test('sheet music lyrics generator uses Gemini images and appends generated pages', async () => {
+  const lyricsEditorSource = await readFile(
+    new URL('../components/contis/lyrics-editor.tsx', import.meta.url),
+    'utf8',
+  );
+  const generatorSource = await readFile(
+    new URL('../components/contis/sheet-music-lyrics-generator-dialog.tsx', import.meta.url),
+    'utf8',
+  );
+  const imageHelperSource = await readFile(
+    new URL('../lib/utils/sheet-music-lyrics-images.ts', import.meta.url),
+    'utf8',
+  );
+  const actionSource = await readFile(
+    new URL('../lib/actions/sheet-music-lyrics.ts', import.meta.url),
+    'utf8',
+  );
+  const actionConfigSource = await readFile(
+    new URL('../lib/actions/sheet-music-lyrics-config.ts', import.meta.url),
+    'utf8',
+  );
+  const envExample = await readFile(
+    new URL('../.env.example', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(lyricsEditorSource, /SheetMusicLyricsGeneratorDialog/);
+  assert.match(lyricsEditorSource, /가사 자동 생성/);
+  assert.match(lyricsEditorSource, /setLyrics\(prev => \[\.\.\.prev, \.\.\.generatedPages\]\)/);
+  assert.doesNotMatch(lyricsEditorSource, /setLyrics\(generatedPages\)/);
+
+  assert.match(generatorSource, /generateLyricsFromSheetMusicImages/);
+  assert.match(generatorSource, /buildSheetMusicLyricsImagePages/);
+  assert.match(generatorSource, /overlayClassName="z-\[70\]"/);
+  assert.match(generatorSource, /className="z-\[70\][^"]*flex[^"]*max-h-\[85vh\][^"]*flex-col/);
+  assert.match(generatorSource, /가사에 추가/);
+  assert.doesNotMatch(generatorSource, /sectionOrder/);
+  assert.doesNotMatch(generatorSource, /sectionLyricsMap/);
+
+  assert.match(imageHelperSource, /'use client'/);
+  assert.match(imageHelperSource, /getPdfPageCount/);
+  assert.match(imageHelperSource, /renderPdfPagesToDataUrls/);
+  assert.match(imageHelperSource, /for \(let pageNumber = 1; pageNumber <= pageCount; pageNumber\+\+\)/);
+  assert.match(imageHelperSource, /renderPdfPagesToDataUrls\(\s*assetUrl,\s*\[pageNumber\],\s*2,/);
+  assert.match(imageHelperSource, /toDataURL\('image\/jpeg', GEMINI_LYRICS_IMAGE_JPEG_QUALITY\)/);
+
+  assert.match(actionConfigSource, /DEFAULT_GEMINI_LYRICS_MODEL = 'gemini-3-pro-preview'/);
+  assert.match(actionSource, /DEFAULT_GEMINI_LYRICS_MODEL/);
+  assert.match(actionSource, /responseMimeType: 'application\/json'/);
+  assert.match(actionSource, /responseJsonSchema/);
+  assert.match(actionSource, /inline_data/);
+  assert.doesNotMatch(actionSource, /file_data:\s*\{[\s\S]*application\/pdf/);
+
+  assert.match(envExample, /GEMINI_API_KEY/);
+  assert.match(envExample, /GEMINI_LYRICS_MODEL=gemini-3-pro-preview/);
+});
