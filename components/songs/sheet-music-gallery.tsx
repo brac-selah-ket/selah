@@ -9,6 +9,10 @@ import { deleteSheetMusic } from '@/lib/actions/sheet-music';
 import { getSheetMusicAssetUrl } from '@/lib/sheet-music-assets';
 import { getPdfPageCount, renderPdfPagesToDataUrls } from '@/lib/utils/pdfjs';
 import {
+  getSheetMusicPreviewKey,
+  type SheetMusicPreviewItem,
+} from '@/components/shared/sheet-music-preview';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -32,78 +36,148 @@ interface SheetMusicGalleryProps {
   editable?: boolean;
   songId?: string;
   onDeleted?: (fileId: string) => void;
+  previewMode?: "dialog" | "controlled";
+  onPreviewChange?: (item: SheetMusicPreviewItem | null) => void;
 }
 
-interface GalleryItem {
-  file: SheetMusicFile;
-  /** For images: the file URL. For PDF pages: a rendered data URL. */
-  thumbnailUrl: string | null;
-  /** 1-based page number for PDF pages, null for images */
-  pdfPage: number | null;
-  /** Total pages in the PDF (for display), null for images */
-  pdfTotalPages: number | null;
-}
-
-export function SheetMusicGallery({ files, editable = false, onDeleted }: SheetMusicGalleryProps) {
-  const [items, setItems] = useState<GalleryItem[]>([]);
-  const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
+export function SheetMusicGallery({
+  files,
+  editable = false,
+  onDeleted,
+  previewMode = "dialog",
+  onPreviewChange,
+}: SheetMusicGalleryProps) {
+  const [items, setItems] = useState<SheetMusicPreviewItem[]>([]);
+  const [selectedItem, setSelectedItem] = useState<SheetMusicPreviewItem | null>(null);
   const [hoveredFileId, setHoveredFileId] = useState<string | null>(null);
+  const previewChangeRef = useRef(onPreviewChange);
+  const selectedPreviewKeyRef = useRef<string | null>(null);
 
   // Stable key derived from file IDs to avoid re-running effects on parent re-renders
   const filesKey = useMemo(() => files.map((f) => f.id).join(','), [files]);
   const filesRef = useRef(files);
   useEffect(() => { filesRef.current = files; }, [files]);
 
+  useEffect(() => {
+    previewChangeRef.current = onPreviewChange;
+  }, [onPreviewChange]);
+
+  const handlePreview = (item: SheetMusicPreviewItem) => {
+    if (previewMode === "controlled") {
+      selectedPreviewKeyRef.current = getSheetMusicPreviewKey(item);
+      setSelectedItem(item);
+      previewChangeRef.current?.(item);
+      return;
+    }
+
+    setSelectedItem(item);
+  };
+
   // Build gallery items and render PDF thumbnails in one pass per PDF
   useEffect(() => {
     let cancelled = false;
     const currentFiles = filesRef.current;
 
+    const syncControlledPreview = (nextItems: SheetMusicPreviewItem[]) => {
+      if (previewMode !== "controlled") return;
+
+      const selectedKey = selectedPreviewKeyRef.current;
+      const nextSelectedItem = selectedKey
+        ? nextItems.find((item) => getSheetMusicPreviewKey(item) === selectedKey)
+        : nextItems[0];
+
+      if (!nextSelectedItem) {
+        selectedPreviewKeyRef.current = null;
+        setSelectedItem(null);
+      } else {
+        selectedPreviewKeyRef.current = getSheetMusicPreviewKey(nextSelectedItem);
+        setSelectedItem(nextSelectedItem);
+      }
+      previewChangeRef.current?.(nextSelectedItem ?? null);
+    };
+
     async function buildItems() {
-      const result: GalleryItem[] = [];
+      const result: SheetMusicPreviewItem[] = [];
 
       for (const file of currentFiles) {
         const assetUrl = getSheetMusicAssetUrl(file);
         if (file.fileType.startsWith('image/')) {
-          result.push({ file, thumbnailUrl: assetUrl, pdfPage: null, pdfTotalPages: null });
+          result.push({
+            file,
+            thumbnailUrl: assetUrl,
+            pdfPage: null,
+            pdfTotalPages: null,
+            previewState: "ready",
+          });
         } else if (file.fileType === 'application/pdf') {
           try {
             const pageCount = await getPdfPageCount(assetUrl);
             // Placeholder items so the grid appears immediately
             const startIdx = result.length;
             for (let p = 1; p <= pageCount; p++) {
-              result.push({ file, thumbnailUrl: null, pdfPage: p, pdfTotalPages: pageCount });
+              result.push({
+                file,
+                thumbnailUrl: null,
+                pdfPage: p,
+                pdfTotalPages: pageCount,
+                previewState: "loading",
+              });
             }
-            if (!cancelled) setItems([...result]);
+            if (!cancelled) {
+              const nextItems = [...result];
+              setItems(nextItems);
+              syncControlledPreview(nextItems);
+            }
 
             // Render all pages from this PDF in one document open
             const pageNums = Array.from({ length: pageCount }, (_, i) => i + 1);
             const dataUrls = await renderPdfPagesToDataUrls(assetUrl, pageNums, 1);
             if (!cancelled) {
               for (let p = 0; p < dataUrls.length; p++) {
-                result[startIdx + p] = { ...result[startIdx + p], thumbnailUrl: dataUrls[p] };
+                result[startIdx + p] = {
+                  ...result[startIdx + p],
+                  thumbnailUrl: dataUrls[p],
+                  previewState: "ready",
+                };
               }
-              setItems([...result]);
+              const nextItems = [...result];
+              setItems(nextItems);
+              syncControlledPreview(nextItems);
             }
           } catch (err) {
             console.error('[SheetMusicGallery] Failed to load PDF:', err);
-            result.push({ file, thumbnailUrl: null, pdfPage: null, pdfTotalPages: null });
+            result.push({
+              file,
+              thumbnailUrl: null,
+              pdfPage: null,
+              pdfTotalPages: null,
+              previewState: "unavailable",
+              previewMessage: "PDF 미리보기를 불러올 수 없습니다.",
+            });
           }
         }
       }
 
-      if (!cancelled) setItems(result);
+      if (!cancelled) {
+        setItems(result);
+        syncControlledPreview(result);
+      }
     }
 
     buildItems();
     return () => { cancelled = true; };
-  }, [filesKey]);
+  }, [filesKey, previewMode]);
 
   const handleDelete = async (fileId: string) => {
     const result = await deleteSheetMusic(fileId);
 
     if (result.success) {
       toast('악보가 삭제되었습니다');
+      if (previewMode === "controlled" && selectedItem?.file.id === fileId) {
+        selectedPreviewKeyRef.current = null;
+        setSelectedItem(null);
+        previewChangeRef.current?.(null);
+      }
       onDeleted?.(fileId);
     } else {
       toast.error(result.error);
@@ -115,13 +189,18 @@ export function SheetMusicGallery({ files, editable = false, onDeleted }: SheetM
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         {items.map((item) => (
           <div
-            key={`${item.file.id}-${item.pdfPage ?? 'img'}`}
+            key={getSheetMusicPreviewKey(item)}
             className="relative group"
-            onMouseEnter={() => setHoveredFileId(`${item.file.id}-${item.pdfPage}`)}
+            onMouseEnter={() => {
+              setHoveredFileId(getSheetMusicPreviewKey(item));
+              if (previewMode === "controlled") {
+                handlePreview(item);
+              }
+            }}
             onMouseLeave={() => setHoveredFileId(null)}
           >
             <div
-              onClick={() => setSelectedItem(item)}
+              onClick={() => handlePreview(item)}
               className="cursor-pointer rounded-lg overflow-hidden border hover:border-primary/50 transition-colors"
             >
               {item.thumbnailUrl ? (
@@ -142,7 +221,7 @@ export function SheetMusicGallery({ files, editable = false, onDeleted }: SheetM
               )}
             </div>
 
-            {editable && hoveredFileId === `${item.file.id}-${item.pdfPage}` && (
+            {editable && hoveredFileId === getSheetMusicPreviewKey(item) && (
               <AlertDialog>
                 <AlertDialogTrigger
                   render={
@@ -178,25 +257,27 @@ export function SheetMusicGallery({ files, editable = false, onDeleted }: SheetM
         ))}
       </div>
 
-      <Dialog open={!!selectedItem} onOpenChange={(open) => !open && setSelectedItem(null)}>
-        <DialogContent className="max-w-5xl">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedItem?.file.fileName}
-              {selectedItem?.pdfPage != null && ` - ${selectedItem.pdfPage}페이지`}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="mt-6">
-            {selectedItem && selectedItem.thumbnailUrl && (
-              <img
-                src={selectedItem.thumbnailUrl}
-                alt={selectedItem.file.fileName}
-                className="max-h-[80vh] w-auto mx-auto"
-              />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {previewMode === "dialog" && (
+        <Dialog open={!!selectedItem} onOpenChange={(open) => !open && setSelectedItem(null)}>
+          <DialogContent size="xl">
+            <DialogHeader>
+              <DialogTitle>
+                {selectedItem?.file.fileName}
+                {selectedItem?.pdfPage != null && ` - ${selectedItem.pdfPage}페이지`}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="mt-6">
+              {selectedItem && selectedItem.thumbnailUrl && (
+                <img
+                  src={selectedItem.thumbnailUrl}
+                  alt={selectedItem.file.fileName}
+                  className="mx-auto max-h-[80vh] w-auto"
+                />
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
