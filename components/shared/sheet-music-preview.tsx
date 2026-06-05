@@ -8,6 +8,8 @@ export interface SheetMusicPreviewItem {
   thumbnailUrl: string | null
   pdfPage: number | null
   pdfTotalPages: number | null
+  previewState?: "loading" | "ready" | "unavailable"
+  previewMessage?: string
 }
 
 export function getSheetMusicPreviewKey(item: SheetMusicPreviewItem) {
@@ -22,18 +24,29 @@ export function getSheetMusicPreviewLabel(item: SheetMusicPreviewItem) {
   return item.file.fileName
 }
 
+function getSheetMusicPreviewStatusMessage(item: SheetMusicPreviewItem) {
+  if (item.previewState === "unavailable") {
+    return item.previewMessage ?? "미리볼 수 있는 악보가 없습니다."
+  }
+
+  return item.previewMessage ?? "악보 불러오는 중..."
+}
+
 interface SheetMusicPreviewPaneProps {
   item: SheetMusicPreviewItem | null
   className?: string
+  imageClassName?: string
 }
 
 export function SheetMusicPreviewPane({
   item,
   className,
+  imageClassName,
 }: SheetMusicPreviewPaneProps) {
   return (
     <section
       data-slot="sheet-music-preview-pane"
+      aria-label="악보 미리보기"
       className={cn(
         "rounded-lg border bg-background/70 p-3",
         className,
@@ -56,11 +69,16 @@ export function SheetMusicPreviewPane({
               <img
                 src={item.thumbnailUrl}
                 alt={getSheetMusicPreviewLabel(item)}
-                className="mx-auto h-auto max-h-[calc(100vh-12rem)] w-auto max-w-full object-contain"
+                className={cn(
+                  "mx-auto h-auto max-h-[calc(100vh-12rem)] w-auto max-w-full object-contain",
+                  imageClassName,
+                )}
               />
             ) : (
               <div className="flex aspect-[1/1.414] w-full items-center justify-center bg-muted">
-                <span className="text-sm text-muted-foreground">악보 불러오는 중...</span>
+                <span className="text-sm text-muted-foreground">
+                  {getSheetMusicPreviewStatusMessage(item)}
+                </span>
               </div>
             )}
           </div>
