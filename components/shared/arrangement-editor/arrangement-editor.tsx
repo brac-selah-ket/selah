@@ -445,6 +445,7 @@ export function ArrangementEditor({
 
             <OverrideEditorFields
               key={editorKey}
+              songName={songName}
               keys={draft.keys}
               tempos={draft.tempos}
               sectionOrder={draft.sectionOrder}

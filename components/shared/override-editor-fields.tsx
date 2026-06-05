@@ -8,6 +8,7 @@ import { SectionLyricsMapper } from "@/components/contis/section-lyrics-mapper"
 import type { SheetMusicFile } from "@/lib/types"
 
 interface OverrideEditorFieldsProps {
+  songName?: string
   keys: string[]
   tempos: number[]
   sectionOrder: string[]
@@ -23,6 +24,7 @@ interface OverrideEditorFieldsProps {
 }
 
 export function OverrideEditorFields({
+  songName,
   keys,
   tempos,
   sectionOrder,
@@ -63,6 +65,7 @@ export function OverrideEditorFields({
             initialLyrics={lyrics}
             onChange={onLyricsChange}
             sheetMusicFiles={sheetMusicFiles}
+            songName={songName}
           />
         </div>
         <SectionLyricsMapper
