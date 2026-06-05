@@ -273,3 +273,108 @@ test('worship pptx export guards stale drawer and scripture preview async result
   assert.match(source, /disabled=\{isPending \|\| pptxTextDrawerOpen\}/);
   assert.match(source, /disabled=\{isPending \|\| pptxTextLoading \|\| pptxTextDrawerOpen\}/);
 });
+
+test('conti song drawer uses wide controlled sheet music preview instead of nested preview dialog', async () => {
+  const dialogSource = await readFile(
+    new URL('../components/ui/dialog.tsx', import.meta.url),
+    'utf8',
+  );
+  const drawerContextSource = await readFile(
+    new URL('../components/ui/drawer-context.tsx', import.meta.url),
+    'utf8',
+  );
+  const drawerSource = await readFile(
+    new URL('../components/ui/drawer.tsx', import.meta.url),
+    'utf8',
+  );
+  const appShellSource = await readFile(
+    new URL('../components/layout/app-shell.tsx', import.meta.url),
+    'utf8',
+  );
+  const previewSource = await readFile(
+    new URL('../components/shared/sheet-music-preview.tsx', import.meta.url),
+    'utf8',
+  );
+  const gallerySource = await readFile(
+    new URL('../components/songs/sheet-music-gallery.tsx', import.meta.url),
+    'utf8',
+  );
+  const arrangementTypesSource = await readFile(
+    new URL('../components/shared/arrangement-editor/types.ts', import.meta.url),
+    'utf8',
+  );
+  const arrangementSource = await readFile(
+    new URL('../components/shared/arrangement-editor/arrangement-editor.tsx', import.meta.url),
+    'utf8',
+  );
+  const contiSongEditorSource = await readFile(
+    new URL('../components/contis/conti-song-editor.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(dialogSource, /type DialogContentSize = "sm" \| "md" \| "lg" \| "xl" \| "full"/);
+  assert.match(dialogSource, /size = "sm"/);
+  assert.match(dialogSource, /data-size=\{size\}/);
+  assert.match(dialogSource, /dialogContentSizeClassName\[size\]/);
+
+  assert.match(drawerContextSource, /export type DrawerSize = "default" \| "wide"/);
+  assert.match(drawerContextSource, /drawerSize/);
+  assert.match(drawerContextSource, /setDrawerSize/);
+  assert.match(drawerSource, /size = "default"/);
+  assert.match(drawerSource, /setDrawerSize\(open \? size : "default"\)/);
+  assert.match(appShellSource, /drawerSize === "wide"/);
+  assert.match(appShellSource, /md:w-\[min\(1040px,calc\(100vw-11\.25rem\)\)\]/);
+
+  assert.match(previewSource, /export interface SheetMusicPreviewItem/);
+  assert.match(previewSource, /previewState: "loading" \| "ready" \| "unavailable"/);
+  assert.doesNotMatch(previewSource, /previewState\?:/);
+  assert.match(previewSource, /item\.previewState === "ready" && item\.thumbnailUrl/);
+  assert.doesNotMatch(previewSource, /\{item\.thumbnailUrl \? \(/);
+  assert.match(previewSource, /export function SheetMusicPreviewPane/);
+  assert.match(previewSource, /data-slot="sheet-music-preview-pane"/);
+
+  assert.match(gallerySource, /previewMode = "dialog"/);
+  assert.match(gallerySource, /previewMode\?: "dialog" \| "controlled"/);
+  assert.match(gallerySource, /onPreviewChange\?: \(item: SheetMusicPreviewItem \| null\) => void/);
+  assert.match(gallerySource, /previewMode === "controlled"/);
+  assert.match(gallerySource, /previewMode === "dialog" &&/);
+  assert.match(gallerySource, /<DialogContent size="xl"/);
+  assert.doesNotMatch(gallerySource, /hoveredFileId/);
+  assert.match(gallerySource, /<button\s+type="button"/);
+  assert.match(gallerySource, /onFocus=\{\(\) => \{/);
+  assert.match(gallerySource, /group-focus-within:opacity-100/);
+
+  assert.match(arrangementSource, /function renderSheetMusicWorkspace/);
+  assert.match(arrangementSource, /data-slot="sheet-music-workspace"/);
+  assert.match(
+    arrangementSource,
+    /const hasSheetMusicWorkspace = availableSheetMusic\.length > 0 \|\| Boolean\(sheetMusicManagementSlot\)/,
+  );
+  assert.match(
+    arrangementSource,
+    /const hasDrawerPreview = mode === "conti-song" && hasSheetMusicWorkspace/,
+  );
+  assert.doesNotMatch(
+    arrangementSource,
+    /const hasDrawerPreview = mode === "conti-song" && availableSheetMusic\.length > 0/,
+  );
+  assert.match(arrangementSource, /md:col-start-1 md:row-start-1/);
+  assert.doesNotMatch(arrangementSource, /renderSheetMusicWorkspace\(\{ mobile:/);
+  assert.equal((arrangementSource.match(/\{renderSheetMusicWorkspace\(\)\}/g) ?? []).length, 1);
+  assert.match(arrangementSource, /SheetMusicSelector/);
+  assert.match(arrangementSource, /sheetMusicManagementSlot/);
+  assert.doesNotMatch(arrangementSource, /space-y-4 border-t pt-8/);
+  assert.match(contiSongEditorSource, /sheetMusicManagementSlot=\{\s*<div className="space-y-4">/);
+  assert.doesNotMatch(contiSongEditorSource, /space-y-4 rounded-lg border bg-background\/50 p-4/);
+
+  assert.match(arrangementTypesSource, /sheetMusicPreviewItem\?: SheetMusicPreviewItem \| null/);
+  assert.match(arrangementSource, /SheetMusicPreviewPane/);
+  assert.match(arrangementSource, /hasDrawerPreview/);
+  assert.match(arrangementSource, /size=\{hasDrawerPreview \? "wide" : "default"\}/);
+  assert.match(arrangementSource, /md:grid-cols-\[minmax\(320px,0\.9fr\)_minmax\(360px,1fr\)\]/);
+
+  assert.match(contiSongEditorSource, /useState<SheetMusicPreviewItem \| null>\(null\)/);
+  assert.match(contiSongEditorSource, /previewMode="controlled"/);
+  assert.match(contiSongEditorSource, /onPreviewChange=\{setSheetMusicPreviewItem\}/);
+  assert.match(contiSongEditorSource, /sheetMusicPreviewItem=\{sheetMusicPreviewItem\}/);
+});
