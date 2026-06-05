@@ -8,7 +8,7 @@ export interface SheetMusicPreviewItem {
   thumbnailUrl: string | null
   pdfPage: number | null
   pdfTotalPages: number | null
-  previewState?: "loading" | "ready" | "unavailable"
+  previewState: "loading" | "ready" | "unavailable"
   previewMessage?: string
 }
 
@@ -25,11 +25,14 @@ export function getSheetMusicPreviewLabel(item: SheetMusicPreviewItem) {
 }
 
 function getSheetMusicPreviewStatusMessage(item: SheetMusicPreviewItem) {
-  if (item.previewState === "unavailable") {
-    return item.previewMessage ?? "미리볼 수 있는 악보가 없습니다."
+  switch (item.previewState) {
+    case "loading":
+      return item.previewMessage ?? "악보 불러오는 중..."
+    case "ready":
+      return item.previewMessage ?? "미리보기를 표시할 수 없습니다."
+    case "unavailable":
+      return item.previewMessage ?? "미리볼 수 있는 악보가 없습니다."
   }
-
-  return item.previewMessage ?? "악보 불러오는 중..."
 }
 
 interface SheetMusicPreviewPaneProps {
@@ -43,6 +46,10 @@ export function SheetMusicPreviewPane({
   className,
   imageClassName,
 }: SheetMusicPreviewPaneProps) {
+  const hasPreviewImage = item
+    ? item.previewState === "ready" && item.thumbnailUrl
+    : false
+
   return (
     <section
       data-slot="sheet-music-preview-pane"
@@ -65,7 +72,7 @@ export function SheetMusicPreviewPane({
             )}
           </div>
           <div className="overflow-hidden rounded-md border bg-muted/20">
-            {item.thumbnailUrl ? (
+            {hasPreviewImage ? (
               <img
                 src={item.thumbnailUrl}
                 alt={getSheetMusicPreviewLabel(item)}
