@@ -114,6 +114,7 @@ export function ArrangementEditor({
 
   const showYouTubeReferenceField = shouldShowYouTubeReferenceField(mode)
   const hasDrawerPreview = mode === "conti-song" && availableSheetMusic.length > 0
+  const hasSheetMusicWorkspace = availableSheetMusic.length > 0 || Boolean(sheetMusicManagementSlot)
 
   function pruneUnavailableSheetMusicIds(draftToPrune: ArrangementDraft): ArrangementDraft {
     if (draftToPrune.sheetMusicFileIds === null || allSheetMusicIds.length === 0) {
@@ -312,6 +313,46 @@ export function ArrangementEditor({
     markDirty()
   }
 
+  function renderSheetMusicWorkspace({ mobile }: { mobile: boolean }) {
+    if (!hasSheetMusicWorkspace) return null
+
+    return (
+      <section
+        data-slot="sheet-music-workspace"
+        className={cn(
+          "space-y-4",
+          mobile ? "md:hidden" : "hidden min-w-0 md:block",
+        )}
+      >
+        <div className="space-y-1">
+          <h3 className="text-base font-medium">악보</h3>
+          <p className="text-sm text-muted-foreground">
+            PDF 내보내기에 포함할 악보를 선택하세요.
+          </p>
+        </div>
+
+        <SheetMusicPreviewPane
+          item={sheetMusicPreviewItem ?? null}
+          className={cn(
+            !mobile && "sticky top-0 max-h-[calc(100vh-10rem)] overflow-y-auto",
+          )}
+          imageClassName={mobile ? "max-h-[70vh]" : undefined}
+        />
+
+        {sheetMusicManagementSlot}
+
+        {availableSheetMusic.length > 0 && (
+          <SheetMusicSelector
+            songId={songId}
+            selectedFileIds={selectorFileIds}
+            onSelectionChange={(ids) => updateDraft({ sheetMusicFileIds: ids })}
+            availableFiles={availableSheetMusic}
+          />
+        )}
+      </section>
+    )
+  }
+
   return (
     <>
       <Drawer
@@ -346,10 +387,7 @@ export function ArrangementEditor({
         >
           {hasDrawerPreview && (
             <div className="hidden min-w-0 md:block">
-              <SheetMusicPreviewPane
-                item={sheetMusicPreviewItem ?? null}
-                className="sticky top-0 max-h-[calc(100vh-10rem)] overflow-y-auto"
-              />
+              {renderSheetMusicWorkspace({ mobile: false })}
             </div>
           )}
 
@@ -431,46 +469,9 @@ export function ArrangementEditor({
               onNotesChange={(notes) => updateDraft({ notes })}
             />
 
-            {(availableSheetMusic.length > 0 || sheetMusicManagementSlot) && (
-              <div className="space-y-4 border-t pt-8">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-base font-medium">악보</h3>
-                    <p className="text-sm text-muted-foreground">
-                      PDF 내보내기에 포함할 악보를 선택하세요.
-                    </p>
-                  </div>
-                  {mode === "preset" && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPdfEditorOpen(true)}
-                      disabled={selectedSheetMusic.length === 0}
-                    >
-                      PDF 편집
-                    </Button>
-                  )}
-                </div>
-
-                {hasDrawerPreview && (
-                  <SheetMusicPreviewPane
-                    item={sheetMusicPreviewItem ?? null}
-                    className="md:hidden"
-                    imageClassName="max-h-[70vh]"
-                  />
-                )}
-
-                {sheetMusicManagementSlot}
-
-                {availableSheetMusic.length > 0 && (
-                  <SheetMusicSelector
-                    songId={songId}
-                    selectedFileIds={selectorFileIds}
-                    onSelectionChange={(ids) => updateDraft({ sheetMusicFileIds: ids })}
-                    availableFiles={availableSheetMusic}
-                  />
-                )}
+            {hasSheetMusicWorkspace && (
+              <div className="border-t pt-8 md:hidden">
+                {renderSheetMusicWorkspace({ mobile: true })}
               </div>
             )}
 
