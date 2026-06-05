@@ -311,7 +311,7 @@ test("serializes page metadata as non-instruction JSON in the prompt", async () 
       assert.equal(result.success, true)
 
       const body = JSON.parse(String(calls[0].init.body))
-      const textParts = body.contents[0].parts
+      const textParts: string[] = body.contents[0].parts
         .map((part: { text?: string }) => part.text)
         .filter((text: string | undefined): text is string => Boolean(text))
       const prompt = textParts[0]
