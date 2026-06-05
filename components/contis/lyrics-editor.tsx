@@ -182,7 +182,7 @@ export function LyricsEditor({
     <div className="space-y-4">
       <div className="space-y-2">
         <div className="text-base font-medium">가사 페이지</div>
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {sheetMusicFiles && sheetMusicFiles.length > 0 && (
             <>
               <Button size="xs" variant="outline" onClick={() => setOcrOpen(true)}>

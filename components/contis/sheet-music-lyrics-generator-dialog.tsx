@@ -121,7 +121,11 @@ export function SheetMusicLyricsGeneratorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg" className="max-h-[85vh] overflow-hidden">
+      <DialogContent
+        size="lg"
+        overlayClassName="z-[70]"
+        className="z-[70] flex max-h-[85vh] flex-col overflow-hidden"
+      >
         <DialogHeader>
           <DialogTitle>가사 자동 생성</DialogTitle>
           <DialogDescription>
@@ -182,7 +186,7 @@ export function SheetMusicLyricsGeneratorDialog({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             닫기
           </Button>
