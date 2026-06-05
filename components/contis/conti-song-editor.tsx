@@ -104,7 +104,10 @@ export function ContiSongEditor({
   const [songSheetMusic, setSongSheetMusic] = useState<SheetMusicFile[]>([])
   const [sheetMusicPreviewItem, setSheetMusicPreviewItem] = useState<SheetMusicPreviewItem | null>(null)
   const currentSongIdRef = useRef(contiSong.songId)
-  currentSongIdRef.current = contiSong.songId
+
+  useEffect(() => {
+    currentSongIdRef.current = contiSong.songId
+  }, [contiSong.songId])
 
   const refreshPresets = useCallback(async () => {
     const songId = contiSong.songId
@@ -145,12 +148,32 @@ export function ContiSongEditor({
   }, [open, refreshSheetMusic])
 
   useEffect(() => {
-    setSheetMusicPreviewItem(null)
+    let cancelled = false
+
+    void Promise.resolve().then(() => {
+      if (!cancelled) {
+        setSheetMusicPreviewItem(null)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [contiSong.songId])
 
   useEffect(() => {
     if (!open) {
-      setSheetMusicPreviewItem(null)
+      let cancelled = false
+
+      void Promise.resolve().then(() => {
+        if (!cancelled) {
+          setSheetMusicPreviewItem(null)
+        }
+      })
+
+      return () => {
+        cancelled = true
+      }
     }
   }, [open])
 
