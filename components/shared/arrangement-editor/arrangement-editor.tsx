@@ -113,8 +113,8 @@ export function ArrangementEditor({
   }, [availableSheetMusic, draft.sheetMusicFileIds])
 
   const showYouTubeReferenceField = shouldShowYouTubeReferenceField(mode)
-  const hasDrawerPreview = mode === "conti-song" && availableSheetMusic.length > 0
   const hasSheetMusicWorkspace = availableSheetMusic.length > 0 || Boolean(sheetMusicManagementSlot)
+  const hasDrawerPreview = mode === "conti-song" && hasSheetMusicWorkspace
 
   function pruneUnavailableSheetMusicIds(draftToPrune: ArrangementDraft): ArrangementDraft {
     if (draftToPrune.sheetMusicFileIds === null || allSheetMusicIds.length === 0) {
@@ -313,17 +313,11 @@ export function ArrangementEditor({
     markDirty()
   }
 
-  function renderSheetMusicWorkspace({ mobile }: { mobile: boolean }) {
+  function renderSheetMusicWorkspace() {
     if (!hasSheetMusicWorkspace) return null
 
     return (
-      <section
-        data-slot="sheet-music-workspace"
-        className={cn(
-          "space-y-4",
-          mobile ? "md:hidden" : "hidden min-w-0 md:block",
-        )}
-      >
+      <section data-slot="sheet-music-workspace" className="space-y-4">
         <div className="space-y-1">
           <h3 className="text-base font-medium">악보</h3>
           <p className="text-sm text-muted-foreground">
@@ -333,10 +327,7 @@ export function ArrangementEditor({
 
         <SheetMusicPreviewPane
           item={sheetMusicPreviewItem ?? null}
-          className={cn(
-            !mobile && "sticky top-0 max-h-[calc(100vh-10rem)] overflow-y-auto",
-          )}
-          imageClassName={mobile ? "max-h-[70vh]" : undefined}
+          imageClassName="max-h-[70vh]"
         />
 
         {sheetMusicManagementSlot}
@@ -385,13 +376,12 @@ export function ArrangementEditor({
               "md:grid md:grid-cols-[minmax(320px,0.9fr)_minmax(360px,1fr)] md:gap-8",
           )}
         >
-          {hasDrawerPreview && (
-            <div className="hidden min-w-0 md:block">
-              {renderSheetMusicWorkspace({ mobile: false })}
-            </div>
-          )}
-
-          <div className="min-w-0 space-y-8">
+          <div
+            className={cn(
+              "min-w-0 space-y-8",
+              hasDrawerPreview && "md:col-start-2 md:row-start-1",
+            )}
+          >
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-muted-foreground">곡</p>
@@ -469,12 +459,6 @@ export function ArrangementEditor({
               onNotesChange={(notes) => updateDraft({ notes })}
             />
 
-            {hasSheetMusicWorkspace && (
-              <div className="border-t pt-8 md:hidden">
-                {renderSheetMusicWorkspace({ mobile: true })}
-              </div>
-            )}
-
             {mode === "preset" && (
               <div className="flex items-center gap-3">
                 <input
@@ -542,6 +526,18 @@ export function ArrangementEditor({
               </div>
             )}
           </div>
+
+          {hasSheetMusicWorkspace && (
+            <div
+              className={cn(
+                "min-w-0 border-t pt-8",
+                hasDrawerPreview &&
+                  "md:sticky md:top-0 md:col-start-1 md:row-start-1 md:max-h-[calc(100vh-10rem)] md:overflow-y-auto md:border-t-0 md:pt-0",
+              )}
+            >
+              {renderSheetMusicWorkspace()}
+            </div>
+          )}
         </div>
       </Drawer>
 
