@@ -5,26 +5,15 @@ import { WorshipDateSelector } from '@/components/worship-prep/worship-date-sele
 import { WorshipPptxExportButton } from '@/components/worship-prep/worship-pptx-export-button';
 import { getWorshipPrepDetail } from '@/lib/queries/worship-prep';
 import { getConti, getContiByDate, getContis } from '@/lib/queries/contis';
+import { getDefaultWorshipPrepIsoDate } from '@/lib/worship-prep/default-date';
 
 export const dynamic = 'force-dynamic';
-
-function getNearestFutureSundayIsoDate(baseDate = new Date()): string {
-  const date = new Date(baseDate);
-  date.setHours(0, 0, 0, 0);
-  const day = date.getDay();
-  const diff = day === 0 ? 7 : 7 - day;
-  date.setDate(date.getDate() + diff);
-  const yyyy = `${date.getFullYear()}`;
-  const mm = `${date.getMonth() + 1}`.padStart(2, '0');
-  const dd = `${date.getDate()}`.padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
 
 function normalizeDate(value: string | undefined): string {
   if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return value;
   }
-  return getNearestFutureSundayIsoDate();
+  return getDefaultWorshipPrepIsoDate();
 }
 
 export default async function WorshipPrepPage({
@@ -42,7 +31,7 @@ export default async function WorshipPrepPage({
   const defaultConti = conti ? await getConti(conti.id) : null;
 
   return (
-    <div className='flex flex-col gap-6'>
+    <div className='flex flex-col gap-5'>
       <PageHeader title='예배 준비' description='가장 가까운 일요일 1주차를 기본으로 조회합니다'>
         {item && (
           <WorshipPptxExportButton
@@ -52,8 +41,10 @@ export default async function WorshipPrepPage({
           />
         )}
       </PageHeader>
-      <WorshipDateSelector selectedDate={selectedDate} />
-      <PrepAutomationPanel />
+      <div className='space-y-4'>
+        <WorshipDateSelector selectedDate={selectedDate} />
+        <PrepAutomationPanel />
+      </div>
       {!item ? (
         <div className='flex flex-col items-center justify-center py-12 text-center'>
           <p className='text-base text-muted-foreground'>선택한 주차 데이터가 없습니다</p>

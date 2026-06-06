@@ -644,7 +644,9 @@ export const neonStoryboardRepository: StoryboardRepository = {
           if (!appliedPresetOverrides) {
             throw new Error('PRESET_NOT_FOUND');
           }
-          await updateSongPresetYoutubeRef(db, item.presetId, item.videoId, item.title);
+          if (item.replaceExistingYoutube !== false) {
+            await updateSongPresetYoutubeRef(db, item.presetId, item.videoId, item.title);
+          }
           appliedPresetId = item.presetId;
         } else if (item.songId && item.createNewPreset) {
           const preset = await insertSongPreset(db, resolvedSongId, {

@@ -37,12 +37,14 @@ function getSheetMusicPreviewStatusMessage(item: SheetMusicPreviewItem) {
 
 interface SheetMusicPreviewPaneProps {
   item: SheetMusicPreviewItem | null
+  loading?: boolean
   className?: string
   imageClassName?: string
 }
 
 export function SheetMusicPreviewPane({
   item,
+  loading = false,
   className,
   imageClassName,
 }: SheetMusicPreviewPaneProps) {
@@ -89,6 +91,12 @@ export function SheetMusicPreviewPane({
               </div>
             )}
           </div>
+        </div>
+      ) : loading ? (
+        <div className="flex aspect-[1/1.414] items-center justify-center rounded-md border border-dashed bg-muted/20 px-6 text-center">
+          <span className="text-sm text-muted-foreground">
+            악보 불러오는 중...
+          </span>
         </div>
       ) : (
         <div className="flex aspect-[1/1.414] items-center justify-center rounded-md border border-dashed bg-muted/20 px-6 text-center">

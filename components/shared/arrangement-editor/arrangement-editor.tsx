@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useLayoutEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Drawer } from "@/components/ui/drawer"
 import { Button } from "@/components/ui/button"
@@ -23,9 +23,12 @@ import { SheetMusicSelector } from "@/components/shared/sheet-music-selector"
 import { SheetMusicPreviewPane } from "@/components/shared/sheet-music-preview"
 import { OverrideEditorFields } from "@/components/shared/override-editor-fields"
 import { PresetPdfEditor } from "@/components/songs/preset-pdf-editor"
-import { useUnsavedChanges } from "@/hooks/use-unsaved-changes"
 import { cn } from "@/lib/utils"
 import { normalizeYouTubeReference } from "@/lib/utils/youtube"
+import {
+  areArrangementDraftsEqual,
+  cloneDraft,
+} from "./dirty-state"
 import {
   getSheetMusicSelectionSaveError,
   shouldShowYouTubeReferenceField,
@@ -34,18 +37,6 @@ import type {
   ArrangementDraft,
   ArrangementEditorProps,
 } from "./types"
-
-function cloneDraft(draft: ArrangementDraft): ArrangementDraft {
-  return {
-    ...draft,
-    keys: [...draft.keys],
-    tempos: [...draft.tempos],
-    sectionOrder: [...draft.sectionOrder],
-    lyrics: [...draft.lyrics],
-    sectionLyricsMap: { ...draft.sectionLyricsMap },
-    sheetMusicFileIds: draft.sheetMusicFileIds ? [...draft.sheetMusicFileIds] : null,
-  }
-}
 
 function prepareDraftForSave(draft: ArrangementDraft): ArrangementDraft | null {
   const draftToSave = cloneDraft(draft)
@@ -76,6 +67,7 @@ export function ArrangementEditor({
   initialDraft,
   availableSheetMusic,
   sheetMusicPreviewItem,
+  sheetMusicLoading = false,
   sheetMusicWorkspacePreview = false,
   presetOptions = [],
   sheetMusicManagementSlot,
@@ -87,6 +79,7 @@ export function ArrangementEditor({
   onRefreshPresetOptions,
 }: ArrangementEditorProps) {
   const [draft, setDraft] = useState<ArrangementDraft>(() => cloneDraft(initialDraft))
+  const [initialDirtyDraft, setInitialDirtyDraft] = useState<ArrangementDraft>(() => cloneDraft(initialDraft))
   const [isSaving, setIsSaving] = useState(false)
   const [isPresetSaving, setIsPresetSaving] = useState(false)
   const [presetName, setPresetName] = useState("")
@@ -95,11 +88,14 @@ export function ArrangementEditor({
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
   const [editorKey, setEditorKey] = useState(0)
   const wasOpenRef = useRef(false)
-  const { isDirty, markDirty, reset: resetDirty } = useUnsavedChanges(initialDraft)
 
   const allSheetMusicIds = useMemo(
     () => availableSheetMusic.map((file) => file.id),
     [availableSheetMusic],
+  )
+  const isDirty = useMemo(
+    () => !areArrangementDraftsEqual(initialDirtyDraft, draft, allSheetMusicIds),
+    [allSheetMusicIds, draft, initialDirtyDraft],
   )
 
   const selectorFileIds = draft.sheetMusicFileIds ?? allSheetMusicIds
@@ -134,24 +130,23 @@ export function ArrangementEditor({
     return { ...draftToPrune, sheetMusicFileIds }
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (open && !wasOpenRef.current) {
       const nextDraft = cloneDraft(initialDraft)
       setDraft(nextDraft)
+      setInitialDirtyDraft(cloneDraft(nextDraft))
       setPresetName("")
       setSelectedPresetId("")
       setPdfEditorOpen(false)
       setShowUnsavedDialog(false)
       setEditorKey((key) => key + 1)
-      resetDirty(nextDraft)
     }
 
     wasOpenRef.current = open
-  }, [open, initialDraft, resetDirty])
+  }, [open, initialDraft])
 
   function updateDraft(patch: Partial<ArrangementDraft>) {
     setDraft((current) => ({ ...current, ...patch }))
-    markDirty()
   }
 
   function handleClose() {
@@ -187,8 +182,9 @@ export function ArrangementEditor({
       const result = await onSave(draftToSave)
       if (result.success) {
         toast.success(mode === "preset" ? "프리셋이 저장되었습니다" : "곡 설정이 저장되었습니다")
-        setDraft(cloneDraft(draftToSave))
-        resetDirty(draftToSave)
+        const savedDraft = cloneDraft(draftToSave)
+        setDraft(savedDraft)
+        setInitialDirtyDraft(cloneDraft(savedDraft))
         onOpenChange(false)
       } else {
         toast.error(result.error ?? "저장 중 오류가 발생했습니다")
@@ -212,7 +208,6 @@ export function ArrangementEditor({
       const loadedDraft = cloneDraft(await onLoadPreset(preset))
       setDraft(loadedDraft)
       setEditorKey((key) => key + 1)
-      markDirty()
       toast.success(`"${preset.name}" 프리셋을 불러왔습니다`)
     } catch {
       toast.error("프리셋을 불러올 수 없습니다")
@@ -245,8 +240,9 @@ export function ArrangementEditor({
       const result = await onSaveAsPreset(draftToSave, trimmedName, selectedPresetId || undefined)
       if (result.success) {
         toast.success(selectedPresetId ? "프리셋이 업데이트되었습니다" : "새 프리셋이 저장되었습니다")
-        setDraft(cloneDraft(draftToSave))
-        resetDirty(draftToSave)
+        const savedDraft = cloneDraft(draftToSave)
+        setDraft(savedDraft)
+        setInitialDirtyDraft(cloneDraft(savedDraft))
         setPresetName("")
         setSelectedPresetId("")
         await onRefreshPresetOptions?.()
@@ -311,7 +307,6 @@ export function ArrangementEditor({
       toast.info(`페이지 ${data.insertedAt + 1} 위치에 빈 페이지가 삽입되어 매핑이 조정되었습니다`)
     }
 
-    markDirty()
   }
 
   function renderSheetMusicWorkspace() {
@@ -328,6 +323,7 @@ export function ArrangementEditor({
 
         <SheetMusicPreviewPane
           item={sheetMusicPreviewItem ?? null}
+          loading={sheetMusicLoading}
           imageClassName="max-h-[70vh]"
         />
 
@@ -582,8 +578,10 @@ export function ArrangementEditor({
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
+                const nextDraft = cloneDraft(initialDraft)
+                setDraft(nextDraft)
+                setInitialDirtyDraft(cloneDraft(nextDraft))
                 setShowUnsavedDialog(false)
-                resetDirty()
                 onOpenChange(false)
               }}
             >

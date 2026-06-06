@@ -16,14 +16,6 @@ import { BrandMark } from "@/components/layout/brand-mark";
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const { portalRef, isOpen, drawerSize } = useDrawerPortal();
   const { setIsOpen: setNavOpen } = useMobileNav();
-  const drawerWidthClassName =
-    drawerSize === "wide"
-      ? "md:w-[min(1040px,calc(100vw-11.25rem))] xl:w-[min(1120px,calc(100vw-11.25rem))]"
-      : "md:w-[min(640px,76vw)] xl:w-[40%]";
-  const sizedDrawerStateClassName = isOpen ? cn("md:z-[60]", drawerWidthClassName) : "md:z-auto md:w-0 md:border-l-0";
-  const defaultDrawerStateClassName = isOpen ? "md:z-[60] md:w-[min(640px,76vw)] xl:w-[40%]" : "md:z-auto md:w-0 md:border-l-0";
-  const drawerStateClassName =
-    drawerSize === "wide" ? sizedDrawerStateClassName : defaultDrawerStateClassName;
 
   return (
     <div className="flex min-h-screen">
@@ -40,15 +32,16 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       <aside
         ref={portalRef}
         className={cn(
-          "shrink-0 flex flex-col bg-background overflow-hidden",
-          "fixed inset-x-0 bottom-0 h-[90vh] rounded-t-2xl shadow-xl",
-          "transition-transform duration-300 ease-in-out",
-          isOpen ? "z-[60]" : "z-50",
-          isOpen ? "translate-y-0" : "translate-y-full pointer-events-none",
-          "md:sticky md:inset-auto md:top-0 md:h-screen md:max-h-none md:rounded-none md:border-l md:shadow-none",
-          "md:transition-[width] md:duration-300 md:ease-in-out",
-          "md:translate-y-0 md:pointer-events-auto",
-          drawerStateClassName,
+          "fixed inset-x-0 bottom-0 z-[60] h-[90vh] overflow-hidden rounded-t-2xl bg-background shadow-xl",
+          "[transform:var(--drawer-transform)] transition-transform duration-300 ease-in-out",
+          isOpen
+            ? "[--drawer-transform:translateX(0)]"
+            : "[--drawer-transform:translateY(100%)] pointer-events-none md:[--drawer-transform:translateX(100%)]",
+          "md:inset-y-0 md:left-auto md:right-0 md:h-screen md:max-h-none md:rounded-none md:border-l",
+          drawerSize === "wide"
+            ? "md:w-[min(1040px,calc(100vw-13rem))] xl:w-[min(1120px,calc(100vw-13rem))]"
+            : "md:w-[min(640px,76vw)] xl:w-[40%]",
+          "md:transition-transform md:duration-300 md:ease-in-out",
         )}
       />
     </div>

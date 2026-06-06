@@ -1,14 +1,17 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { ArrangementEditor, type ArrangementDraft } from "@/components/shared/arrangement-editor"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
+import { ArrangementEditor } from "@/components/shared/arrangement-editor"
 import type { SheetMusicPreviewItem } from "@/components/shared/sheet-music-preview"
 import { SheetMusicGallery } from "@/components/songs/sheet-music-gallery"
 import { createSongPreset, updateSongPreset } from "@/lib/actions/song-presets"
-import { normalizeYouTubeReference, toYouTubeInputValue } from "@/lib/utils/youtube"
+import {
+  arrangementDraftToSongPresetData,
+  songPresetToDraft,
+} from "@/lib/utils/song-preset-draft"
 import type {
   SheetMusicFile,
-  SongPresetData,
   SongPresetWithSheetMusic,
 } from "@/lib/types"
 
@@ -20,72 +23,17 @@ interface PresetEditorProps {
   onOpenChange: (open: boolean) => void
 }
 
-function parseJsonField<T>(field: string | null, fallback: T): T {
-  if (!field) return fallback
-  try {
-    return JSON.parse(field) as T
-  } catch {
-    return fallback
-  }
-}
-
-function presetToDraft(preset: SongPresetWithSheetMusic | undefined): ArrangementDraft {
-  return {
-    name: preset?.name ?? "",
-    keys: parseJsonField<string[]>(preset?.keys ?? null, []),
-    tempos: parseJsonField<number[]>(preset?.tempos ?? null, []),
-    sectionOrder: parseJsonField<string[]>(preset?.sectionOrder ?? null, []),
-    lyrics: parseJsonField<string[]>(preset?.lyrics ?? null, []),
-    sectionLyricsMap: parseJsonField<Record<number, number[]>>(preset?.sectionLyricsMap ?? null, {}),
-    notes: preset?.notes ?? null,
-    sheetMusicFileIds: preset?.sheetMusicFileIds?.length ? preset.sheetMusicFileIds : null,
-    pdfMetadata: parseJsonField(preset?.pdfMetadata ?? null, null),
-    youtubeReference: toYouTubeInputValue(preset?.youtubeReference),
-    youtubeTitle: preset?.youtubeTitle ?? null,
-    isDefault: preset?.isDefault ?? false,
-    appliedPresetId: preset?.id ?? null,
-  }
-}
-
-function draftToPresetData(draft: ArrangementDraft): SongPresetData {
-  const normalized = draft.youtubeReference
-    ? normalizeYouTubeReference(draft.youtubeReference)
-    : null
-
-  return {
-    name: draft.name,
-    keys: draft.keys,
-    tempos: draft.tempos,
-    sectionOrder: draft.sectionOrder,
-    lyrics: draft.lyrics,
-    sectionLyricsMap: draft.sectionLyricsMap,
-    notes: draft.notes?.trim() || null,
-    isDefault: draft.isDefault,
-    // ArrangementEditor validates this before save, so this preserves the normalized video ID.
-    youtubeReference: normalized?.videoId ?? null,
-    youtubeTitle: normalized ? draft.youtubeTitle : null,
-    // Preset actions/DB use [] (no association rows) to mean all sheet music.
-    sheetMusicFileIds: draft.sheetMusicFileIds ?? [],
-    pdfMetadata: draft.pdfMetadata,
-  }
-}
-
 export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }: PresetEditorProps) {
+  const router = useRouter()
+  const initialDraft = songPresetToDraft(preset)
+  const [sheetMusicLoading, setSheetMusicLoading] = useState(false)
+  const [sheetMusicPreviewPrepared, setSheetMusicPreviewPrepared] = useState(false)
   const [sheetMusicPreviewItem, setSheetMusicPreviewItem] = useState<SheetMusicPreviewItem | null>(null)
+  const openRef = useRef(open)
 
-  useEffect(() => {
-    let cancelled = false
-
-    void Promise.resolve().then(() => {
-      if (!cancelled) {
-        setSheetMusicPreviewItem(null)
-      }
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [songId, preset?.id])
+  useLayoutEffect(() => {
+    openRef.current = open
+  }, [open])
 
   useEffect(() => {
     if (!open) {
@@ -93,6 +41,8 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
 
       void Promise.resolve().then(() => {
         if (!cancelled) {
+          setSheetMusicLoading(false)
+          setSheetMusicPreviewPrepared(false)
           setSheetMusicPreviewItem(null)
         }
       })
@@ -103,6 +53,47 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
     }
   }, [open])
 
+  const currentPreviewItem = sheetMusicPreviewPrepared ? sheetMusicPreviewItem : null
+  const previewLoading =
+    sheetMusicLoading ||
+    (open && sheetMusic.length > 0 && !currentPreviewItem && !sheetMusicPreviewPrepared)
+
+  function resetSheetMusicPreviewState() {
+    setSheetMusicLoading(false)
+    setSheetMusicPreviewPrepared(false)
+    setSheetMusicPreviewItem(null)
+  }
+
+  function handleEditorOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      openRef.current = false
+      resetSheetMusicPreviewState()
+    }
+
+    onOpenChange(nextOpen)
+  }
+
+  function handlePreviewLoadingChange(loading: boolean) {
+    if (!openRef.current) {
+      return
+    }
+
+    setSheetMusicLoading(loading)
+    setSheetMusicPreviewPrepared(!loading)
+  }
+
+  function handleSheetMusicPreviewChange(item: SheetMusicPreviewItem | null) {
+    if (!openRef.current) {
+      return
+    }
+
+    setSheetMusicPreviewItem(item)
+  }
+
+  if (!open) {
+    return null
+  }
+
   return (
     <ArrangementEditor
       mode="preset"
@@ -110,26 +101,32 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
       songId={songId}
       songName={preset?.name ?? "새 프리셋"}
       open={open}
-      initialDraft={presetToDraft(preset)}
+      initialDraft={initialDraft}
       availableSheetMusic={sheetMusic}
-      sheetMusicPreviewItem={sheetMusicPreviewItem}
+      sheetMusicPreviewItem={currentPreviewItem}
+      sheetMusicLoading={previewLoading}
       sheetMusicWorkspacePreview
       sheetMusicManagementSlot={
         sheetMusic.length > 0 ? (
           <SheetMusicGallery
             files={sheetMusic}
             previewMode="controlled"
-            onPreviewChange={setSheetMusicPreviewItem}
+            onPreviewChange={handleSheetMusicPreviewChange}
+            onPreviewLoadingChange={handlePreviewLoadingChange}
           />
         ) : null
       }
       savingLabel="저장"
-      onOpenChange={onOpenChange}
+      onOpenChange={handleEditorOpenChange}
       onSave={async (draft) => {
-        const data = draftToPresetData(draft)
+        const data = arrangementDraftToSongPresetData(draft)
         const result = preset
           ? await updateSongPreset(preset.id, data)
           : await createSongPreset(songId, data)
+
+        if (result.success) {
+          router.refresh()
+        }
 
         return { success: result.success, error: result.error }
       }}

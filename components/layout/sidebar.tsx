@@ -18,6 +18,11 @@ import { BrandMark } from "@/components/layout/brand-mark"
 
 const navItems = [
   {
+    label: "예배 준비",
+    href: "/worship-prep",
+    icon: Calendar03Icon,
+  },
+  {
     label: "콘티 목록",
     href: "/contis",
     icon: Playlist01Icon,
@@ -26,11 +31,6 @@ const navItems = [
     label: "찬양 라이브러리",
     href: "/songs",
     icon: MusicNoteSquare01Icon,
-  },
-  {
-    label: "예배 준비",
-    href: "/worship-prep",
-    icon: Calendar03Icon,
   },
 ]
 

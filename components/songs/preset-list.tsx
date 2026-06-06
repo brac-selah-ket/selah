@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -29,12 +30,28 @@ interface PresetListProps {
 }
 
 export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
+  const router = useRouter()
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingPreset, setEditingPreset] = useState<SongPresetWithSheetMusic | undefined>()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deletingPresetId, setDeletingPresetId] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
   const compact = editorOpen
+
+  useEffect(() => {
+    if (!editingPreset) return
+
+    const refreshedPreset = presets.find((preset) => preset.id === editingPreset.id)
+    if (!refreshedPreset) {
+      setEditingPreset(undefined)
+      setEditorOpen(false)
+      return
+    }
+
+    if (refreshedPreset !== editingPreset) {
+      setEditingPreset(refreshedPreset)
+    }
+  }, [editingPreset, presets])
 
   const handleCreateClick = () => {
     setEditingPreset(undefined)
@@ -61,6 +78,7 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
         toast.success("프리셋이 삭제되었습니다")
         setDeleteDialogOpen(false)
         setDeletingPresetId(null)
+        router.refresh()
       } else {
         toast.error(result.error)
       }
@@ -73,6 +91,7 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
     const result = await setDefaultPreset(songId, presetId)
     if (result.success) {
       toast.success("기본 프리셋이 설정되었습니다")
+      router.refresh()
     } else {
       toast.error(result.error)
     }

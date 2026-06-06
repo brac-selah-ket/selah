@@ -102,8 +102,11 @@ export function ContiSongEditor({
   const router = useRouter()
   const [presets, setPresets] = useState<SongPreset[]>([])
   const [songSheetMusic, setSongSheetMusic] = useState<SheetMusicFile[]>([])
+  const [sheetMusicLoading, setSheetMusicLoading] = useState(false)
+  const [sheetMusicPreviewLoading, setSheetMusicPreviewLoading] = useState(false)
   const [sheetMusicPreviewItem, setSheetMusicPreviewItem] = useState<SheetMusicPreviewItem | null>(null)
   const currentSongIdRef = useRef(contiSong.songId)
+  const sheetMusicRequestIdRef = useRef(0)
 
   useEffect(() => {
     currentSongIdRef.current = contiSong.songId
@@ -124,14 +127,19 @@ export function ContiSongEditor({
 
   const refreshSheetMusic = useCallback(async () => {
     const songId = contiSong.songId
+    const requestId = sheetMusicRequestIdRef.current + 1
+    sheetMusicRequestIdRef.current = requestId
+    setSheetMusicLoading(true)
     const result = await getSheetMusicForSong(songId)
-    if (currentSongIdRef.current !== songId) {
+    if (currentSongIdRef.current !== songId || sheetMusicRequestIdRef.current !== requestId) {
       return []
     }
     if (result.success && result.data) {
       setSongSheetMusic(result.data)
+      setSheetMusicLoading(false)
       return result.data
     }
+    setSheetMusicLoading(false)
     return []
   }, [contiSong.songId])
 
@@ -152,6 +160,8 @@ export function ContiSongEditor({
 
     void Promise.resolve().then(() => {
       if (!cancelled) {
+        setSongSheetMusic([])
+        setSheetMusicPreviewLoading(false)
         setSheetMusicPreviewItem(null)
       }
     })
@@ -167,6 +177,7 @@ export function ContiSongEditor({
 
       void Promise.resolve().then(() => {
         if (!cancelled) {
+          setSheetMusicPreviewLoading(false)
           setSheetMusicPreviewItem(null)
         }
       })
@@ -187,6 +198,7 @@ export function ContiSongEditor({
 
   const handleSheetMusicDeleted = (fileId: string) => {
     setSongSheetMusic((current) => current.filter((file) => file.id !== fileId))
+    setSheetMusicPreviewLoading(false)
     setSheetMusicPreviewItem((current) =>
       current?.file.id === fileId ? null : current,
     )
@@ -203,6 +215,7 @@ export function ContiSongEditor({
       initialDraft={contiSongToDraft(contiSong)}
       availableSheetMusic={songSheetMusic}
       sheetMusicPreviewItem={sheetMusicPreviewItem}
+      sheetMusicLoading={sheetMusicLoading || sheetMusicPreviewLoading}
       sheetMusicWorkspacePreview
       sheetMusicManagementSlot={
         <div className="space-y-4">
@@ -218,6 +231,7 @@ export function ContiSongEditor({
               onDeleted={handleSheetMusicDeleted}
               previewMode="controlled"
               onPreviewChange={setSheetMusicPreviewItem}
+              onPreviewLoadingChange={setSheetMusicPreviewLoading}
             />
           )}
         </div>

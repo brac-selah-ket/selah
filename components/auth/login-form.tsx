@@ -1,14 +1,17 @@
 "use client"
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, FieldLabel, FieldError } from '@/components/ui/field';
+import { getSafeNextPath } from '@/lib/auth-redirect';
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = getSafeNextPath(searchParams.get('next'));
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -30,7 +33,7 @@ export function LoginForm() {
       const data = await response.json();
 
       if (data.success) {
-        router.push('/');
+        router.push(nextPath);
       } else {
         setError(data.error || '로그인에 실패했습니다');
       }

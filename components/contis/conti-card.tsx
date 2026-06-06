@@ -7,6 +7,7 @@ import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
 import { ContiSongSummaryTable } from "@/components/contis/conti-song-summary-table"
 import { sanitizeContiDescription } from "@/lib/conti-description"
+import { cn } from "@/lib/utils"
 import type { ContiWithSongSummaries } from "@/lib/types"
 
 function formatDate(dateStr: string): string {
@@ -33,7 +34,7 @@ export function ContiCard({ conti }: { conti: ContiWithSongSummaries }) {
 
   return (
     <div className="border-b last:border-b-0">
-      <div className="grid gap-3 px-4 py-4 transition-colors hover:bg-muted/55 sm:grid-cols-[1fr_auto] sm:items-center">
+      <div className="grid gap-3 px-4 py-3 transition-colors hover:bg-muted/55 sm:grid-cols-[1fr_auto] sm:items-center">
         <Link
           href={`/contis/${conti.id}`}
           className="group grid min-w-0 gap-3 sm:grid-cols-[7.5rem_1fr] sm:items-center"
@@ -45,16 +46,17 @@ export function ContiCard({ conti }: { conti: ContiWithSongSummaries }) {
             <h2 className="truncate text-base font-semibold text-foreground">
               {title}
             </h2>
-            {description ? (
-              <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">
+            {description && (
+              <p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
                 {description}
               </p>
-            ) : (
-              <p className="mt-1 text-sm text-muted-foreground">
-                설명이 없는 콘티입니다
-              </p>
             )}
-            <p className="mt-1 text-xs font-medium text-muted-foreground/80">
+            <p
+              className={cn(
+                "text-xs font-medium text-muted-foreground/80",
+                description ? "mt-1" : "mt-0.5",
+              )}
+            >
               {summaryText}
             </p>
           </div>

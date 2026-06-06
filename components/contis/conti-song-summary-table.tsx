@@ -1,8 +1,10 @@
 "use client"
 
+import type { MouseEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { YouTubeReferenceLink } from "@/components/shared/youtube-reference-link"
+import { cn } from "@/lib/utils"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   ArrowDown01Icon,
@@ -81,6 +83,31 @@ function getKeyTempoSummary(song: SummaryRow): string {
   return parts.length > 0 ? parts.join(" · ") : "-"
 }
 
+function stopRowClick(event: MouseEvent) {
+  event.stopPropagation()
+}
+
+const INTERACTIVE_CHILD_SELECTOR = [
+  "a",
+  "button",
+  "input",
+  "select",
+  "textarea",
+  "summary",
+  '[role="button"]',
+  '[role="link"]',
+  '[contenteditable="true"]',
+].join(", ")
+
+function handleRowClick(event: MouseEvent<HTMLElement>, onClick?: () => void) {
+  const target = event.target
+  if (target instanceof Element && target.closest(INTERACTIVE_CHILD_SELECTOR)) {
+    return
+  }
+
+  onClick?.()
+}
+
 export function ContiSongSummaryTable({
   songs,
   mode,
@@ -106,13 +133,17 @@ export function ContiSongSummaryTable({
           const youtubeTitle = getYoutubeTitle(song)
           const presetName = getCompactPresetName(song)
           const sectionSummary = getSectionSummary(song)
+          const editRow = () => onEdit?.(song.id)
 
           return (
             <div
               key={song.id}
-              className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border bg-background/70 px-3 py-3 text-sm"
+              className="grid cursor-pointer grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border bg-background/70 px-3 py-3 text-sm hover:bg-muted/40"
+              onClick={(event) => handleRowClick(event, editRow)}
             >
-              <span className="font-semibold text-primary">{index + 1}</span>
+              <span className="font-semibold text-primary">
+                {index + 1}
+              </span>
               <div className="min-w-0">
                 <p className="truncate font-medium">{getSongName(song)}</p>
                 <div className="mt-1 flex min-w-0 max-w-full flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -120,12 +151,13 @@ export function ContiSongSummaryTable({
                     {getKeyTempoSummary(song)}
                   </span>
                   {presetName && (
-                    <span className="min-w-0 max-w-full truncate">
-                      {presetName}
-                    </span>
+                    <span className="min-w-0 max-w-full truncate">{presetName}</span>
                   )}
                   {youtubeReference && (
-                    <span className="min-w-0 max-w-full truncate">
+                    <span
+                      className="min-w-0 max-w-full truncate"
+                      onClick={stopRowClick}
+                    >
                       <YouTubeReferenceLink
                         reference={youtubeReference}
                         title={youtubeTitle}
@@ -140,13 +172,16 @@ export function ContiSongSummaryTable({
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1" onClick={stopRowClick}>
                 <Button
                   variant="ghost"
                   size="icon-sm"
                   aria-label="편집"
                   disabled={!onEdit}
-                  onClick={() => onEdit?.(song.id)}
+                  onClick={(event) => {
+                    stopRowClick(event)
+                    onEdit?.(song.id)
+                  }}
                 >
                   <HugeiconsIcon icon={PencilEdit01Icon} strokeWidth={2} />
                 </Button>
@@ -155,7 +190,10 @@ export function ContiSongSummaryTable({
                   size="icon-sm"
                   aria-label="위로 이동"
                   disabled={index === 0 || !onMoveUp}
-                  onClick={() => onMoveUp?.(index)}
+                  onClick={(event) => {
+                    stopRowClick(event)
+                    onMoveUp?.(index)
+                  }}
                 >
                   <HugeiconsIcon icon={ArrowUp01Icon} strokeWidth={2} />
                 </Button>
@@ -164,7 +202,10 @@ export function ContiSongSummaryTable({
                   size="icon-sm"
                   aria-label="아래로 이동"
                   disabled={index === songs.length - 1 || !onMoveDown}
-                  onClick={() => onMoveDown?.(index)}
+                  onClick={(event) => {
+                    stopRowClick(event)
+                    onMoveDown?.(index)
+                  }}
                 >
                   <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} />
                 </Button>
@@ -173,7 +214,10 @@ export function ContiSongSummaryTable({
                   size="icon-sm"
                   aria-label="삭제"
                   disabled={!onRemove}
-                  onClick={() => onRemove?.(song.id)}
+                  onClick={(event) => {
+                    stopRowClick(event)
+                    onRemove?.(song.id)
+                  }}
                 >
                   <HugeiconsIcon icon={Delete01Icon} strokeWidth={2} />
                 </Button>
@@ -210,13 +254,20 @@ export function ContiSongSummaryTable({
           const keys = getKeys(song)
           const tempos = getTempos(song)
           const presetName = getPresetName(song)
+          const editRow = () => onEdit?.(song.id)
 
           return (
             <div
               key={song.id}
-              className={`grid ${gridTemplateClass} items-center gap-3 border-b px-3 py-3 text-sm last:border-b-0`}
+              className={cn(
+                `grid ${gridTemplateClass} items-center gap-3 border-b px-3 py-3 text-sm last:border-b-0`,
+                showActions && "cursor-pointer hover:bg-muted/40",
+              )}
+              onClick={showActions ? (event) => handleRowClick(event, editRow) : undefined}
             >
-              <span className="font-semibold text-primary">{index + 1}</span>
+              <span className="font-semibold text-primary">
+                {index + 1}
+              </span>
               <span className="min-w-0 truncate font-medium">
                 {getSongName(song)}
               </span>
@@ -244,7 +295,10 @@ export function ContiSongSummaryTable({
               <span className="min-w-0 truncate text-muted-foreground">
                 {presetName ?? "-"}
               </span>
-              <span className="min-w-0 truncate text-muted-foreground">
+              <span
+                className="min-w-0 truncate text-muted-foreground"
+                onClick={showActions ? stopRowClick : undefined}
+              >
                 <YouTubeReferenceLink
                   reference={getYoutubeReference(song)}
                   title={getYoutubeTitle(song)}
@@ -253,13 +307,16 @@ export function ContiSongSummaryTable({
                 />
               </span>
               {showActions && (
-                <div className="flex justify-end gap-1">
+                <div className="flex justify-end gap-1" onClick={stopRowClick}>
                   <Button
                     variant="ghost"
                     size="icon-sm"
                     aria-label="편집"
                     disabled={!onEdit}
-                    onClick={() => onEdit?.(song.id)}
+                    onClick={(event) => {
+                      stopRowClick(event)
+                      onEdit?.(song.id)
+                    }}
                   >
                     <HugeiconsIcon icon={PencilEdit01Icon} strokeWidth={2} />
                   </Button>
@@ -268,7 +325,10 @@ export function ContiSongSummaryTable({
                     size="icon-sm"
                     aria-label="위로 이동"
                     disabled={index === 0 || !onMoveUp}
-                    onClick={() => onMoveUp?.(index)}
+                    onClick={(event) => {
+                      stopRowClick(event)
+                      onMoveUp?.(index)
+                    }}
                   >
                     <HugeiconsIcon icon={ArrowUp01Icon} strokeWidth={2} />
                   </Button>
@@ -277,7 +337,10 @@ export function ContiSongSummaryTable({
                     size="icon-sm"
                     aria-label="아래로 이동"
                     disabled={index === songs.length - 1 || !onMoveDown}
-                    onClick={() => onMoveDown?.(index)}
+                    onClick={(event) => {
+                      stopRowClick(event)
+                      onMoveDown?.(index)
+                    }}
                   >
                     <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} />
                   </Button>
@@ -286,7 +349,10 @@ export function ContiSongSummaryTable({
                     size="icon-sm"
                     aria-label="삭제"
                     disabled={!onRemove}
-                    onClick={() => onRemove?.(song.id)}
+                    onClick={(event) => {
+                      stopRowClick(event)
+                      onRemove?.(song.id)
+                    }}
                   >
                     <HugeiconsIcon icon={Delete01Icon} strokeWidth={2} />
                   </Button>
