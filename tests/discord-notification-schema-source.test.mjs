@@ -47,3 +47,19 @@ test('notification state store uses atomic claim before send and sent marking', 
   assert.match(source, /status:\s*'failed'/);
   assert.match(source, /getStoryboardDatabaseProviderName/);
 });
+
+test('notification terminal updates are scoped to the active pending claim', async () => {
+  const source = await readFile(
+    new URL('../lib/discord-sync/worship-prep-notification-state.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /markWorshipPrepNotificationSent\(\s*claim:/);
+  assert.match(source, /markWorshipPrepNotificationFailed\(claim:/);
+  assert.match(source, /eq\(neonNotifications\.status,\s*'pending'\)/);
+  assert.match(source, /eq\(neonNotifications\.attempts,\s*claim\.attempts\)/);
+  assert.match(source, /eq\(neonNotifications\.lastAttemptAt,\s*claim\.lastAttemptAt\)/);
+  assert.match(source, /eq\(tursoNotifications\.status,\s*'pending'\)/);
+  assert.match(source, /eq\(tursoNotifications\.attempts,\s*claim\.attempts\)/);
+  assert.match(source, /eq\(tursoNotifications\.lastAttemptAt,\s*dateToDbText\(claim\.lastAttemptAt\)\)/);
+});

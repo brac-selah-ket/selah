@@ -27,6 +27,12 @@ export interface WorshipPrepNotificationRecord {
   updatedAt: Date;
 }
 
+export interface WorshipPrepNotificationClaimReference {
+  id: string;
+  attempts: number;
+  lastAttemptAt: Date;
+}
+
 export interface NotificationClaimResult {
   claimed: boolean;
   record: WorshipPrepNotificationRecord | null;
@@ -47,8 +53,8 @@ export interface WorshipPrepNotificationStateStore {
     existing: WorshipPrepNotificationRecord,
     input: ClaimExistingNotificationInput,
   ): Promise<WorshipPrepNotificationRecord | null>;
-  markSent(id: string, messageId: string, now: Date): Promise<void>;
-  markFailed(id: string, now: Date): Promise<void>;
+  markSent(claim: WorshipPrepNotificationClaimReference, messageId: string, now: Date): Promise<void>;
+  markFailed(claim: WorshipPrepNotificationClaimReference, now: Date): Promise<void>;
 }
 
 export function getNotificationClaimSkipReason(
@@ -159,19 +165,19 @@ export async function claimWorshipPrepNotificationWithStore(
 
 export async function markWorshipPrepNotificationSentWithStore(
   store: WorshipPrepNotificationStateStore,
-  id: string,
+  claim: WorshipPrepNotificationClaimReference,
   messageId: string,
   now = new Date(),
 ): Promise<void> {
-  await store.markSent(id, messageId, now);
+  await store.markSent(claim, messageId, now);
 }
 
 export async function markWorshipPrepNotificationFailedWithStore(
   store: WorshipPrepNotificationStateStore,
-  id: string,
+  claim: WorshipPrepNotificationClaimReference,
   now = new Date(),
 ): Promise<void> {
-  await store.markFailed(id, now);
+  await store.markFailed(claim, now);
 }
 
 export async function getWorshipPrepNotification(
@@ -351,7 +357,7 @@ export async function claimWorshipPrepNotification(
 }
 
 export async function markWorshipPrepNotificationSent(
-  id: string,
+  claim: WorshipPrepNotificationClaimReference,
   messageId: string,
   now = new Date(),
 ): Promise<void> {
@@ -366,7 +372,12 @@ export async function markWorshipPrepNotificationSent(
         sentAt: dateToDbText(now),
         updatedAt: dateToDbText(now),
       })
-      .where(eq(tursoNotifications.id, id));
+      .where(and(
+        eq(tursoNotifications.id, claim.id),
+        eq(tursoNotifications.status, 'pending'),
+        eq(tursoNotifications.attempts, claim.attempts),
+        eq(tursoNotifications.lastAttemptAt, dateToDbText(claim.lastAttemptAt)),
+      ));
     return;
   }
 
@@ -378,22 +389,37 @@ export async function markWorshipPrepNotificationSent(
       sentAt: now,
       updatedAt: now,
     })
-    .where(eq(neonNotifications.id, id));
+    .where(and(
+      eq(neonNotifications.id, claim.id),
+      eq(neonNotifications.status, 'pending'),
+      eq(neonNotifications.attempts, claim.attempts),
+      eq(neonNotifications.lastAttemptAt, claim.lastAttemptAt),
+    ));
 }
 
-export async function markWorshipPrepNotificationFailed(id: string, now = new Date()): Promise<void> {
+export async function markWorshipPrepNotificationFailed(claim: WorshipPrepNotificationClaimReference, now = new Date()): Promise<void> {
   const provider = getStoryboardDatabaseProviderName();
 
   if (provider === 'turso') {
     await getTursoDb()
       .update(tursoNotifications)
       .set({ status: 'failed', updatedAt: dateToDbText(now) })
-      .where(eq(tursoNotifications.id, id));
+      .where(and(
+        eq(tursoNotifications.id, claim.id),
+        eq(tursoNotifications.status, 'pending'),
+        eq(tursoNotifications.attempts, claim.attempts),
+        eq(tursoNotifications.lastAttemptAt, dateToDbText(claim.lastAttemptAt)),
+      ));
     return;
   }
 
   await neonDb
     .update(neonNotifications)
     .set({ status: 'failed', updatedAt: now })
-    .where(eq(neonNotifications.id, id));
+    .where(and(
+      eq(neonNotifications.id, claim.id),
+      eq(neonNotifications.status, 'pending'),
+      eq(neonNotifications.attempts, claim.attempts),
+      eq(neonNotifications.lastAttemptAt, claim.lastAttemptAt),
+    ));
 }
