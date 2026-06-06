@@ -23,6 +23,7 @@ import {
 import { fetchYouTubePlaylist } from "@/lib/actions/youtube"
 import { batchImportSongsToConti } from "@/lib/actions/conti-songs"
 import { getPresetsForSong } from "@/lib/actions/song-presets"
+import { buildBatchImportItems } from "@/components/contis/youtube-import-model"
 import type { Song, SongPreset } from "@/lib/types"
 
 interface YouTubeImportDialogProps {
@@ -49,6 +50,7 @@ interface ImportItem {
   presetName: string
   presets: SongPreset[] | null
   existingYoutubeRef: string | null
+  replaceExistingYoutube: boolean
 }
 
 type Step = "url-input" | "review"
@@ -110,6 +112,7 @@ export function YouTubeImportDialog({
         presetName: defaultPresetName,
         presets: null,
         existingYoutubeRef: null,
+        replaceExistingYoutube: true,
       }))
 
       setItems(importItems)
@@ -142,6 +145,7 @@ export function YouTubeImportDialog({
           createNewPreset: true,
           presets: null,
           existingYoutubeRef: null,
+          replaceExistingYoutube: true,
         }
       })
       return detectDuplicates(updated)
@@ -167,7 +171,13 @@ export function YouTubeImportDialog({
       prev.map((item) => {
         if (item.id !== itemId) return item
         if (presetId === null) {
-          return { ...item, selectedPresetId: null, createNewPreset: true, existingYoutubeRef: null }
+          return {
+            ...item,
+            selectedPresetId: null,
+            createNewPreset: true,
+            existingYoutubeRef: null,
+            replaceExistingYoutube: true,
+          }
         }
         const preset = item.presets?.find((p) => p.id === presetId)
         return {
@@ -175,6 +185,7 @@ export function YouTubeImportDialog({
           selectedPresetId: presetId,
           createNewPreset: false,
           existingYoutubeRef: preset?.youtubeReference ?? null,
+          replaceExistingYoutube: false,
         }
       })
     )
@@ -250,25 +261,8 @@ export function YouTubeImportDialog({
       return
     }
 
-    // Check for overwrite warnings
-    const hasOverwrites = importableItems.some((item) => item.existingYoutubeRef)
-    if (hasOverwrites) {
-      if (!confirm("일부 프리셋의 YouTube 레퍼런스가 덮어씌워집니다. 계속하시겠습니까?")) {
-        return
-      }
-    }
-
     startTransition(async () => {
-      const batchItems = importableItems.map((item) => ({
-        songId: item.matchedSong?.id ?? null,
-        newSongName: item.matchedSong ? null : item.editedName.trim(),
-        videoId: item.videoId,
-        title: item.originalTitle,
-        presetId: item.selectedPresetId,
-        createNewPreset: item.createNewPreset || !item.matchedSong,
-        presetName: item.presetName || defaultPresetName,
-        alreadyInConti: item.isAlreadyInConti,
-      }))
+      const batchItems = buildBatchImportItems(importableItems, defaultPresetName)
 
       const result = await batchImportSongsToConti(contiId, batchItems)
       if (!result.success || !result.data) {
@@ -482,9 +476,47 @@ export function YouTubeImportDialog({
                                     )}
                                   </select>
                                   {item.existingYoutubeRef && (
-                                    <p className="text-xs text-amber-600">
-                                      이 프리셋에 이미 YouTube 레퍼런스가 있습니다. 덮어씌워집니다.
-                                    </p>
+                                    <div className="flex flex-col gap-2 pt-1">
+                                      <p className="text-xs text-amber-600">
+                                        이 프리셋에 이미 YouTube 레퍼런스가 있습니다.
+                                      </p>
+                                      <div className="flex flex-col gap-1 text-xs text-foreground">
+                                        <label className="flex items-center gap-2">
+                                          <input
+                                            type="radio"
+                                            name={`youtube-replace-${item.id}`}
+                                            checked={!item.replaceExistingYoutube}
+                                            onChange={() =>
+                                              setItems((prev) =>
+                                                prev.map((entry) =>
+                                                  entry.id === item.id
+                                                    ? { ...entry, replaceExistingYoutube: false }
+                                                    : entry
+                                                )
+                                              )
+                                            }
+                                          />
+                                          <span>기존 YouTube 유지</span>
+                                        </label>
+                                        <label className="flex items-center gap-2">
+                                          <input
+                                            type="radio"
+                                            name={`youtube-replace-${item.id}`}
+                                            checked={item.replaceExistingYoutube}
+                                            onChange={() =>
+                                              setItems((prev) =>
+                                                prev.map((entry) =>
+                                                  entry.id === item.id
+                                                    ? { ...entry, replaceExistingYoutube: true }
+                                                    : entry
+                                                )
+                                              )
+                                            }
+                                          />
+                                          <span>playlist 영상으로 교체</span>
+                                        </label>
+                                      </div>
+                                    </div>
                                   )}
                                 </>
                               ) : (
