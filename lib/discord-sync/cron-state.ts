@@ -118,6 +118,53 @@ export function selectTargetWorshipThread(
   };
 }
 
+export function selectWorshipThreadBySundayDate(
+  threads: ActiveForumThread[],
+  sundayDate: string,
+): SelectedWorshipThread | null {
+  const selected = threads.find((thread) => parseWorshipThreadName(thread.name) === sundayDate);
+  if (!selected) {
+    return null;
+  }
+
+  return {
+    id: selected.id,
+    name: selected.name,
+    parent_id: selected.parent_id,
+    sundayDate,
+  };
+}
+
+export function selectPreviousWorshipThread(
+  threads: ActiveForumThread[],
+  targetSundayDate: string,
+): SelectedWorshipThread | null {
+  const candidates = threads
+    .map((thread) => {
+      const sundayDate = parseWorshipThreadName(thread.name);
+      if (!sundayDate) return null;
+
+      const diff = yymmddToUtcDay(targetSundayDate) - yymmddToUtcDay(sundayDate);
+      if (diff <= 0) return null;
+
+      return { ...thread, sundayDate, diff };
+    })
+    .filter((thread): thread is SelectedWorshipThread & { diff: number } => thread !== null)
+    .sort((a, b) => a.diff - b.diff);
+
+  const selected = candidates[0];
+  if (!selected) {
+    return null;
+  }
+
+  return {
+    id: selected.id,
+    name: selected.name,
+    parent_id: selected.parent_id,
+    sundayDate: selected.sundayDate,
+  };
+}
+
 export function hasProcessedReaction(message: DiscordMessageReactionState): boolean {
   return Boolean(
     message.reactions?.some(

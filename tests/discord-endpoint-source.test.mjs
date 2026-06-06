@@ -2,28 +2,99 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-test('create-thread cron dryRun returns before Discord side effects', async () => {
+test('create-thread cron dryRun returns before Discord write side effects', async () => {
   const source = await readFile(
     new URL('../app/api/cron/discord/create-thread/route.ts', import.meta.url),
     'utf8',
   );
 
   const dryRunIndex = source.indexOf('if (dryRun)');
-  const channelEnvIndex = source.indexOf('process.env.DISCORD_CHANNEL_ID');
+  const archiveThreadIndex = source.indexOf('await archiveThread');
   const createThreadIndex = source.indexOf('await createForumThread');
   const sheetReadIndex = source.indexOf('await readRoleOptionsFromSheet');
+  const dropdownIndex = source.indexOf('await sendDropdownMessage');
 
   assert.notEqual(dryRunIndex, -1);
-  assert.notEqual(channelEnvIndex, -1);
+  assert.notEqual(archiveThreadIndex, -1);
   assert.notEqual(createThreadIndex, -1);
   assert.notEqual(sheetReadIndex, -1);
-  assert.ok(dryRunIndex < channelEnvIndex);
+  assert.notEqual(dropdownIndex, -1);
+  assert.ok(dryRunIndex < archiveThreadIndex);
   assert.ok(dryRunIndex < createThreadIndex);
   assert.ok(dryRunIndex < sheetReadIndex);
+  assert.ok(dryRunIndex < dropdownIndex);
 
-  const dryRunGuard = source.slice(dryRunIndex, Math.min(createThreadIndex, sheetReadIndex));
+  const firstWriteSideEffectIndex = Math.min(archiveThreadIndex, createThreadIndex, sheetReadIndex, dropdownIndex);
+  const dryRunGuard = source.slice(dryRunIndex, firstWriteSideEffectIndex);
   assert.match(dryRunGuard, /return NextResponse\.json/);
-  assert.doesNotMatch(dryRunGuard, /createForumThread|sendDropdownMessage|readRoleOptionsFromSheet/);
+  assert.doesNotMatch(dryRunGuard, /archiveThread|createForumThread|sendDropdownMessage|readRoleOptionsFromSheet/);
+  assert.match(dryRunGuard, /wouldArchiveThread/);
+});
+
+test('create-thread cron archives previous worship thread before creating the new one', async () => {
+  const source = await readFile(
+    new URL('../app/api/cron/discord/create-thread/route.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /archiveThread/);
+  assert.match(source, /selectPreviousWorshipThread/);
+
+  const body = source.slice(source.indexOf('export async function GET'));
+  const archiveThreadIndex = body.indexOf('await archiveThread');
+  const createThreadIndex = body.indexOf('await createForumThread');
+
+  assert.notEqual(archiveThreadIndex, -1);
+  assert.notEqual(createThreadIndex, -1);
+  assert.ok(archiveThreadIndex < createThreadIndex);
+});
+
+test('create-thread cron validates role options before Discord write side effects', async () => {
+  const source = await readFile(
+    new URL('../app/api/cron/discord/create-thread/route.ts', import.meta.url),
+    'utf8',
+  );
+
+  const body = source.slice(source.indexOf('export async function GET'));
+  const dryRunIndex = body.indexOf('if (dryRun)');
+  const sheetReadIndex = body.indexOf('await readRoleOptionsFromSheet');
+  const archiveThreadIndex = body.indexOf('await archiveThread');
+  const createThreadIndex = body.indexOf('await createForumThread');
+
+  assert.notEqual(dryRunIndex, -1);
+  assert.notEqual(sheetReadIndex, -1);
+  assert.notEqual(archiveThreadIndex, -1);
+  assert.notEqual(createThreadIndex, -1);
+  assert.ok(dryRunIndex < sheetReadIndex);
+  assert.ok(sheetReadIndex < archiveThreadIndex);
+  assert.ok(sheetReadIndex < createThreadIndex);
+});
+
+test('manual worship thread action validates and initializes before setting active thread', async () => {
+  const source = await readFile(
+    new URL('../lib/actions/worship-prep.ts', import.meta.url),
+    'utf8',
+  );
+
+  const body = source.slice(source.indexOf('export async function createWeeklyWorshipThread'));
+  const optionsReadIndex = body.indexOf('await readRoleOptionsWithFallback');
+  const archiveThreadIndex = body.indexOf('await archiveThread');
+  const createThreadIndex = body.indexOf('await createForumThread');
+  const firstDropdownIndex = body.indexOf('await sendDropdownMessage');
+  const markProcessedIndex = body.indexOf('await markMessageProcessed');
+  const setActiveThreadIndex = body.indexOf('await setActiveThread');
+
+  assert.notEqual(optionsReadIndex, -1);
+  assert.notEqual(archiveThreadIndex, -1);
+  assert.notEqual(createThreadIndex, -1);
+  assert.notEqual(firstDropdownIndex, -1);
+  assert.notEqual(markProcessedIndex, -1);
+  assert.notEqual(setActiveThreadIndex, -1);
+  assert.ok(optionsReadIndex < archiveThreadIndex);
+  assert.ok(optionsReadIndex < createThreadIndex);
+  assert.ok(archiveThreadIndex < createThreadIndex);
+  assert.ok(createThreadIndex < firstDropdownIndex);
+  assert.ok(markProcessedIndex < setActiveThreadIndex);
 });
 
 test('send-week-dropdown requires cron authorization before Discord side effects', async () => {
@@ -70,4 +141,191 @@ test('parse-comments requires cron authorization before Discord and Google side 
   assert.ok(sideEffectIndexes.length > 0);
   assert.ok(sideEffectIndexes.every((index) => authIndex < index));
   assert.match(body, /status:\s*401/);
+});
+
+test('check-worship-prep-ready cron requires auth before side effects', async () => {
+  const source = await readFile(
+    new URL('../app/api/cron/discord/check-worship-prep-ready/route.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /isCronAuthorized/);
+  assert.match(source, /getCurrentOrUpcomingSundayDate/);
+  assert.match(source, /day === 0 \? 0 : 7 - day/);
+
+  const body = source.slice(source.indexOf('export async function GET'));
+  const authIndex = body.indexOf('isCronAuthorized');
+  const notificationIndex = body.indexOf('checkAndSendWorshipPrepReadyNotification(');
+
+  assert.notEqual(authIndex, -1);
+  assert.notEqual(notificationIndex, -1);
+  assert.ok(authIndex < notificationIndex);
+  assert.match(body, /status:\s*401/);
+});
+
+test('vercel config schedules worship prep readiness recovery every 10 minutes', async () => {
+  const source = await readFile(new URL('../vercel.json', import.meta.url), 'utf8');
+  const config = JSON.parse(source);
+
+  assert.ok(
+    config.crons.some(
+      (cron) =>
+        cron.path === '/api/cron/discord/check-worship-prep-ready' &&
+        cron.schedule === '*/10 * * * *',
+    ),
+  );
+});
+
+test('discord client archives worship threads without locking them', async () => {
+  const source = await readFile(
+    new URL('../lib/discord-sync/discord-client.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /export async function archiveThread/);
+  assert.match(source, /method:\s*'PATCH'/);
+  assert.match(source, /archived:\s*true/);
+
+  const archiveFunction = source.slice(
+    source.indexOf('export async function archiveThread'),
+    source.indexOf('export async function', source.indexOf('export async function archiveThread') + 1),
+  );
+  assert.doesNotMatch(archiveFunction, /locked/);
+});
+
+test('discord client sends plain messages to a thread channel', async () => {
+  const source = await readFile(
+    new URL('../lib/discord-sync/discord-client.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /export async function sendThreadMessage/);
+  assert.match(source, /\/channels\/\$\{threadId\}\/messages/);
+  assert.match(source, /body:\s*JSON\.stringify\(\{\s*content/);
+});
+
+test('interactions route checks worship prep readiness after role sheet updates', async () => {
+  const source = await readFile(
+    new URL('../app/api/discord/interactions/route.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /import \{ NextRequest, NextResponse, after \} from 'next\/server'/);
+  assert.match(source, /checkAndSendWorshipPrepReadyNotification/);
+  assert.match(source, /async function safelyCheckWorshipPrepReadyNotification/);
+
+  const helper = source.slice(
+    source.indexOf('async function safelyCheckWorshipPrepReadyNotification'),
+    source.indexOf('export async function POST'),
+  );
+  assert.match(helper, /try\s*\{/);
+  assert.match(helper, /catch\s*\(\s*error\s*\)/);
+  assert.match(helper, /checkAndSendWorshipPrepReadyNotification\(input\)/);
+
+  const body = source.slice(source.indexOf('export async function POST'));
+  const updateIndex = body.indexOf('await updateRoleSelectionInSheet(customId, selectedValue, sundayDate);');
+  const notifyIndex = body.indexOf('after(() => safelyCheckWorshipPrepReadyNotification');
+  const returnIndex = body.indexOf('return NextResponse.json', notifyIndex);
+
+  assert.notEqual(updateIndex, -1);
+  assert.notEqual(notifyIndex, -1);
+  assert.notEqual(returnIndex, -1);
+  assert.ok(updateIndex < notifyIndex);
+  assert.ok(notifyIndex < returnIndex);
+  assert.match(body, /after\(\(\) => safelyCheckWorshipPrepReadyNotification\(\{\s*sundayDate,\s*origin:\s*new URL\(request\.url\)\.origin\s*\}\)\)/);
+});
+
+test('parse-comments cron checks worship prep readiness after worship data updates', async () => {
+  const source = await readFile(
+    new URL('../app/api/cron/discord/parse-comments/route.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /checkAndSendWorshipPrepReadyNotification/);
+  assert.match(source, /async function safelyCheckWorshipPrepReadyNotification/);
+
+  const helper = source.slice(
+    source.indexOf('async function safelyCheckWorshipPrepReadyNotification'),
+    source.indexOf('export async function GET'),
+  );
+  assert.match(helper, /try\s*\{/);
+  assert.match(helper, /catch\s*\(\s*error\s*\)/);
+  assert.match(helper, /checkAndSendWorshipPrepReadyNotification\(input\)/);
+
+  const body = source.slice(source.indexOf('export async function GET'));
+  const updateIndex = body.indexOf('await updateWorshipData(SHEET_NAME, targetRow, mergedData);');
+  const notifyIndex = body.indexOf('await safelyCheckWorshipPrepReadyNotification');
+
+  assert.notEqual(updateIndex, -1);
+  assert.notEqual(notifyIndex, -1);
+  assert.ok(updateIndex < notifyIndex);
+  assert.match(body, /safelyCheckWorshipPrepReadyNotification\(\{\s*sundayDate:\s*activeThread\.sundayDate,\s*origin:\s*new URL\(request\.url\)\.origin\s*\}\)/);
+});
+
+test('manual worship prep parse action checks readiness after worship data updates', async () => {
+  const source = await readFile(
+    new URL('../lib/actions/worship-prep.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /checkAndSendWorshipPrepReadyNotification/);
+  assert.match(source, /async function safelyCheckWorshipPrepReadyNotification/);
+
+  const helper = source.slice(
+    source.indexOf('async function safelyCheckWorshipPrepReadyNotification'),
+    source.indexOf('export async function createWeeklyWorshipThread'),
+  );
+  assert.match(helper, /try\s*\{/);
+  assert.match(helper, /catch\s*\(\s*error\s*\)/);
+  assert.match(helper, /checkAndSendWorshipPrepReadyNotification\(input\)/);
+
+  const body = source.slice(source.indexOf('export async function parseActiveWorshipThreadComments'));
+  const updateIndex = body.indexOf('await updateWorshipData(SHEET_NAME, targetRow, mergedData);');
+  const notifyIndex = body.indexOf('await safelyCheckWorshipPrepReadyNotification');
+
+  assert.notEqual(updateIndex, -1);
+  assert.notEqual(notifyIndex, -1);
+  assert.ok(updateIndex < notifyIndex);
+  assert.match(body, /safelyCheckWorshipPrepReadyNotification\(\{\s*sundayDate:\s*activeThread\.sundayDate\s*\}\)/);
+});
+
+test('conti actions check worship prep readiness after create and update', async () => {
+  const source = await readFile(
+    new URL('../lib/actions/contis.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /checkAndSendWorshipPrepReadyNotification/);
+  assert.match(source, /toYYMMDDFromIsoDate/);
+  assert.match(source, /async function safelyCheckWorshipPrepReadyNotification/);
+  assert.match(source, /async function safelyCheckWorshipPrepReadyNotificationForIsoDate/);
+
+  const helper = source.slice(
+    source.indexOf('async function safelyCheckWorshipPrepReadyNotificationForIsoDate'),
+    source.indexOf('export async function createConti'),
+  );
+  assert.match(helper, /try\s*\{/);
+  assert.match(helper, /catch\s*\(\s*error\s*\)/);
+  assert.match(helper, /toYYMMDDFromIsoDate\(isoDate\)/);
+  assert.match(helper, /safelyCheckWorshipPrepReadyNotification\(\{\s*sundayDate\s*\}\)/);
+
+  const createBody = source.slice(
+    source.indexOf('export async function createConti'),
+    source.indexOf('export async function updateConti'),
+  );
+  const createRevalidateIndex = createBody.indexOf("revalidatePath('/contis');");
+  const createNotifyIndex = createBody.indexOf('await safelyCheckWorshipPrepReadyNotificationForIsoDate(conti.date);');
+  assert.notEqual(createRevalidateIndex, -1);
+  assert.notEqual(createNotifyIndex, -1);
+  assert.ok(createRevalidateIndex < createNotifyIndex);
+
+  const updateBody = source.slice(
+    source.indexOf('export async function updateConti'),
+    source.indexOf('export async function deleteConti'),
+  );
+  const updateRevalidateIndex = updateBody.indexOf("revalidatePath('/contis');");
+  const updateNotifyIndex = updateBody.indexOf('await safelyCheckWorshipPrepReadyNotificationForIsoDate(result.date);');
+  assert.notEqual(updateRevalidateIndex, -1);
+  assert.notEqual(updateNotifyIndex, -1);
+  assert.ok(updateRevalidateIndex < updateNotifyIndex);
 });

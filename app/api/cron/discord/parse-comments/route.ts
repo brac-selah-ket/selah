@@ -4,6 +4,7 @@ import { addMessageReaction, getActiveForumThreads, getChannel, getThreadMessage
 import { parseDiscordMessages } from '@/lib/discord-parser';
 import { correctSpelling } from '@/lib/discord-sync/spell-checker';
 import { findRowByDate, updateWorshipData } from '@/lib/discord-sync/google-sheets';
+import { checkAndSendWorshipPrepReadyNotification } from '@/lib/discord-sync/worship-prep-notifications';
 import {
   PARSED_REACTION,
   hasProcessedReaction,
@@ -19,6 +20,15 @@ function hasParsedData(data?: { preacher?: string; leader?: string; worshipLeade
   if (!data) return false;
   if (data.preacher || data.leader || data.worshipLeader || data.title || data.scripture) return true;
   return Boolean(data.songs && data.songs.length > 0);
+}
+
+async function safelyCheckWorshipPrepReadyNotification(input: { sundayDate: string; origin?: string }) {
+  try {
+    const result = await checkAndSendWorshipPrepReadyNotification(input);
+    if (!result.success) console.error('[checkAndSendWorshipPrepReadyNotification]', result.error ?? result.status);
+  } catch (error) {
+    console.error('[checkAndSendWorshipPrepReadyNotification]', error);
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -114,6 +124,7 @@ export async function GET(request: NextRequest) {
         mergedData.title = await correctSpelling(mergedData.title);
       }
       await updateWorshipData(SHEET_NAME, targetRow, mergedData);
+      await safelyCheckWorshipPrepReadyNotification({ sundayDate: activeThread.sundayDate, origin: new URL(request.url).origin });
     }
 
     for (const message of newMessages.filter((message) => parsedMessageIds.has(message.id))) {
