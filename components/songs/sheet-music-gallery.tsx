@@ -238,7 +238,7 @@ export function SheetMusicGallery({
                 >
                   <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
                 </AlertDialogTrigger>
-                <AlertDialogContent>
+                <AlertDialogContent overlayClassName="z-[70]" className="z-[70]">
                   <AlertDialogHeader>
                     <AlertDialogTitle>악보 삭제</AlertDialogTitle>
                     <AlertDialogDescription>

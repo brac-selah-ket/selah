@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import {
   DrawerProvider,
@@ -17,23 +16,6 @@ import { BrandMark } from "@/components/layout/brand-mark";
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const { portalRef, isOpen, drawerSize } = useDrawerPortal();
   const { setIsOpen: setNavOpen } = useMobileNav();
-  const [isDesktop, setIsDesktop] = useState(false);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(min-width: 48rem)");
-    const updateIsDesktop = () => setIsDesktop(mediaQuery.matches);
-
-    updateIsDesktop();
-    mediaQuery.addEventListener("change", updateIsDesktop);
-
-    return () => mediaQuery.removeEventListener("change", updateIsDesktop);
-  }, []);
-
-  const drawerTransform = isOpen
-    ? "translate3d(0, 0, 0)"
-    : isDesktop
-      ? "translate3d(100%, 0, 0)"
-      : "translate3d(0, 100%, 0)";
 
   return (
     <div className="flex min-h-screen">
@@ -49,11 +31,12 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       </div>
       <aside
         ref={portalRef}
-        style={{ transform: drawerTransform }}
         className={cn(
           "fixed inset-x-0 bottom-0 z-[60] h-[90vh] overflow-hidden rounded-t-2xl bg-background shadow-xl",
-          "transition-transform duration-300 ease-in-out",
-          !isOpen && "pointer-events-none",
+          "[transform:var(--drawer-transform)] transition-transform duration-300 ease-in-out",
+          isOpen
+            ? "[--drawer-transform:translateX(0)]"
+            : "[--drawer-transform:translateY(100%)] pointer-events-none md:[--drawer-transform:translateX(100%)]",
           "md:inset-y-0 md:left-auto md:right-0 md:h-screen md:max-h-none md:rounded-none md:border-l",
           drawerSize === "wide"
             ? "md:w-[min(1040px,calc(100vw-13rem))] xl:w-[min(1120px,calc(100vw-13rem))]"
