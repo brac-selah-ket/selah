@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { AiMagicIcon, AlertCircleIcon, Loading03Icon, RefreshIcon, TextCheckIcon } from "@hugeicons/core-free-icons"
+import { AiMagicIcon, AlertCircleIcon, Cancel01Icon, Loading03Icon, RefreshIcon, TextCheckIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -136,6 +136,19 @@ export function SheetMusicLyricsGeneratorDialog({
     })
   }
 
+  const removeGeneratedPage = (index: number) => {
+    setGeneratedLyrics((current) => current.filter((_, pageIndex) => pageIndex !== index))
+    setSpellCheck((current) => {
+      const next: Record<number, SpellCheckState> = {}
+      for (const [key, value] of Object.entries(current)) {
+        const pageIndex = Number(key)
+        if (pageIndex < index) next[pageIndex] = value
+        else if (pageIndex > index) next[pageIndex - 1] = value
+      }
+      return next
+    })
+  }
+
   const handleSpellCheck = async (index: number) => {
     const text = generatedLyrics[index]
     if (!text?.trim()) return
@@ -252,20 +265,37 @@ export function SheetMusicLyricsGeneratorDialog({
                           <HugeiconsIcon icon={AiMagicIcon} strokeWidth={2} className="size-4 text-primary" />
                           페이지 {index + 1}
                         </div>
-                        <Button
-                          type="button"
-                          size="icon-xs"
-                          variant="ghost"
-                          onClick={() => handleSpellCheck(index)}
-                          aria-label="맞춤법 검사"
-                          disabled={!page.trim() || sc?.isLoading}
-                        >
-                          {sc?.isLoading ? (
-                            <HugeiconsIcon icon={Loading03Icon} strokeWidth={2} className="animate-spin" />
-                          ) : (
-                            <HugeiconsIcon icon={TextCheckIcon} strokeWidth={2} />
-                          )}
-                        </Button>
+                        <div className="flex gap-0.5">
+                          <Button
+                            type="button"
+                            size="xs"
+                            variant="ghost"
+                            onClick={() => handleSpellCheck(index)}
+                            aria-label="맞춤법 검사"
+                            disabled={!page.trim() || sc?.isLoading}
+                          >
+                            {sc?.isLoading ? (
+                              <>
+                                <HugeiconsIcon icon={Loading03Icon} strokeWidth={2} className="animate-spin" data-icon="inline-start" />
+                                검사 중
+                              </>
+                            ) : (
+                              <>
+                                <HugeiconsIcon icon={TextCheckIcon} strokeWidth={2} data-icon="inline-start" />
+                                맞춤법 검사
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon-xs"
+                            variant="ghost"
+                            onClick={() => removeGeneratedPage(index)}
+                            aria-label="페이지 제거"
+                          >
+                            <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
+                          </Button>
+                        </div>
                       </div>
                       <Textarea
                         rows={Math.min(6, Math.max(3, page.split("\n").length + 1))}

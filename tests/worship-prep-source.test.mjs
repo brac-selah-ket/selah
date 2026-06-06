@@ -415,11 +415,17 @@ test('sheet music lyrics generator uses Gemini images and appends generated page
   assert.match(generatorSource, /checkSpelling/);
   assert.match(generatorSource, /validateLyricsPage/);
   assert.match(generatorSource, /TextCheckIcon/);
+  assert.match(generatorSource, /Cancel01Icon/);
+  assert.match(generatorSource, /removeGeneratedPage/);
   assert.match(generatorSource, /overlayClassName="z-\[70\]"/);
   assert.match(generatorSource, /className="z-\[70\][^"]*flex[^"]*max-h-\[85vh\][^"]*flex-col/);
   assert.match(generatorSource, /onChange=\{\(event\) => updateGeneratedPage\(index, event\.target\.value\)\}/);
   assert.doesNotMatch(generatorSource, /readOnly/);
   assert.match(generatorSource, /aria-label="맞춤법 검사"/);
+  assert.match(generatorSource, /icon=\{TextCheckIcon\}[\s\S]+맞춤법 검사/);
+  assert.match(generatorSource, /aria-label="페이지 제거"/);
+  assert.match(generatorSource, /setGeneratedLyrics\(\(current\) => current\.filter/);
+  assert.match(generatorSource, /else if \(pageIndex > index\) next\[pageIndex - 1\] = value/);
   assert.match(generatorSource, /교정 적용/);
   assert.match(generatorSource, /원본 유지/);
   assert.match(generatorSource, /가사에 추가/);
