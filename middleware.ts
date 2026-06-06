@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { COOKIE_NAME, verifyToken } from '@/lib/auth';
+import { getPathWithSearch } from '@/lib/auth-redirect';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -22,6 +23,7 @@ export async function middleware(request: NextRequest) {
 
   if (!token || !secret || !(await verifyToken(token, secret))) {
     const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('next', getPathWithSearch(pathname, request.nextUrl.search));
     return NextResponse.redirect(loginUrl);
   }
 

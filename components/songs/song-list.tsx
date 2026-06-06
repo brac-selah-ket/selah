@@ -55,7 +55,7 @@ export function SongList({ songs }: SongListProps) {
       )}
 
       {!showEmptyState && !showSearchEmptyState && (
-        <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {filteredSongs.map((song) => (
             <SongCard key={song.id} song={song} />
           ))}
