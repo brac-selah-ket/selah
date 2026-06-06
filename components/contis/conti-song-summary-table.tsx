@@ -1,6 +1,6 @@
 "use client"
 
-import type { MouseEvent } from "react"
+import type { KeyboardEvent, MouseEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { YouTubeReferenceLink } from "@/components/shared/youtube-reference-link"
@@ -87,6 +87,12 @@ function stopRowClick(event: MouseEvent) {
   event.stopPropagation()
 }
 
+function handleEditRowKeyDown(event: KeyboardEvent, onEditRow: () => void) {
+  if (event.key !== "Enter" && event.key !== " ") return
+  event.preventDefault()
+  onEditRow()
+}
+
 export function ContiSongSummaryTable({
   songs,
   mode,
@@ -112,12 +118,16 @@ export function ContiSongSummaryTable({
           const youtubeTitle = getYoutubeTitle(song)
           const presetName = getCompactPresetName(song)
           const sectionSummary = getSectionSummary(song)
+          const editRow = () => onEdit?.(song.id)
 
           return (
             <div
               key={song.id}
-              onClick={() => onEdit?.(song.id)}
-              className="grid cursor-pointer grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border bg-background/70 px-3 py-3 text-sm transition-colors hover:bg-muted/45"
+              role="button"
+              tabIndex={0}
+              onClick={editRow}
+              onKeyDown={(event) => handleEditRowKeyDown(event, editRow)}
+              className="grid cursor-pointer grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border bg-background/70 px-3 py-3 text-sm transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-inset"
             >
               <span className="font-semibold text-primary">{index + 1}</span>
               <div className="min-w-0">
@@ -150,7 +160,7 @@ export function ContiSongSummaryTable({
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1" onClick={stopRowClick}>
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -232,14 +242,23 @@ export function ContiSongSummaryTable({
           const keys = getKeys(song)
           const tempos = getTempos(song)
           const presetName = getPresetName(song)
+          const editRow = () => onEdit?.(song.id)
 
           return (
             <div
               key={song.id}
-              onClick={showActions ? () => onEdit?.(song.id) : undefined}
+              role={showActions ? "button" : undefined}
+              tabIndex={showActions ? 0 : undefined}
+              onClick={showActions ? editRow : undefined}
+              onKeyDown={
+                showActions
+                  ? (event) => handleEditRowKeyDown(event, editRow)
+                  : undefined
+              }
               className={cn(
                 `grid ${gridTemplateClass} items-center gap-3 border-b px-3 py-3 text-sm last:border-b-0`,
-                showActions && "cursor-pointer transition-colors hover:bg-muted/45",
+                showActions &&
+                  "cursor-pointer transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-inset",
               )}
             >
               <span className="font-semibold text-primary">{index + 1}</span>
@@ -282,7 +301,7 @@ export function ContiSongSummaryTable({
                 />
               </span>
               {showActions && (
-                <div className="flex justify-end gap-1">
+                <div className="flex justify-end gap-1" onClick={stopRowClick}>
                   <Button
                     variant="ghost"
                     size="icon-sm"
