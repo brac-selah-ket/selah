@@ -54,7 +54,7 @@ export function useYouTubeImportState({
   existingSongIds: string[]
   allSongs: Song[]
 }) {
-  const [step, setStep] = useState<Step>("url-input")
+  const [step, setInternalStep] = useState<Step>("url-input")
   const [url, setUrl] = useState("")
   const [items, setItems] = useState<YouTubeImportStateItem[]>([])
   const [searchStates, setSearchStates] = useState<Record<string, string>>({})
@@ -84,14 +84,26 @@ export function useYouTubeImportState({
     }
   }, [items])
 
-  function resetState() {
+  function clearReviewState() {
     playlistRequestTokenRef.current += 1
     matchRequestTokensRef.current = {}
-    setStep("url-input")
-    setUrl("")
     setItems([])
     setSearchStates({})
     setDropdownOpen({})
+  }
+
+  function setStep(nextStep: Step) {
+    if (nextStep === "url-input") {
+      clearReviewState()
+    }
+
+    setInternalStep(nextStep)
+  }
+
+  function resetState() {
+    clearReviewState()
+    setInternalStep("url-input")
+    setUrl("")
   }
 
   function handleFetchPlaylist() {
@@ -132,7 +144,7 @@ export function useYouTubeImportState({
       }))
 
       setItems(detectDuplicates(importItems))
-      setStep("review")
+      setInternalStep("review")
     })
   }
 
