@@ -93,4 +93,5 @@ test('notification orchestration checks sent state before expensive reads and cl
   assert.ok(skipIndex < sheetReadIndex);
   assert.ok(claimIndex < sendIndex);
   assert.ok(sendIndex < sentIndex);
+  assert.ok(failedIndex < sentIndex);
 });

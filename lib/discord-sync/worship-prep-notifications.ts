@@ -157,21 +157,14 @@ export async function checkAndSendWorshipPrepReadyNotification({
       };
     }
 
-    try {
-      const url = buildWorshipPrepUrl(baseUrl, isoDate);
-      const message = buildWorshipPrepReadyMessage(url);
-      const sent = await sendThreadMessage(thread.id, message);
-      await markWorshipPrepNotificationSent(claim.record, sent.id);
+    const url = buildWorshipPrepUrl(baseUrl, isoDate);
+    const message = buildWorshipPrepReadyMessage(url);
+    let sent: { id: string };
 
-      return {
-        success: true,
-        status: 'sent',
-        threadId: thread.id,
-        messageId: sent.id,
-      };
+    try {
+      sent = await sendThreadMessage(thread.id, message);
     } catch (error) {
       await markWorshipPrepNotificationFailed(claim.record);
-
       return {
         success: false,
         status: 'error',
@@ -179,6 +172,25 @@ export async function checkAndSendWorshipPrepReadyNotification({
         threadId: thread.id,
       };
     }
+
+    try {
+      await markWorshipPrepNotificationSent(claim.record, sent.id);
+    } catch (error) {
+      return {
+        success: false,
+        status: 'error',
+        error: errorMessage(error, 'Discord notification sent but state update failed'),
+        threadId: thread.id,
+        messageId: sent.id,
+      };
+    }
+
+    return {
+      success: true,
+      status: 'sent',
+      threadId: thread.id,
+      messageId: sent.id,
+    };
   } catch (error) {
     return {
       success: false,
