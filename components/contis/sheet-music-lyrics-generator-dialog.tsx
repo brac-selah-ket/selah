@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { AiMagicIcon, AlertCircleIcon, Loading03Icon, RefreshIcon } from "@hugeicons/core-free-icons"
+import { AiMagicIcon, AlertCircleIcon, Loading03Icon, RefreshIcon, TextCheckIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,10 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { generateLyricsFromSheetMusicImages } from "@/lib/actions/sheet-music-lyrics"
+import { checkSpelling } from "@/lib/actions/spell-check"
 import type { SheetMusicFile } from "@/lib/types"
+import { computeWordDiff, getCorrectedParts, getOriginalParts } from "@/lib/utils/text-diff"
+import { validateLyricsPage } from "@/lib/utils/lyrics-validation"
 import { buildSheetMusicLyricsImagePages } from "@/lib/utils/sheet-music-lyrics-images"
 
 type GeneratorStatus = "idle" | "loading" | "ready" | "error"
@@ -26,6 +29,12 @@ interface SheetMusicLyricsGeneratorDialogProps {
   sheetMusicFiles: SheetMusicFile[]
   songName?: string
   onGeneratedLyrics: (lyrics: string[]) => void
+}
+
+interface SpellCheckState {
+  isLoading: boolean
+  correctedText: string | null
+  error: string | null
 }
 
 function getErrorMessage(error: unknown): string {
@@ -44,6 +53,7 @@ export function SheetMusicLyricsGeneratorDialog({
   const [error, setError] = useState<string | null>(null)
   const [preparedPageCount, setPreparedPageCount] = useState(0)
   const [generatedLyrics, setGeneratedLyrics] = useState<string[]>([])
+  const [spellCheck, setSpellCheck] = useState<Record<number, SpellCheckState>>({})
 
   const prevOpenRef = useRef(false)
   const requestIdRef = useRef(0)
@@ -54,6 +64,7 @@ export function SheetMusicLyricsGeneratorDialog({
     setError(null)
     setPreparedPageCount(0)
     setGeneratedLyrics([])
+    setSpellCheck({})
   }, [])
 
   const runGeneration = useCallback(async () => {
@@ -64,6 +75,7 @@ export function SheetMusicLyricsGeneratorDialog({
     setError(null)
     setPreparedPageCount(0)
     setGeneratedLyrics([])
+    setSpellCheck({})
 
     try {
       const pages = await buildSheetMusicLyricsImagePages(sheetMusicFiles)
@@ -87,6 +99,7 @@ export function SheetMusicLyricsGeneratorDialog({
       }
 
       setGeneratedLyrics(result.data.lyrics)
+      setSpellCheck({})
       setStatus("ready")
     } catch (generationError) {
       if (requestId !== requestIdRef.current) return
@@ -111,11 +124,71 @@ export function SheetMusicLyricsGeneratorDialog({
     }
   }, [open, resetState, runGeneration])
 
-  const handleAddLyrics = () => {
-    if (generatedLyrics.length === 0) return
+  const updateGeneratedPage = (index: number, value: string) => {
+    setGeneratedLyrics((current) => current.map((page, pageIndex) => (
+      pageIndex === index ? value : page
+    )))
+    setSpellCheck((current) => {
+      if (!current[index]) return current
+      const next = { ...current }
+      delete next[index]
+      return next
+    })
+  }
 
-    onGeneratedLyrics(generatedLyrics)
-    toast.success(`${generatedLyrics.length}개 가사 페이지를 추가했습니다`)
+  const handleSpellCheck = async (index: number) => {
+    const text = generatedLyrics[index]
+    if (!text?.trim()) return
+
+    setSpellCheck((current) => ({
+      ...current,
+      [index]: { isLoading: true, correctedText: null, error: null },
+    }))
+
+    const result = await checkSpelling(text)
+
+    if (result.success && result.data) {
+      const corrected = result.data.corrected
+
+      setSpellCheck((current) => ({
+        ...current,
+        [index]: {
+          isLoading: false,
+          correctedText: corrected === text ? null : corrected,
+          error: null,
+        },
+      }))
+      return
+    }
+
+    setSpellCheck((current) => ({
+      ...current,
+      [index]: {
+        isLoading: false,
+        correctedText: null,
+        error: result.error ?? "맞춤법 검사에 실패했습니다.",
+      },
+    }))
+  }
+
+  const handleAcceptCorrection = (index: number, corrected: string) => {
+    updateGeneratedPage(index, corrected)
+  }
+
+  const handleDismissSpellCheck = (index: number) => {
+    setSpellCheck((current) => {
+      const next = { ...current }
+      delete next[index]
+      return next
+    })
+  }
+
+  const handleAddLyrics = () => {
+    const pages = generatedLyrics.map((page) => page.trim()).filter(Boolean)
+    if (pages.length === 0) return
+
+    onGeneratedLyrics(pages)
+    toast.success(`${pages.length}개 가사 페이지를 추가했습니다`)
     onOpenChange(false)
   }
 
@@ -167,20 +240,104 @@ export function SheetMusicLyricsGeneratorDialog({
               </div>
 
               <div className="space-y-3">
-                {generatedLyrics.map((page, index) => (
-                  <div key={index} className="space-y-1.5 rounded-lg border p-3">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <HugeiconsIcon icon={AiMagicIcon} strokeWidth={2} className="size-4 text-primary" />
-                      페이지 {index + 1}
+                {generatedLyrics.map((page, index) => {
+                  const sc = spellCheck[index]
+                  const warnings = validateLyricsPage(page)
+                  const correctedText = sc?.correctedText
+
+                  return (
+                    <div key={index} className="space-y-1.5 rounded-lg border p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          <HugeiconsIcon icon={AiMagicIcon} strokeWidth={2} className="size-4 text-primary" />
+                          페이지 {index + 1}
+                        </div>
+                        <Button
+                          type="button"
+                          size="icon-xs"
+                          variant="ghost"
+                          onClick={() => handleSpellCheck(index)}
+                          aria-label="맞춤법 검사"
+                          disabled={!page.trim() || sc?.isLoading}
+                        >
+                          {sc?.isLoading ? (
+                            <HugeiconsIcon icon={Loading03Icon} strokeWidth={2} className="animate-spin" />
+                          ) : (
+                            <HugeiconsIcon icon={TextCheckIcon} strokeWidth={2} />
+                          )}
+                        </Button>
+                      </div>
+                      <Textarea
+                        rows={Math.min(6, Math.max(3, page.split("\n").length + 1))}
+                        className="resize-none text-sm"
+                        value={page}
+                        onChange={(event) => updateGeneratedPage(index, event.target.value)}
+                      />
+
+                      {warnings.length > 0 && (
+                        <div className="flex flex-col gap-0.5 px-1">
+                          {warnings.map((warning) => (
+                            <p key={warning.type} className="text-sm text-amber-600">
+                              {warning.message}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+
+                      {sc?.error && (
+                        <div className="px-1 text-sm text-destructive">{sc.error}</div>
+                      )}
+
+                      {sc && !sc.isLoading && !sc.error && sc.correctedText === null && (
+                        <div className="px-1 text-sm text-green-600">맞춤법 오류가 없습니다!</div>
+                      )}
+
+                      {correctedText !== null && correctedText !== undefined && (
+                        <div className="space-y-2 px-1">
+                          <div className="text-sm text-muted-foreground">교정 결과를 선택하세요:</div>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <button
+                              type="button"
+                              className="rounded-lg border-2 border-transparent bg-muted/30 p-3 text-left transition-colors hover:border-muted-foreground/30"
+                              onClick={() => handleDismissSpellCheck(index)}
+                            >
+                              <div className="mb-1 text-xs font-medium text-muted-foreground">원본 유지</div>
+                              <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                                {getOriginalParts(computeWordDiff(page, correctedText)).map((part, partIndex) => (
+                                  part.removed ? (
+                                    <span key={partIndex} className="rounded-sm bg-red-100 px-0.5 text-red-800 line-through">
+                                      {part.value}
+                                    </span>
+                                  ) : (
+                                    <span key={partIndex}>{part.value}</span>
+                                  )
+                                ))}
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              className="rounded-lg border-2 border-primary/50 bg-primary/5 p-3 text-left transition-colors hover:border-primary"
+                              onClick={() => handleAcceptCorrection(index, correctedText)}
+                            >
+                              <div className="mb-1 text-xs font-medium text-primary">교정 적용</div>
+                              <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                                {getCorrectedParts(computeWordDiff(page, correctedText)).map((part, partIndex) => (
+                                  part.added ? (
+                                    <span key={partIndex} className="rounded-sm bg-green-100 px-0.5 text-green-800">
+                                      {part.value}
+                                    </span>
+                                  ) : (
+                                    <span key={partIndex}>{part.value}</span>
+                                  )
+                                ))}
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <Textarea
-                      readOnly
-                      rows={Math.min(6, Math.max(3, page.split("\n").length + 1))}
-                      className="resize-none text-sm"
-                      value={page}
-                    />
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
@@ -197,7 +354,11 @@ export function SheetMusicLyricsGeneratorDialog({
             </Button>
           )}
           {status === "ready" && (
-            <Button type="button" onClick={handleAddLyrics}>
+            <Button
+              type="button"
+              onClick={handleAddLyrics}
+              disabled={!generatedLyrics.some((page) => page.trim())}
+            >
               <HugeiconsIcon icon={AiMagicIcon} strokeWidth={2} />
               가사에 추가
             </Button>

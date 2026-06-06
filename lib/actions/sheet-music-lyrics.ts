@@ -2,6 +2,7 @@
 
 import { z } from 'zod'
 import { DEFAULT_GEMINI_LYRICS_MODEL } from './sheet-music-lyrics-config.ts'
+import { normalizeGeneratedLyricsPages } from '../utils/lyrics-validation.ts'
 import type { ActionResult } from '@/lib/types'
 
 const MAX_PAGE_IMAGE_BYTES = 4 * 1024 * 1024
@@ -102,17 +103,24 @@ function buildLyricsExtractionPrompt(input: GenerateLyricsFromSheetMusicImagesIn
     '',
     '중요 규칙:',
     '- 첨부된 이미지는 악보 페이지 이미지다.',
+    '- 이 결과는 회중 찬양용 예배 PPT/슬라이드쇼에 바로 넣을 가사 페이지다.',
     '- 이미지에 실제로 보이는 한글 가사만 추출한다.',
     '- 모델의 기억, 일반 찬양 지식, 검색 결과, 곡명 추론으로 가사를 보충하지 않는다.',
     '- PDF 내장 텍스트가 아니라 현재 첨부된 이미지에 보이는 글자를 기준으로 판단한다.',
     '- verse, chorus, bridge, outro 등 곡 구조를 먼저 파악해서 자연스러운 노래 순서로 정리한다.',
     '- section label은 출력하지 않는다.',
+    '- 악보의 물리적 보표 줄 배치를 그대로 보존하지 말고, 회중이 따라 부르기 쉬운 슬라이드 줄바꿈을 우선한다.',
     '- 반복 기호는 참고하되 동일한 가사를 불필요하게 중복 생성하지 않는다.',
     '- key-up 반복처럼 가사가 동일하면 중복 페이지를 만들지 않는다.',
     '- 읽기 어려운 글자는 무리하게 창작하지 않는다.',
     '- 각 가사 줄은 visualLength <= 23을 목표로 줄바꿈한다.',
     '- visualLength = 한글 1자 * 1 + 공백 * 0.3 + 영문/숫자 * 0.7 + 기타 문자 * 1 이다.',
-    '- 한 가사 페이지는 1-2줄을 우선 사용한다. 꼭 필요할 때만 3줄을 사용한다.',
+    '- 한 가사 페이지는 최대 2줄을 원칙으로 한다. 아주 짧은 문장이나 의미 단위는 1줄도 허용한다.',
+    '- 페이지 경계는 문장/고백/호흡 단위를 우선한다. 2줄을 채우기 위해 의미상 이어지는 다음 고백을 이전 페이지에 붙이지 않는다.',
+    '- 앞 페이지가 짧은 두 줄이고 두 줄을 한 줄로 합쳐도 visualLength <= 23이면, 이어지는 다음 가사를 두 번째 줄로 배치한다.',
+    '- 예: "수많은 멜로디와 / 찬양들을 드렸지만 / 다시 고백하길 원하네"는 "수많은 멜로디와 찬양들을 드렸지만 / 다시 고백하길 원하네"처럼 한 페이지에 둔다.',
+    '- 3줄은 어떤 2줄 조합도 visualLength <= 23을 만족하지 못할 때만 사용한다.',
+    '- 출력 전 각 페이지를 다시 확인하고, 3줄 페이지가 2줄로 합쳐질 수 있으면 반드시 2줄로 바꾼다.',
     '- 최종 출력은 JSON schema에 맞는 JSON만 반환한다.',
   ].join('\n')
 }
@@ -128,9 +136,7 @@ function normalizeLyricsPayload(value: unknown): string[] | null {
   const parsed = lyricsPayloadSchema.safeParse(value)
   if (!parsed.success) return null
 
-  const lyrics = parsed.data.lyrics
-    .map((page) => page.trim())
-    .filter((page) => page.length > 0)
+  const lyrics = normalizeGeneratedLyricsPages(parsed.data.lyrics)
 
   return lyrics.length > 0 ? lyrics : null
 }

@@ -247,6 +247,112 @@ test("calls Gemini with inline image data and structured JSON output", async () 
   }
 })
 
+test("normalizes generated lyrics pages into two-line worship slides when possible", async () => {
+  const previousFetch = globalThis.fetch
+
+  globalThis.fetch = (async () => (
+    new Response(JSON.stringify({
+      candidates: [
+        {
+          content: {
+            parts: [
+              {
+                text: JSON.stringify({
+                  lyrics: [
+                    "수많은 멜로디와\n찬양들을 드렸지만\n다시 고백하길 원하네",
+                  ],
+                }),
+              },
+            ],
+          },
+        },
+      ],
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    })
+  )) as typeof fetch
+
+  try {
+    await withEnv({ GEMINI_API_KEY: "test-key" }, async () => {
+      const result = await generateLyricsFromSheetMusicImages({
+        pages: [
+          {
+            imageDataUrl: VALID_IMAGE_DATA_URL,
+            sourceName: "song.jpg",
+            pageLabel: "song.jpg",
+          },
+        ],
+      })
+
+      assert.deepEqual(result, {
+        success: true,
+        data: {
+          lyrics: [
+            "수많은 멜로디와 찬양들을 드렸지만\n다시 고백하길 원하네",
+          ],
+        },
+      })
+    })
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
+
+test("rebalances generated lyrics page boundaries when a connective phrase was split", async () => {
+  const previousFetch = globalThis.fetch
+
+  globalThis.fetch = (async () => (
+    new Response(JSON.stringify({
+      candidates: [
+        {
+          content: {
+            parts: [
+              {
+                text: JSON.stringify({
+                  lyrics: [
+                    "수많은 멜로디와\n찬양들을 드렸지만",
+                    "다시 고백하길 원하네\n주님은 나의 사랑",
+                  ],
+                }),
+              },
+            ],
+          },
+        },
+      ],
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    })
+  )) as typeof fetch
+
+  try {
+    await withEnv({ GEMINI_API_KEY: "test-key" }, async () => {
+      const result = await generateLyricsFromSheetMusicImages({
+        pages: [
+          {
+            imageDataUrl: VALID_IMAGE_DATA_URL,
+            sourceName: "song.jpg",
+            pageLabel: "song.jpg",
+          },
+        ],
+      })
+
+      assert.deepEqual(result, {
+        success: true,
+        data: {
+          lyrics: [
+            "수많은 멜로디와 찬양들을 드렸지만\n다시 고백하길 원하네",
+            "주님은 나의 사랑",
+          ],
+        },
+      })
+    })
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
+
 test("uses the configured Gemini lyrics model in the endpoint URL", async () => {
   const previousFetch = globalThis.fetch
   const calls: { url: string; init: RequestInit }[] = []

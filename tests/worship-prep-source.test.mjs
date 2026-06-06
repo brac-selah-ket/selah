@@ -412,8 +412,16 @@ test('sheet music lyrics generator uses Gemini images and appends generated page
 
   assert.match(generatorSource, /generateLyricsFromSheetMusicImages/);
   assert.match(generatorSource, /buildSheetMusicLyricsImagePages/);
+  assert.match(generatorSource, /checkSpelling/);
+  assert.match(generatorSource, /validateLyricsPage/);
+  assert.match(generatorSource, /TextCheckIcon/);
   assert.match(generatorSource, /overlayClassName="z-\[70\]"/);
   assert.match(generatorSource, /className="z-\[70\][^"]*flex[^"]*max-h-\[85vh\][^"]*flex-col/);
+  assert.match(generatorSource, /onChange=\{\(event\) => updateGeneratedPage\(index, event\.target\.value\)\}/);
+  assert.doesNotMatch(generatorSource, /readOnly/);
+  assert.match(generatorSource, /aria-label="맞춤법 검사"/);
+  assert.match(generatorSource, /교정 적용/);
+  assert.match(generatorSource, /원본 유지/);
   assert.match(generatorSource, /가사에 추가/);
   assert.doesNotMatch(generatorSource, /sectionOrder/);
   assert.doesNotMatch(generatorSource, /sectionLyricsMap/);
@@ -427,6 +435,10 @@ test('sheet music lyrics generator uses Gemini images and appends generated page
 
   assert.match(actionConfigSource, /DEFAULT_GEMINI_LYRICS_MODEL = 'gemini-3\.1-pro-preview'/);
   assert.match(actionSource, /DEFAULT_GEMINI_LYRICS_MODEL/);
+  assert.match(actionSource, /normalizeGeneratedLyricsPages/);
+  assert.match(actionSource, /회중 찬양용 예배 PPT\/슬라이드쇼/);
+  assert.match(actionSource, /최대 2줄/);
+  assert.match(actionSource, /문장\/고백\/호흡 단위/);
   assert.match(actionSource, /responseMimeType: 'application\/json'/);
   assert.match(actionSource, /responseJsonSchema/);
   assert.match(actionSource, /inline_data/);

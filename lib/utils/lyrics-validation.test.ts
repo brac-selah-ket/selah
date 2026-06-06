@@ -3,6 +3,8 @@ import test from "node:test"
 
 import {
   getLyricsLineVisualLength,
+  normalizeGeneratedLyricsPage,
+  normalizeGeneratedLyricsPages,
   validateLyricsPage,
 } from "./lyrics-validation.ts"
 
@@ -52,4 +54,43 @@ test("keeps the existing three-line page warning", () => {
       message: "줄 수가 너무 많습니다",
     },
   ])
+})
+
+test("merges generated three-line pages into two lines when each line still fits", () => {
+  assert.equal(
+    normalizeGeneratedLyricsPage("수많은 멜로디와\n찬양들을 드렸지만\n다시 고백하길 원하네"),
+    "수많은 멜로디와 찬양들을 드렸지만\n다시 고백하길 원하네",
+  )
+})
+
+test("keeps generated three-line pages when no two-line merge fits", () => {
+  const page = `${"가".repeat(20)}\n${"나".repeat(20)}\n${"다".repeat(20)}`
+
+  assert.equal(normalizeGeneratedLyricsPage(page), page)
+})
+
+test("rebalances generated page boundaries when a short page ends with a connective phrase", () => {
+  assert.deepEqual(
+    normalizeGeneratedLyricsPages([
+      "수많은 멜로디와\n찬양들을 드렸지만",
+      "다시 고백하길 원하네\n주님은 나의 사랑",
+    ]),
+    [
+      "수많은 멜로디와 찬양들을 드렸지만\n다시 고백하길 원하네",
+      "주님은 나의 사랑",
+    ],
+  )
+})
+
+test("keeps normal two-line generated pages at their page boundary", () => {
+  assert.deepEqual(
+    normalizeGeneratedLyricsPages([
+      "내 마음을 가득 채운\n주 향한 찬양과 사랑",
+      "어떻게 표현할 수 있나\n수많은 찬양들로",
+    ]),
+    [
+      "내 마음을 가득 채운\n주 향한 찬양과 사랑",
+      "어떻게 표현할 수 있나\n수많은 찬양들로",
+    ],
+  )
 })
