@@ -38,6 +38,7 @@ interface SheetMusicGalleryProps {
   onDeleted?: (fileId: string) => void;
   previewMode?: "dialog" | "controlled";
   onPreviewChange?: (item: SheetMusicPreviewItem | null) => void;
+  onPreviewLoadingChange?: (loading: boolean) => void;
 }
 
 export function SheetMusicGallery({
@@ -46,10 +47,12 @@ export function SheetMusicGallery({
   onDeleted,
   previewMode = "dialog",
   onPreviewChange,
+  onPreviewLoadingChange,
 }: SheetMusicGalleryProps) {
   const [items, setItems] = useState<SheetMusicPreviewItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<SheetMusicPreviewItem | null>(null);
   const previewChangeRef = useRef(onPreviewChange);
+  const previewLoadingChangeRef = useRef(onPreviewLoadingChange);
   const selectedPreviewKeyRef = useRef<string | null>(null);
 
   // Stable key derived from file IDs to avoid re-running effects on parent re-renders
@@ -60,6 +63,10 @@ export function SheetMusicGallery({
   useEffect(() => {
     previewChangeRef.current = onPreviewChange;
   }, [onPreviewChange]);
+
+  useEffect(() => {
+    previewLoadingChangeRef.current = onPreviewLoadingChange;
+  }, [onPreviewLoadingChange]);
 
   const handlePreview = (item: SheetMusicPreviewItem) => {
     if (previewMode === "controlled") {
@@ -75,6 +82,7 @@ export function SheetMusicGallery({
   // Build gallery items and render PDF thumbnails in one pass per PDF
   useEffect(() => {
     let cancelled = false;
+    let reportedLoading = false;
     const currentFiles = filesRef.current;
 
     const syncControlledPreview = (nextItems: SheetMusicPreviewItem[]) => {
@@ -97,6 +105,10 @@ export function SheetMusicGallery({
 
     async function buildItems() {
       const result: SheetMusicPreviewItem[] = [];
+      if (previewMode === "controlled" && currentFiles.length > 0) {
+        previewLoadingChangeRef.current?.(true);
+        reportedLoading = true;
+      }
 
       for (const file of currentFiles) {
         const assetUrl = getSheetMusicAssetUrl(file);
@@ -158,13 +170,22 @@ export function SheetMusicGallery({
       }
 
       if (!cancelled) {
+        if (previewMode === "controlled") {
+          previewLoadingChangeRef.current?.(false);
+          reportedLoading = false;
+        }
         setItems(result);
         syncControlledPreview(result);
       }
     }
 
     buildItems();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (reportedLoading) {
+        previewLoadingChangeRef.current?.(false);
+      }
+    };
   }, [filesKey, previewMode]);
 
   const handleDelete = async (fileId: string) => {

@@ -25,6 +25,7 @@ interface PresetEditorProps {
 
 export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }: PresetEditorProps) {
   const router = useRouter()
+  const [sheetMusicLoading, setSheetMusicLoading] = useState(false)
   const [sheetMusicPreviewItem, setSheetMusicPreviewItem] = useState<SheetMusicPreviewItem | null>(null)
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
 
     void Promise.resolve().then(() => {
       if (!cancelled) {
+        setSheetMusicLoading(false)
         setSheetMusicPreviewItem(null)
       }
     })
@@ -47,6 +49,7 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
 
       void Promise.resolve().then(() => {
         if (!cancelled) {
+          setSheetMusicLoading(false)
           setSheetMusicPreviewItem(null)
         }
       })
@@ -67,6 +70,7 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
       initialDraft={songPresetToDraft(preset)}
       availableSheetMusic={sheetMusic}
       sheetMusicPreviewItem={sheetMusicPreviewItem}
+      sheetMusicLoading={sheetMusicLoading}
       sheetMusicWorkspacePreview
       sheetMusicManagementSlot={
         sheetMusic.length > 0 ? (
@@ -74,6 +78,7 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
             files={sheetMusic}
             previewMode="controlled"
             onPreviewChange={setSheetMusicPreviewItem}
+            onPreviewLoadingChange={setSheetMusicLoading}
           />
         ) : null
       }

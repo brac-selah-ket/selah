@@ -103,6 +103,7 @@ export function ContiSongEditor({
   const [presets, setPresets] = useState<SongPreset[]>([])
   const [songSheetMusic, setSongSheetMusic] = useState<SheetMusicFile[]>([])
   const [sheetMusicLoading, setSheetMusicLoading] = useState(false)
+  const [sheetMusicPreviewLoading, setSheetMusicPreviewLoading] = useState(false)
   const [sheetMusicPreviewItem, setSheetMusicPreviewItem] = useState<SheetMusicPreviewItem | null>(null)
   const currentSongIdRef = useRef(contiSong.songId)
   const sheetMusicRequestIdRef = useRef(0)
@@ -160,6 +161,7 @@ export function ContiSongEditor({
     void Promise.resolve().then(() => {
       if (!cancelled) {
         setSongSheetMusic([])
+        setSheetMusicPreviewLoading(false)
         setSheetMusicPreviewItem(null)
       }
     })
@@ -175,6 +177,7 @@ export function ContiSongEditor({
 
       void Promise.resolve().then(() => {
         if (!cancelled) {
+          setSheetMusicPreviewLoading(false)
           setSheetMusicPreviewItem(null)
         }
       })
@@ -195,6 +198,7 @@ export function ContiSongEditor({
 
   const handleSheetMusicDeleted = (fileId: string) => {
     setSongSheetMusic((current) => current.filter((file) => file.id !== fileId))
+    setSheetMusicPreviewLoading(false)
     setSheetMusicPreviewItem((current) =>
       current?.file.id === fileId ? null : current,
     )
@@ -211,7 +215,7 @@ export function ContiSongEditor({
       initialDraft={contiSongToDraft(contiSong)}
       availableSheetMusic={songSheetMusic}
       sheetMusicPreviewItem={sheetMusicPreviewItem}
-      sheetMusicLoading={sheetMusicLoading}
+      sheetMusicLoading={sheetMusicLoading || sheetMusicPreviewLoading}
       sheetMusicWorkspacePreview
       sheetMusicManagementSlot={
         <div className="space-y-4">
@@ -227,6 +231,7 @@ export function ContiSongEditor({
               onDeleted={handleSheetMusicDeleted}
               previewMode="controlled"
               onPreviewChange={setSheetMusicPreviewItem}
+              onPreviewLoadingChange={setSheetMusicPreviewLoading}
             />
           )}
         </div>
