@@ -87,6 +87,27 @@ function stopRowClick(event: MouseEvent) {
   event.stopPropagation()
 }
 
+const INTERACTIVE_CHILD_SELECTOR = [
+  "a",
+  "button",
+  "input",
+  "select",
+  "textarea",
+  "summary",
+  '[role="button"]',
+  '[role="link"]',
+  '[contenteditable="true"]',
+].join(", ")
+
+function handleRowClick(event: MouseEvent<HTMLElement>, onClick?: () => void) {
+  const target = event.target
+  if (target instanceof Element && target.closest(INTERACTIVE_CHILD_SELECTOR)) {
+    return
+  }
+
+  onClick?.()
+}
+
 export function ContiSongSummaryTable({
   songs,
   mode,
@@ -117,35 +138,20 @@ export function ContiSongSummaryTable({
           return (
             <div
               key={song.id}
-              className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border bg-background/70 px-3 py-3 text-sm"
+              className="grid cursor-pointer grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border bg-background/70 px-3 py-3 text-sm hover:bg-muted/40"
+              onClick={(event) => handleRowClick(event, editRow)}
             >
-              <span
-                className="cursor-pointer rounded-sm font-semibold text-primary transition-colors hover:bg-muted/45"
-                onClick={editRow}
-              >
+              <span className="font-semibold text-primary">
                 {index + 1}
               </span>
               <div className="min-w-0">
-                <p
-                  className="cursor-pointer truncate rounded-sm font-medium transition-colors hover:bg-muted/45"
-                  onClick={editRow}
-                >
-                  {getSongName(song)}
-                </p>
+                <p className="truncate font-medium">{getSongName(song)}</p>
                 <div className="mt-1 flex min-w-0 max-w-full flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                  <span
-                    className="min-w-0 max-w-full cursor-pointer truncate rounded-sm transition-colors hover:bg-muted/45"
-                    onClick={editRow}
-                  >
+                  <span className="min-w-0 max-w-full truncate">
                     {getKeyTempoSummary(song)}
                   </span>
                   {presetName && (
-                    <span
-                      className="min-w-0 max-w-full cursor-pointer truncate rounded-sm transition-colors hover:bg-muted/45"
-                      onClick={editRow}
-                    >
-                      {presetName}
-                    </span>
+                    <span className="min-w-0 max-w-full truncate">{presetName}</span>
                   )}
                   {youtubeReference && (
                     <span
@@ -161,10 +167,7 @@ export function ContiSongSummaryTable({
                   )}
                 </div>
                 {sectionSummary !== "-" && (
-                  <p
-                    className="mt-1 cursor-pointer truncate rounded-sm text-xs text-muted-foreground transition-colors hover:bg-muted/45"
-                    onClick={editRow}
-                  >
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
                     {sectionSummary}
                   </p>
                 )}
@@ -258,36 +261,17 @@ export function ContiSongSummaryTable({
               key={song.id}
               className={cn(
                 `grid ${gridTemplateClass} items-center gap-3 border-b px-3 py-3 text-sm last:border-b-0`,
+                showActions && "cursor-pointer hover:bg-muted/40",
               )}
+              onClick={showActions ? (event) => handleRowClick(event, editRow) : undefined}
             >
-              <span
-                className={cn(
-                  "font-semibold text-primary",
-                  showActions &&
-                    "cursor-pointer rounded-sm transition-colors hover:bg-muted/45",
-                )}
-                onClick={showActions ? editRow : undefined}
-              >
+              <span className="font-semibold text-primary">
                 {index + 1}
               </span>
-              <span
-                className={cn(
-                  "min-w-0 truncate font-medium",
-                  showActions &&
-                    "cursor-pointer rounded-sm transition-colors hover:bg-muted/45",
-                )}
-                onClick={showActions ? editRow : undefined}
-              >
+              <span className="min-w-0 truncate font-medium">
                 {getSongName(song)}
               </span>
-              <span
-                className={cn(
-                  "flex min-w-0 flex-wrap gap-1",
-                  showActions &&
-                    "cursor-pointer rounded-sm transition-colors hover:bg-muted/45",
-                )}
-                onClick={showActions ? editRow : undefined}
-              >
+              <span className="flex min-w-0 flex-wrap gap-1">
                 {keys.length > 0
                   ? keys.map((key, keyIndex) => (
                       <Badge key={`${key}-${keyIndex}`} variant="key">
@@ -296,14 +280,7 @@ export function ContiSongSummaryTable({
                     ))
                   : "-"}
               </span>
-              <span
-                className={cn(
-                  "flex min-w-0 flex-wrap gap-1",
-                  showActions &&
-                    "cursor-pointer rounded-sm transition-colors hover:bg-muted/45",
-                )}
-                onClick={showActions ? editRow : undefined}
-              >
+              <span className="flex min-w-0 flex-wrap gap-1">
                 {tempos.length > 0
                   ? tempos.map((tempo, tempoIndex) => (
                       <Badge key={`${tempo}-${tempoIndex}`} variant="tempo">
@@ -312,24 +289,10 @@ export function ContiSongSummaryTable({
                     ))
                   : "-"}
               </span>
-              <span
-                className={cn(
-                  "min-w-0 truncate text-muted-foreground",
-                  showActions &&
-                    "cursor-pointer rounded-sm transition-colors hover:bg-muted/45",
-                )}
-                onClick={showActions ? editRow : undefined}
-              >
+              <span className="min-w-0 truncate text-muted-foreground">
                 {getSectionSummary(song)}
               </span>
-              <span
-                className={cn(
-                  "min-w-0 truncate text-muted-foreground",
-                  showActions &&
-                    "cursor-pointer rounded-sm transition-colors hover:bg-muted/45",
-                )}
-                onClick={showActions ? editRow : undefined}
-              >
+              <span className="min-w-0 truncate text-muted-foreground">
                 {presetName ?? "-"}
               </span>
               <span
