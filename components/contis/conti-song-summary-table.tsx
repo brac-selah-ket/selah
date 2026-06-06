@@ -88,6 +88,7 @@ function stopRowClick(event: MouseEvent) {
 }
 
 function handleEditRowKeyDown(event: KeyboardEvent, onEditRow: () => void) {
+  if (event.currentTarget !== event.target) return
   if (event.key !== "Enter" && event.key !== " ") return
   event.preventDefault()
   onEditRow()
