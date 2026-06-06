@@ -170,3 +170,125 @@ test('discord client sends plain messages to a thread channel', async () => {
   assert.match(source, /\/channels\/\$\{threadId\}\/messages/);
   assert.match(source, /body:\s*JSON\.stringify\(\{\s*content/);
 });
+
+test('interactions route checks worship prep readiness after role sheet updates', async () => {
+  const source = await readFile(
+    new URL('../app/api/discord/interactions/route.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /checkAndSendWorshipPrepReadyNotification/);
+  assert.match(source, /async function safelyCheckWorshipPrepReadyNotification/);
+
+  const helper = source.slice(
+    source.indexOf('async function safelyCheckWorshipPrepReadyNotification'),
+    source.indexOf('export async function POST'),
+  );
+  assert.match(helper, /try\s*\{/);
+  assert.match(helper, /catch\s*\(\s*error\s*\)/);
+  assert.match(helper, /checkAndSendWorshipPrepReadyNotification\(input\)/);
+
+  const body = source.slice(source.indexOf('export async function POST'));
+  const updateIndex = body.indexOf('await updateRoleSelectionInSheet(customId, selectedValue, sundayDate);');
+  const notifyIndex = body.indexOf('await safelyCheckWorshipPrepReadyNotification');
+
+  assert.notEqual(updateIndex, -1);
+  assert.notEqual(notifyIndex, -1);
+  assert.ok(updateIndex < notifyIndex);
+  assert.match(body, /safelyCheckWorshipPrepReadyNotification\(\{\s*sundayDate,\s*origin:\s*new URL\(request\.url\)\.origin\s*\}\)/);
+});
+
+test('parse-comments cron checks worship prep readiness after worship data updates', async () => {
+  const source = await readFile(
+    new URL('../app/api/cron/discord/parse-comments/route.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /checkAndSendWorshipPrepReadyNotification/);
+  assert.match(source, /async function safelyCheckWorshipPrepReadyNotification/);
+
+  const helper = source.slice(
+    source.indexOf('async function safelyCheckWorshipPrepReadyNotification'),
+    source.indexOf('export async function GET'),
+  );
+  assert.match(helper, /try\s*\{/);
+  assert.match(helper, /catch\s*\(\s*error\s*\)/);
+  assert.match(helper, /checkAndSendWorshipPrepReadyNotification\(input\)/);
+
+  const body = source.slice(source.indexOf('export async function GET'));
+  const updateIndex = body.indexOf('await updateWorshipData(SHEET_NAME, targetRow, mergedData);');
+  const notifyIndex = body.indexOf('await safelyCheckWorshipPrepReadyNotification');
+
+  assert.notEqual(updateIndex, -1);
+  assert.notEqual(notifyIndex, -1);
+  assert.ok(updateIndex < notifyIndex);
+  assert.match(body, /safelyCheckWorshipPrepReadyNotification\(\{\s*sundayDate:\s*activeThread\.sundayDate,\s*origin:\s*new URL\(request\.url\)\.origin\s*\}\)/);
+});
+
+test('manual worship prep parse action checks readiness after worship data updates', async () => {
+  const source = await readFile(
+    new URL('../lib/actions/worship-prep.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /checkAndSendWorshipPrepReadyNotification/);
+  assert.match(source, /async function safelyCheckWorshipPrepReadyNotification/);
+
+  const helper = source.slice(
+    source.indexOf('async function safelyCheckWorshipPrepReadyNotification'),
+    source.indexOf('export async function createWeeklyWorshipThread'),
+  );
+  assert.match(helper, /try\s*\{/);
+  assert.match(helper, /catch\s*\(\s*error\s*\)/);
+  assert.match(helper, /checkAndSendWorshipPrepReadyNotification\(input\)/);
+
+  const body = source.slice(source.indexOf('export async function parseActiveWorshipThreadComments'));
+  const updateIndex = body.indexOf('await updateWorshipData(SHEET_NAME, targetRow, mergedData);');
+  const notifyIndex = body.indexOf('await safelyCheckWorshipPrepReadyNotification');
+
+  assert.notEqual(updateIndex, -1);
+  assert.notEqual(notifyIndex, -1);
+  assert.ok(updateIndex < notifyIndex);
+  assert.match(body, /safelyCheckWorshipPrepReadyNotification\(\{\s*sundayDate:\s*activeThread\.sundayDate\s*\}\)/);
+});
+
+test('conti actions check worship prep readiness after create and update', async () => {
+  const source = await readFile(
+    new URL('../lib/actions/contis.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /checkAndSendWorshipPrepReadyNotification/);
+  assert.match(source, /toYYMMDDFromIsoDate/);
+  assert.match(source, /async function safelyCheckWorshipPrepReadyNotification/);
+  assert.match(source, /async function safelyCheckWorshipPrepReadyNotificationForIsoDate/);
+
+  const helper = source.slice(
+    source.indexOf('async function safelyCheckWorshipPrepReadyNotificationForIsoDate'),
+    source.indexOf('export async function createConti'),
+  );
+  assert.match(helper, /try\s*\{/);
+  assert.match(helper, /catch\s*\(\s*error\s*\)/);
+  assert.match(helper, /toYYMMDDFromIsoDate\(isoDate\)/);
+  assert.match(helper, /safelyCheckWorshipPrepReadyNotification\(\{\s*sundayDate\s*\}\)/);
+
+  const createBody = source.slice(
+    source.indexOf('export async function createConti'),
+    source.indexOf('export async function updateConti'),
+  );
+  const createRevalidateIndex = createBody.indexOf("revalidatePath('/contis');");
+  const createNotifyIndex = createBody.indexOf('await safelyCheckWorshipPrepReadyNotificationForIsoDate(conti.date);');
+  assert.notEqual(createRevalidateIndex, -1);
+  assert.notEqual(createNotifyIndex, -1);
+  assert.ok(createRevalidateIndex < createNotifyIndex);
+
+  const updateBody = source.slice(
+    source.indexOf('export async function updateConti'),
+    source.indexOf('export async function deleteConti'),
+  );
+  const updateRevalidateIndex = updateBody.indexOf("revalidatePath('/contis');");
+  const updateNotifyIndex = updateBody.indexOf('await safelyCheckWorshipPrepReadyNotificationForIsoDate(result.date);');
+  assert.notEqual(updateRevalidateIndex, -1);
+  assert.notEqual(updateNotifyIndex, -1);
+  assert.ok(updateRevalidateIndex < updateNotifyIndex);
+});

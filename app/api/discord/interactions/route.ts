@@ -3,6 +3,7 @@ import { addMessageReaction, getChannel } from '@/lib/discord-sync/discord-clien
 import { verifyDiscordInteraction } from '@/lib/discord-sync/interaction-verify';
 import { parseWorshipThreadName } from '@/lib/discord-sync/cron-state';
 import { updateRoleSelectionInSheet } from '@/lib/discord-sync/google-sheets';
+import { checkAndSendWorshipPrepReadyNotification } from '@/lib/discord-sync/worship-prep-notifications';
 
 const DISCORD_PING = 1;
 const MESSAGE_COMPONENT = 3;
@@ -57,6 +58,15 @@ async function getInteractionThreadName(interaction: DiscordInteraction): Promis
 
   const channel = await getChannel(channelId);
   return channel.name ?? null;
+}
+
+async function safelyCheckWorshipPrepReadyNotification(input: { sundayDate: string; origin?: string }) {
+  try {
+    const result = await checkAndSendWorshipPrepReadyNotification(input);
+    if (!result.success) console.error('[checkAndSendWorshipPrepReadyNotification]', result.error ?? result.status);
+  } catch (error) {
+    console.error('[checkAndSendWorshipPrepReadyNotification]', error);
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -125,6 +135,7 @@ export async function POST(request: NextRequest) {
         },
       });
     }
+    await safelyCheckWorshipPrepReadyNotification({ sundayDate, origin: new URL(request.url).origin });
 
     const channelId = interaction.channel_id ?? interaction.message?.channel_id;
     const messageId = interaction.message?.id;

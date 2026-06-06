@@ -21,6 +21,7 @@ import { parseDiscordMessages } from '@/lib/discord-parser';
 import { resolveGuildId, selectPreviousWorshipThread } from '@/lib/discord-sync/cron-state';
 import { correctSpelling } from '@/lib/discord-sync/spell-checker';
 import { findRowByDate, readRoleOptionsWithFallback, updateWorshipData } from '@/lib/discord-sync/google-sheets';
+import { checkAndSendWorshipPrepReadyNotification } from '@/lib/discord-sync/worship-prep-notifications';
 import type { ActionResult } from '@/lib/types';
 
 const SHEET_NAME = 'DB';
@@ -33,6 +34,15 @@ function hasParsedData(data?: { preacher?: string; leader?: string; worshipLeade
 
 function toSheetDate(sundayDate: string): string {
   return `20${sundayDate.slice(0, 2)}.${sundayDate.slice(2, 4)}.${sundayDate.slice(4, 6)}`;
+}
+
+async function safelyCheckWorshipPrepReadyNotification(input: { sundayDate: string; origin?: string }) {
+  try {
+    const result = await checkAndSendWorshipPrepReadyNotification(input);
+    if (!result.success) console.error('[checkAndSendWorshipPrepReadyNotification]', result.error ?? result.status);
+  } catch (error) {
+    console.error('[checkAndSendWorshipPrepReadyNotification]', error);
+  }
 }
 
 export async function createWeeklyWorshipThread(): Promise<ActionResult<{ threadId: string; threadName: string; sundayDate: string }>> {
@@ -163,6 +173,7 @@ export async function parseActiveWorshipThreadComments(): Promise<ActionResult<{
         mergedData.title = await correctSpelling(mergedData.title);
       }
       await updateWorshipData(SHEET_NAME, targetRow, mergedData);
+      await safelyCheckWorshipPrepReadyNotification({ sundayDate: activeThread.sundayDate });
     }
 
     const parseStatus = Object.keys(mergedData).length > 0 ? 'parsed' : 'ignored';
