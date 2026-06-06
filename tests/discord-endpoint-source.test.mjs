@@ -2,28 +2,51 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-test('create-thread cron dryRun returns before Discord side effects', async () => {
+test('create-thread cron dryRun returns before Discord write side effects', async () => {
   const source = await readFile(
     new URL('../app/api/cron/discord/create-thread/route.ts', import.meta.url),
     'utf8',
   );
 
   const dryRunIndex = source.indexOf('if (dryRun)');
-  const channelEnvIndex = source.indexOf('process.env.DISCORD_CHANNEL_ID');
+  const archiveThreadIndex = source.indexOf('await archiveThread');
   const createThreadIndex = source.indexOf('await createForumThread');
   const sheetReadIndex = source.indexOf('await readRoleOptionsFromSheet');
+  const dropdownIndex = source.indexOf('await sendDropdownMessage');
 
   assert.notEqual(dryRunIndex, -1);
-  assert.notEqual(channelEnvIndex, -1);
+  assert.notEqual(archiveThreadIndex, -1);
   assert.notEqual(createThreadIndex, -1);
   assert.notEqual(sheetReadIndex, -1);
-  assert.ok(dryRunIndex < channelEnvIndex);
+  assert.notEqual(dropdownIndex, -1);
+  assert.ok(dryRunIndex < archiveThreadIndex);
   assert.ok(dryRunIndex < createThreadIndex);
   assert.ok(dryRunIndex < sheetReadIndex);
+  assert.ok(dryRunIndex < dropdownIndex);
 
-  const dryRunGuard = source.slice(dryRunIndex, Math.min(createThreadIndex, sheetReadIndex));
+  const firstWriteSideEffectIndex = Math.min(archiveThreadIndex, createThreadIndex, sheetReadIndex, dropdownIndex);
+  const dryRunGuard = source.slice(dryRunIndex, firstWriteSideEffectIndex);
   assert.match(dryRunGuard, /return NextResponse\.json/);
-  assert.doesNotMatch(dryRunGuard, /createForumThread|sendDropdownMessage|readRoleOptionsFromSheet/);
+  assert.doesNotMatch(dryRunGuard, /archiveThread|createForumThread|sendDropdownMessage|readRoleOptionsFromSheet/);
+  assert.match(dryRunGuard, /wouldArchiveThread/);
+});
+
+test('create-thread cron archives previous worship thread before creating the new one', async () => {
+  const source = await readFile(
+    new URL('../app/api/cron/discord/create-thread/route.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /archiveThread/);
+  assert.match(source, /selectPreviousWorshipThread/);
+
+  const body = source.slice(source.indexOf('export async function GET'));
+  const archiveThreadIndex = body.indexOf('await archiveThread');
+  const createThreadIndex = body.indexOf('await createForumThread');
+
+  assert.notEqual(archiveThreadIndex, -1);
+  assert.notEqual(createThreadIndex, -1);
+  assert.ok(archiveThreadIndex < createThreadIndex);
 });
 
 test('send-week-dropdown requires cron authorization before Discord side effects', async () => {

@@ -4,9 +4,12 @@ import { revalidatePath } from 'next/cache';
 import {
   buildInitialMessage,
   buildThreadName,
+  archiveThread,
   createForumThread,
   formatToYYMMDD,
+  getActiveForumThreads,
   getActiveThread,
+  getChannel,
   getProcessedMessageIds,
   getThreadMessages,
   getUpcomingSundayDate,
@@ -15,6 +18,7 @@ import {
   setActiveThread,
 } from '@/lib/discord-sync';
 import { parseDiscordMessages } from '@/lib/discord-parser';
+import { resolveGuildId, selectPreviousWorshipThread } from '@/lib/discord-sync/cron-state';
 import { correctSpelling } from '@/lib/discord-sync/spell-checker';
 import { findRowByDate, readRoleOptionsWithFallback, updateWorshipData } from '@/lib/discord-sync/google-sheets';
 import type { ActionResult } from '@/lib/types';
@@ -41,6 +45,20 @@ export async function createWeeklyWorshipThread(): Promise<ActionResult<{ thread
     const sundayDate = getUpcomingSundayDate();
     const yymmdd = formatToYYMMDD(sundayDate);
     const threadName = buildThreadName(yymmdd);
+
+    const configuredGuildId = process.env.DISCORD_GUILD_ID;
+    const guildId = resolveGuildId({
+      configuredGuildId,
+      channel: configuredGuildId?.trim() ? null : await getChannel(channelId),
+    });
+    if (!guildId) {
+      return { success: false, error: 'DISCORD_GUILD_ID is not set and guild_id could not be resolved from DISCORD_CHANNEL_ID' };
+    }
+
+    const previousThread = selectPreviousWorshipThread(await getActiveForumThreads(guildId, channelId), yymmdd);
+    if (previousThread) {
+      await archiveThread(previousThread.id);
+    }
 
     const thread = await createForumThread(channelId, threadName, buildInitialMessage(sundayDate));
     await setActiveThread(thread.id, yymmdd);
