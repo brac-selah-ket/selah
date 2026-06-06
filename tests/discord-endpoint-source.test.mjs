@@ -143,6 +143,39 @@ test('parse-comments requires cron authorization before Discord and Google side 
   assert.match(body, /status:\s*401/);
 });
 
+test('check-worship-prep-ready cron requires auth before side effects', async () => {
+  const source = await readFile(
+    new URL('../app/api/cron/discord/check-worship-prep-ready/route.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /isCronAuthorized/);
+  assert.match(source, /getCurrentOrUpcomingSundayDate/);
+  assert.match(source, /day === 0 \? 0 : 7 - day/);
+
+  const body = source.slice(source.indexOf('export async function GET'));
+  const authIndex = body.indexOf('isCronAuthorized');
+  const notificationIndex = body.indexOf('checkAndSendWorshipPrepReadyNotification(');
+
+  assert.notEqual(authIndex, -1);
+  assert.notEqual(notificationIndex, -1);
+  assert.ok(authIndex < notificationIndex);
+  assert.match(body, /status:\s*401/);
+});
+
+test('vercel config schedules worship prep readiness recovery every 10 minutes', async () => {
+  const source = await readFile(new URL('../vercel.json', import.meta.url), 'utf8');
+  const config = JSON.parse(source);
+
+  assert.ok(
+    config.crons.some(
+      (cron) =>
+        cron.path === '/api/cron/discord/check-worship-prep-ready' &&
+        cron.schedule === '*/10 * * * *',
+    ),
+  );
+});
+
 test('discord client archives worship threads without locking them', async () => {
   const source = await readFile(
     new URL('../lib/discord-sync/discord-client.ts', import.meta.url),
