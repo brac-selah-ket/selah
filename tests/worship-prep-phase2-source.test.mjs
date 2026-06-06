@@ -26,6 +26,16 @@ test("connected conti card is a single link without nested links", async () => {
   assert.equal(source.match(/<Link\b/g)?.length, 1)
 })
 
+test("clickable scripture card uses a pointer cursor", async () => {
+  const source = await readFile(
+    new URL("../components/worship-prep/prep-element-cards.tsx", import.meta.url),
+    "utf8",
+  )
+
+  assert.match(source, /aria-label=\{card\.buttonLabel\}/)
+  assert.match(source, /className='[^']*cursor-pointer/)
+})
+
 test("worship prep page uses tighter section spacing and groups controls", async () => {
   const source = await readFile(
     new URL("../app/(authenticated)/worship-prep/page.tsx", import.meta.url),

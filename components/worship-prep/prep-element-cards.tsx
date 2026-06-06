@@ -148,7 +148,7 @@ export function PrepElementCards({ item, conti }: PrepElementCardsProps) {
               <button
                 key={card.key}
                 type='button'
-                className='block h-full w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
+                className='block h-full w-full cursor-pointer rounded-lg text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
                 onClick={card.onClick}
                 aria-label={card.buttonLabel}
               >

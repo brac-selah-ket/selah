@@ -5,26 +5,15 @@ import { WorshipDateSelector } from '@/components/worship-prep/worship-date-sele
 import { WorshipPptxExportButton } from '@/components/worship-prep/worship-pptx-export-button';
 import { getWorshipPrepDetail } from '@/lib/queries/worship-prep';
 import { getConti, getContiByDate, getContis } from '@/lib/queries/contis';
+import { getDefaultWorshipPrepIsoDate } from '@/lib/worship-prep/default-date';
 
 export const dynamic = 'force-dynamic';
-
-function getNearestFutureSundayIsoDate(baseDate = new Date()): string {
-  const date = new Date(baseDate);
-  date.setHours(0, 0, 0, 0);
-  const day = date.getDay();
-  const diff = day === 0 ? 7 : 7 - day;
-  date.setDate(date.getDate() + diff);
-  const yyyy = `${date.getFullYear()}`;
-  const mm = `${date.getMonth() + 1}`.padStart(2, '0');
-  const dd = `${date.getDate()}`.padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
 
 function normalizeDate(value: string | undefined): string {
   if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return value;
   }
-  return getNearestFutureSundayIsoDate();
+  return getDefaultWorshipPrepIsoDate();
 }
 
 export default async function WorshipPrepPage({
