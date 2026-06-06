@@ -174,6 +174,7 @@ const batchImportItemSchema = z.object({
   createNewPreset: z.boolean().optional().default(false),
   presetName: z.string().nullable().optional().default(null),
   alreadyInConti: z.boolean().optional().default(false),
+  replaceExistingYoutube: z.boolean().optional().default(true),
 })
 
 const batchImportSchema = z.object({
@@ -192,6 +193,7 @@ export async function batchImportSongsToConti(
     createNewPreset?: boolean
     presetName?: string | null
     alreadyInConti?: boolean
+    replaceExistingYoutube?: boolean
   }>
 ): Promise<ActionResult<{ added: number; created: number; presetUpdated: number }>> {
   try {

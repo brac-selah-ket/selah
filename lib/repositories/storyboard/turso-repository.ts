@@ -856,7 +856,9 @@ export const tursoStoryboardRepository: StoryboardRepository = {
           if (!appliedPresetOverrides) {
             throw new Error('PRESET_NOT_FOUND');
           }
-          await updateTursoSongPresetYoutubeRef(item.presetId, item.videoId, item.title);
+          if (item.replaceExistingYoutube !== false) {
+            await updateTursoSongPresetYoutubeRef(item.presetId, item.videoId, item.title);
+          }
           appliedPresetId = item.presetId;
         } else if (item.songId && item.createNewPreset) {
           const preset = await insertTursoSongPreset(resolvedSongId, {

@@ -177,6 +177,7 @@ export interface BatchImportSongsToContiItem {
   createNewPreset?: boolean;
   presetName?: string | null;
   alreadyInConti?: boolean;
+  replaceExistingYoutube?: boolean;
 }
 
 export interface BatchImportSongsToContiResult {
