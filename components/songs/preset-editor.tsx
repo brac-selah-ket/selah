@@ -1,6 +1,9 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { ArrangementEditor, type ArrangementDraft } from "@/components/shared/arrangement-editor"
+import type { SheetMusicPreviewItem } from "@/components/shared/sheet-music-preview"
+import { SheetMusicGallery } from "@/components/songs/sheet-music-gallery"
 import { createSongPreset, updateSongPreset } from "@/lib/actions/song-presets"
 import { normalizeYouTubeReference, toYouTubeInputValue } from "@/lib/utils/youtube"
 import type {
@@ -68,6 +71,38 @@ function draftToPresetData(draft: ArrangementDraft): SongPresetData {
 }
 
 export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }: PresetEditorProps) {
+  const [sheetMusicPreviewItem, setSheetMusicPreviewItem] = useState<SheetMusicPreviewItem | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    void Promise.resolve().then(() => {
+      if (!cancelled) {
+        setSheetMusicPreviewItem(null)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [songId, preset?.id])
+
+  useEffect(() => {
+    if (!open) {
+      let cancelled = false
+
+      void Promise.resolve().then(() => {
+        if (!cancelled) {
+          setSheetMusicPreviewItem(null)
+        }
+      })
+
+      return () => {
+        cancelled = true
+      }
+    }
+  }, [open])
+
   return (
     <ArrangementEditor
       mode="preset"
@@ -77,6 +112,17 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
       open={open}
       initialDraft={presetToDraft(preset)}
       availableSheetMusic={sheetMusic}
+      sheetMusicPreviewItem={sheetMusicPreviewItem}
+      sheetMusicWorkspacePreview
+      sheetMusicManagementSlot={
+        sheetMusic.length > 0 ? (
+          <SheetMusicGallery
+            files={sheetMusic}
+            previewMode="controlled"
+            onPreviewChange={setSheetMusicPreviewItem}
+          />
+        ) : null
+      }
       savingLabel="저장"
       onOpenChange={onOpenChange}
       onSave={async (draft) => {

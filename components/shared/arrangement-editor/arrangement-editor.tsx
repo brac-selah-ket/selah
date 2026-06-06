@@ -76,6 +76,7 @@ export function ArrangementEditor({
   initialDraft,
   availableSheetMusic,
   sheetMusicPreviewItem,
+  sheetMusicWorkspacePreview = false,
   presetOptions = [],
   sheetMusicManagementSlot,
   savingLabel = "저장",
@@ -114,7 +115,7 @@ export function ArrangementEditor({
 
   const showYouTubeReferenceField = shouldShowYouTubeReferenceField(mode)
   const hasSheetMusicWorkspace = availableSheetMusic.length > 0 || Boolean(sheetMusicManagementSlot)
-  const hasDrawerPreview = mode === "conti-song" && hasSheetMusicWorkspace
+  const hasDrawerPreview = sheetMusicWorkspacePreview && hasSheetMusicWorkspace
 
   function pruneUnavailableSheetMusicIds(draftToPrune: ArrangementDraft): ArrangementDraft {
     if (draftToPrune.sheetMusicFileIds === null || allSheetMusicIds.length === 0) {
@@ -445,6 +446,7 @@ export function ArrangementEditor({
 
             <OverrideEditorFields
               key={editorKey}
+              songName={songName}
               keys={draft.keys}
               tempos={draft.tempos}
               sectionOrder={draft.sectionOrder}

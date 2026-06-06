@@ -4,8 +4,9 @@ import { useState, useRef, useEffect, Fragment } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Add01Icon, Delete01Icon, TextCheckIcon, ScanImageIcon, Loading03Icon, ArrowUp01Icon, ArrowDown01Icon } from "@hugeicons/core-free-icons"
+import { Add01Icon, Delete01Icon, TextCheckIcon, ScanImageIcon, Loading03Icon, ArrowUp01Icon, ArrowDown01Icon, AiMagicIcon } from "@hugeicons/core-free-icons"
 import { OcrRegionSelector } from "@/components/contis/ocr-region-selector"
+import { SheetMusicLyricsGeneratorDialog } from "@/components/contis/sheet-music-lyrics-generator-dialog"
 import { checkSpelling } from "@/lib/actions/spell-check"
 import { computeWordDiff, getOriginalParts, getCorrectedParts } from "@/lib/utils/text-diff"
 import type { SheetMusicFile } from "@/lib/types"
@@ -15,6 +16,7 @@ interface LyricsEditorProps {
   initialLyrics: string[]
   onChange: (data: { lyrics: string[]; swappedPages?: [number, number]; insertedAt?: number }) => void
   sheetMusicFiles?: SheetMusicFile[]
+  songName?: string
 }
 
 interface SpellCheckState {
@@ -27,9 +29,11 @@ export function LyricsEditor({
   initialLyrics,
   onChange,
   sheetMusicFiles,
+  songName,
 }: LyricsEditorProps) {
   const [lyrics, setLyrics] = useState<string[]>(initialLyrics)
   const [ocrOpen, setOcrOpen] = useState(false)
+  const [generatorOpen, setGeneratorOpen] = useState(false)
   // Per-page spell check state, keyed by page index
   const [spellCheck, setSpellCheck] = useState<Record<number, SpellCheckState>>({})
   const pendingSwapRef = useRef<[number, number] | null>(null)
@@ -170,16 +174,26 @@ export function LyricsEditor({
     setLyrics(prev => [...prev, ...texts])
   }
 
+  const handleGeneratedLyrics = (generatedPages: string[]) => {
+    setLyrics(prev => [...prev, ...generatedPages])
+  }
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
         <div className="text-base font-medium">가사 페이지</div>
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {sheetMusicFiles && sheetMusicFiles.length > 0 && (
-            <Button size="xs" variant="outline" onClick={() => setOcrOpen(true)}>
-              <HugeiconsIcon icon={ScanImageIcon} strokeWidth={2} />
-              악보 OCR
-            </Button>
+            <>
+              <Button size="xs" variant="outline" onClick={() => setOcrOpen(true)}>
+                <HugeiconsIcon icon={ScanImageIcon} strokeWidth={2} />
+                악보 OCR
+              </Button>
+              <Button size="xs" variant="outline" onClick={() => setGeneratorOpen(true)}>
+                <HugeiconsIcon icon={AiMagicIcon} strokeWidth={2} />
+                가사 자동 생성
+              </Button>
+            </>
           )}
           <Button size="xs" onClick={addPage}>
             <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
@@ -343,12 +357,21 @@ export function LyricsEditor({
       </div>
 
       {sheetMusicFiles && sheetMusicFiles.length > 0 && (
-        <OcrRegionSelector
-          open={ocrOpen}
-          onOpenChange={setOcrOpen}
-          sheetMusicFiles={sheetMusicFiles}
-          onExtractedTexts={handleOcrExtractedTexts}
-        />
+        <>
+          <OcrRegionSelector
+            open={ocrOpen}
+            onOpenChange={setOcrOpen}
+            sheetMusicFiles={sheetMusicFiles}
+            onExtractedTexts={handleOcrExtractedTexts}
+          />
+          <SheetMusicLyricsGeneratorDialog
+            open={generatorOpen}
+            onOpenChange={setGeneratorOpen}
+            sheetMusicFiles={sheetMusicFiles}
+            songName={songName}
+            onGeneratedLyrics={handleGeneratedLyrics}
+          />
+        </>
       )}
     </div>
   )
