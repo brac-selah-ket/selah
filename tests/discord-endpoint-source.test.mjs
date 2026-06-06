@@ -49,6 +49,54 @@ test('create-thread cron archives previous worship thread before creating the ne
   assert.ok(archiveThreadIndex < createThreadIndex);
 });
 
+test('create-thread cron validates role options before Discord write side effects', async () => {
+  const source = await readFile(
+    new URL('../app/api/cron/discord/create-thread/route.ts', import.meta.url),
+    'utf8',
+  );
+
+  const body = source.slice(source.indexOf('export async function GET'));
+  const dryRunIndex = body.indexOf('if (dryRun)');
+  const sheetReadIndex = body.indexOf('await readRoleOptionsFromSheet');
+  const archiveThreadIndex = body.indexOf('await archiveThread');
+  const createThreadIndex = body.indexOf('await createForumThread');
+
+  assert.notEqual(dryRunIndex, -1);
+  assert.notEqual(sheetReadIndex, -1);
+  assert.notEqual(archiveThreadIndex, -1);
+  assert.notEqual(createThreadIndex, -1);
+  assert.ok(dryRunIndex < sheetReadIndex);
+  assert.ok(sheetReadIndex < archiveThreadIndex);
+  assert.ok(sheetReadIndex < createThreadIndex);
+});
+
+test('manual worship thread action validates and initializes before setting active thread', async () => {
+  const source = await readFile(
+    new URL('../lib/actions/worship-prep.ts', import.meta.url),
+    'utf8',
+  );
+
+  const body = source.slice(source.indexOf('export async function createWeeklyWorshipThread'));
+  const optionsReadIndex = body.indexOf('await readRoleOptionsWithFallback');
+  const archiveThreadIndex = body.indexOf('await archiveThread');
+  const createThreadIndex = body.indexOf('await createForumThread');
+  const firstDropdownIndex = body.indexOf('await sendDropdownMessage');
+  const markProcessedIndex = body.indexOf('await markMessageProcessed');
+  const setActiveThreadIndex = body.indexOf('await setActiveThread');
+
+  assert.notEqual(optionsReadIndex, -1);
+  assert.notEqual(archiveThreadIndex, -1);
+  assert.notEqual(createThreadIndex, -1);
+  assert.notEqual(firstDropdownIndex, -1);
+  assert.notEqual(markProcessedIndex, -1);
+  assert.notEqual(setActiveThreadIndex, -1);
+  assert.ok(optionsReadIndex < archiveThreadIndex);
+  assert.ok(optionsReadIndex < createThreadIndex);
+  assert.ok(archiveThreadIndex < createThreadIndex);
+  assert.ok(createThreadIndex < firstDropdownIndex);
+  assert.ok(markProcessedIndex < setActiveThreadIndex);
+});
+
 test('send-week-dropdown requires cron authorization before Discord side effects', async () => {
   const source = await readFile(
     new URL('../app/api/discord/send-week-dropdown/route.ts', import.meta.url),

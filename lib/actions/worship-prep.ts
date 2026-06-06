@@ -55,18 +55,17 @@ export async function createWeeklyWorshipThread(): Promise<ActionResult<{ thread
       return { success: false, error: 'DISCORD_GUILD_ID is not set and guild_id could not be resolved from DISCORD_CHANNEL_ID' };
     }
 
+    const options = (await readRoleOptionsWithFallback()).map((value) => ({ label: value, value }));
+    if (options.length === 0) {
+      return { success: false, error: '역할 선택 옵션이 비어 있습니다' };
+    }
+
     const previousThread = selectPreviousWorshipThread(await getActiveForumThreads(guildId, channelId), yymmdd);
     if (previousThread) {
       await archiveThread(previousThread.id);
     }
 
     const thread = await createForumThread(channelId, threadName, buildInitialMessage(sundayDate));
-    await setActiveThread(thread.id, yymmdd);
-
-    const options = (await readRoleOptionsWithFallback()).map((value) => ({ label: value, value }));
-    if (options.length === 0) {
-      return { success: false, error: '역할 선택 옵션이 비어 있습니다' };
-    }
 
     const messageIds: string[] = [];
     if (thread.message?.id) {
@@ -81,6 +80,8 @@ export async function createWeeklyWorshipThread(): Promise<ActionResult<{ thread
     for (const messageId of messageIds) {
       await markMessageProcessed(thread.id, messageId, '', 'system');
     }
+
+    await setActiveThread(thread.id, yymmdd);
 
     revalidatePath('/worship-prep');
     return {

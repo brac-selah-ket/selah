@@ -58,16 +58,16 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const options = (await readRoleOptionsFromSheet()).map((value) => ({ label: value, value }));
+    if (options.length === 0) {
+      throw new Error('DB_Options is empty');
+    }
+
     if (previousThread) {
       await archiveThread(previousThread.id);
     }
 
     const thread = await createForumThread(channelId, threadName, buildInitialMessage(sundayDate));
-
-    const options = (await readRoleOptionsFromSheet()).map((value) => ({ label: value, value }));
-    if (options.length === 0) {
-      throw new Error('DB_Options is empty');
-    }
 
     if (options.length > 0) {
       await sendDropdownMessage(thread.id, '설교자를 선택하세요', 'preacher-select', '설교자 선택', options);
