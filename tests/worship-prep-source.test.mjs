@@ -425,7 +425,7 @@ test('sheet music lyrics generator uses Gemini images and appends generated page
   assert.match(imageHelperSource, /renderPdfPagesToDataUrls\(\s*assetUrl,\s*\[pageNumber\],\s*2,/);
   assert.match(imageHelperSource, /toDataURL\('image\/jpeg', GEMINI_LYRICS_IMAGE_JPEG_QUALITY\)/);
 
-  assert.match(actionConfigSource, /DEFAULT_GEMINI_LYRICS_MODEL = 'gemini-3-pro-preview'/);
+  assert.match(actionConfigSource, /DEFAULT_GEMINI_LYRICS_MODEL = 'gemini-3\.1-pro-preview'/);
   assert.match(actionSource, /DEFAULT_GEMINI_LYRICS_MODEL/);
   assert.match(actionSource, /responseMimeType: 'application\/json'/);
   assert.match(actionSource, /responseJsonSchema/);
@@ -433,5 +433,5 @@ test('sheet music lyrics generator uses Gemini images and appends generated page
   assert.doesNotMatch(actionSource, /file_data:\s*\{[\s\S]*application\/pdf/);
 
   assert.match(envExample, /GEMINI_API_KEY/);
-  assert.match(envExample, /GEMINI_LYRICS_MODEL=gemini-3-pro-preview/);
+  assert.match(envExample, /GEMINI_LYRICS_MODEL=gemini-3\.1-pro-preview/);
 });

@@ -289,8 +289,8 @@ function withEnv<T>(env: Record<string, string | undefined>, fn: () => Promise<T
   }
 }
 
-test("uses Gemini 3 Pro Preview as the default lyrics model", () => {
-  assert.equal(DEFAULT_GEMINI_LYRICS_MODEL, "gemini-3-pro-preview")
+test("uses Gemini 3.1 Pro Preview as the default lyrics model", () => {
+  assert.equal(DEFAULT_GEMINI_LYRICS_MODEL, "gemini-3.1-pro-preview")
 })
 
 test("fails when Gemini API key is missing", async () => {
@@ -393,7 +393,7 @@ test("calls Gemini with inline image data and structured JSON output", async () 
       })
 
       assert.equal(calls.length, 1)
-      assert.match(calls[0].url, /gemini-3-pro-preview:generateContent/)
+      assert.match(calls[0].url, /gemini-3\.1-pro-preview:generateContent/)
       assert.equal((calls[0].init.headers as Record<string, string>)["x-goog-api-key"], "test-key")
 
       const body = JSON.parse(String(calls[0].init.body))
@@ -469,7 +469,7 @@ Create `lib/actions/sheet-music-lyrics.ts`:
 import { z } from 'zod'
 import type { ActionResult } from '@/lib/types'
 
-export const DEFAULT_GEMINI_LYRICS_MODEL = 'gemini-3-pro-preview'
+export const DEFAULT_GEMINI_LYRICS_MODEL = 'gemini-3.1-pro-preview'
 
 const MAX_PAGE_IMAGE_BYTES = 4 * 1024 * 1024
 const MAX_TOTAL_IMAGE_BYTES = 20 * 1024 * 1024
@@ -733,8 +733,8 @@ In `.env.example`, add these lines below the Google Cloud Vision section:
 
 # Gemini API (for full sheet music lyrics generation)
 GEMINI_API_KEY=your-gemini-api-key
-# Optional. Defaults to gemini-3-pro-preview.
-GEMINI_LYRICS_MODEL=gemini-3-pro-preview
+# Optional. Defaults to gemini-3.1-pro-preview.
+GEMINI_LYRICS_MODEL=gemini-3.1-pro-preview
 ```
 
 - [ ] **Step 5: Add the server action test to the package test script**
@@ -1314,14 +1314,14 @@ test('sheet music lyrics generator uses Gemini images and appends generated page
   assert.match(imageHelperSource, /renderPdfPagesToDataUrls/);
   assert.match(imageHelperSource, /toDataURL\('image\/jpeg', GEMINI_LYRICS_IMAGE_JPEG_QUALITY\)/);
 
-  assert.match(actionSource, /DEFAULT_GEMINI_LYRICS_MODEL = 'gemini-3-pro-preview'/);
+  assert.match(actionSource, /DEFAULT_GEMINI_LYRICS_MODEL = 'gemini-3\.1-pro-preview'/);
   assert.match(actionSource, /responseMimeType: 'application\/json'/);
   assert.match(actionSource, /responseJsonSchema/);
   assert.match(actionSource, /inline_data/);
   assert.doesNotMatch(actionSource, /file_data:\s*\{[\s\S]*application\/pdf/);
 
   assert.match(envExample, /GEMINI_API_KEY/);
-  assert.match(envExample, /GEMINI_LYRICS_MODEL=gemini-3-pro-preview/);
+  assert.match(envExample, /GEMINI_LYRICS_MODEL=gemini-3\.1-pro-preview/);
 });
 ```
 

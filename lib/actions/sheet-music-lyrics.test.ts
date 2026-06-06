@@ -65,8 +65,8 @@ function withEnv<T>(env: Record<string, string | undefined>, fn: () => Promise<T
   }
 }
 
-test("uses Gemini 3 Pro Preview as the default lyrics model", () => {
-  assert.equal(DEFAULT_GEMINI_LYRICS_MODEL, "gemini-3-pro-preview")
+test("uses Gemini 3.1 Pro Preview as the default lyrics model", () => {
+  assert.equal(DEFAULT_GEMINI_LYRICS_MODEL, "gemini-3.1-pro-preview")
 })
 
 test("keeps the server action module exports valid for Next.js", () => {
@@ -223,7 +223,7 @@ test("calls Gemini with inline image data and structured JSON output", async () 
       })
 
       assert.equal(calls.length, 1)
-      assert.match(calls[0].url, /gemini-3-pro-preview:generateContent/)
+      assert.match(calls[0].url, /gemini-3\.1-pro-preview:generateContent/)
       assert.equal((calls[0].init.headers as Record<string, string>)["x-goog-api-key"], "test-key")
 
       const body = JSON.parse(String(calls[0].init.body))

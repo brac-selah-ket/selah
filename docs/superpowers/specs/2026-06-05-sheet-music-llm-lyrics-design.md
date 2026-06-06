@@ -33,14 +33,14 @@ Gemini 전용으로 구현한다.
 이유:
 
 - Gemini API는 이미지 입력과 구조화된 JSON 출력을 공식 지원한다.
-- 공식 Gemini 모델 문서는 Gemini 3 Pro를 가장 지능적인 multimodal 모델로 설명하며, `gemini-3-pro-preview`는 이미지 입력과 structured output을 지원한다.
+- 공식 Gemini 모델 문서는 Gemini 3.1 Pro를 복잡한 multimodal reasoning 작업에 적합한 최신 Pro 모델로 설명하며, `gemini-3.1-pro-preview`는 이미지 입력과 structured output을 지원한다.
 - 사용자의 실제 테스트에서 악보 PDF를 이미지로 전달했을 때 한글 가사 추출 품질이 좋았다.
 - 이번 기능은 provider 교체보다 PDF를 이미지로 강제 변환하고 프롬프트를 단단히 제한하는 것이 더 중요하다.
 
 환경 변수:
 
 - `GEMINI_API_KEY`: 필수
-- `GEMINI_LYRICS_MODEL`: 선택. 없으면 `gemini-3-pro-preview`를 사용한다.
+- `GEMINI_LYRICS_MODEL`: 선택. 없으면 `gemini-3.1-pro-preview`를 사용한다.
 
 ## UX 설계
 
