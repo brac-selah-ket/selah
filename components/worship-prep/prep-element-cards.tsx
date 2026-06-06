@@ -1,11 +1,13 @@
 "use client";
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Conti } from '@/lib/types';
 import type { WorshipPrepSummary } from '@/lib/queries/worship-prep';
 import { cn } from '@/lib/utils';
+import { ScripturePreviewDialog } from './scripture-preview-dialog';
 
 interface PrepElementCardsProps {
   item: WorshipPrepSummary;
@@ -20,6 +22,8 @@ interface PrepCardItem {
   hasValue: boolean;
   sourceLabel: '구글 시트' | '콘티';
   valueClassName?: string;
+  onClick?: () => void;
+  buttonLabel?: string;
 }
 
 function statusBadge(hasValue: boolean) {
@@ -71,6 +75,8 @@ function PrepCard({
 }
 
 export function PrepElementCards({ item, conti }: PrepElementCardsProps) {
+  const [scripturePreviewOpen, setScripturePreviewOpen] = useState(false);
+  const scriptureReference = item.scripture?.trim() ? item.scripture.trim() : null;
   const sheetCards: PrepCardItem[] = [
     {
       key: 'preacher',
@@ -109,8 +115,10 @@ export function PrepElementCards({ item, conti }: PrepElementCardsProps) {
       category: '설교',
       title: '말씀 본문',
       value: valueOrDash(item.scripture),
-      hasValue: Boolean(item.scripture),
+      hasValue: Boolean(scriptureReference),
       sourceLabel: '구글 시트',
+      onClick: scriptureReference ? () => setScripturePreviewOpen(true) : undefined,
+      buttonLabel: scriptureReference ? '말씀 본문 미리보기 열기' : undefined,
     },
     {
       key: 'songs',
@@ -132,23 +140,47 @@ export function PrepElementCards({ item, conti }: PrepElementCardsProps) {
   };
 
   return (
-    <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'>
-      {sheetCards.map((card) => (
-        <PrepCard key={card.key} item={card} />
-      ))}
-      {conti ? (
-        <Link
-          href={`/contis/${conti.id}`}
-          className='block h-full rounded-lg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
-        >
-          <PrepCard
-            item={contiCard}
-            className='transition-colors hover:border-primary/40 hover:bg-muted/30'
-          />
-        </Link>
-      ) : (
-        <PrepCard item={contiCard} />
-      )}
-    </div>
+    <>
+      <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'>
+        {sheetCards.map((card) => {
+          if (card.onClick) {
+            return (
+              <button
+                key={card.key}
+                type='button'
+                className='block h-full w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
+                onClick={card.onClick}
+                aria-label={card.buttonLabel}
+              >
+                <PrepCard
+                  item={card}
+                  className='transition-colors hover:border-primary/40 hover:bg-muted/30'
+                />
+              </button>
+            );
+          }
+
+          return <PrepCard key={card.key} item={card} />;
+        })}
+        {conti ? (
+          <Link
+            href={`/contis/${conti.id}`}
+            className='block h-full rounded-lg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
+          >
+            <PrepCard
+              item={contiCard}
+              className='transition-colors hover:border-primary/40 hover:bg-muted/30'
+            />
+          </Link>
+        ) : (
+          <PrepCard item={contiCard} />
+        )}
+      </div>
+      <ScripturePreviewDialog
+        open={scripturePreviewOpen}
+        scriptureReference={scriptureReference}
+        onOpenChange={setScripturePreviewOpen}
+      />
+    </>
   );
 }
