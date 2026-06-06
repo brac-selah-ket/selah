@@ -210,6 +210,7 @@ test('interactions route checks worship prep readiness after role sheet updates'
     'utf8',
   );
 
+  assert.match(source, /import \{ NextRequest, NextResponse, after \} from 'next\/server'/);
   assert.match(source, /checkAndSendWorshipPrepReadyNotification/);
   assert.match(source, /async function safelyCheckWorshipPrepReadyNotification/);
 
@@ -223,12 +224,15 @@ test('interactions route checks worship prep readiness after role sheet updates'
 
   const body = source.slice(source.indexOf('export async function POST'));
   const updateIndex = body.indexOf('await updateRoleSelectionInSheet(customId, selectedValue, sundayDate);');
-  const notifyIndex = body.indexOf('await safelyCheckWorshipPrepReadyNotification');
+  const notifyIndex = body.indexOf('after(() => safelyCheckWorshipPrepReadyNotification');
+  const returnIndex = body.indexOf('return NextResponse.json', notifyIndex);
 
   assert.notEqual(updateIndex, -1);
   assert.notEqual(notifyIndex, -1);
+  assert.notEqual(returnIndex, -1);
   assert.ok(updateIndex < notifyIndex);
-  assert.match(body, /safelyCheckWorshipPrepReadyNotification\(\{\s*sundayDate,\s*origin:\s*new URL\(request\.url\)\.origin\s*\}\)/);
+  assert.ok(notifyIndex < returnIndex);
+  assert.match(body, /after\(\(\) => safelyCheckWorshipPrepReadyNotification\(\{\s*sundayDate,\s*origin:\s*new URL\(request\.url\)\.origin\s*\}\)\)/);
 });
 
 test('parse-comments cron checks worship prep readiness after worship data updates', async () => {

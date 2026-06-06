@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { addMessageReaction, getChannel } from '@/lib/discord-sync/discord-client';
 import { verifyDiscordInteraction } from '@/lib/discord-sync/interaction-verify';
 import { parseWorshipThreadName } from '@/lib/discord-sync/cron-state';
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
         },
       });
     }
-    await safelyCheckWorshipPrepReadyNotification({ sundayDate, origin: new URL(request.url).origin });
+    after(() => safelyCheckWorshipPrepReadyNotification({ sundayDate, origin: new URL(request.url).origin }));
 
     const channelId = interaction.channel_id ?? interaction.message?.channel_id;
     const messageId = interaction.message?.id;
