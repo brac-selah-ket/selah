@@ -12,6 +12,10 @@
     {
       "path": "/api/cron/discord/parse-comments",
       "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/cron/discord/check-worship-prep-ready",
+      "schedule": "*/10 * * * *"
     }
   ]
 }

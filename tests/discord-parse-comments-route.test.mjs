@@ -115,6 +115,19 @@ async function loadParseCommentsRoute() {
   );
   await writeModule(
     dir,
+    'worship-prep-notifications.mjs',
+    `
+      import { updates } from './google-sheets.mjs';
+
+      export const notificationCalls = [];
+      export async function checkAndSendWorshipPrepReadyNotification(input) {
+        notificationCalls.push({ ...input, updateCount: updates.length });
+        return { success: true, status: 'not-ready' };
+      }
+    `,
+  );
+  await writeModule(
+    dir,
     'cron-state.mjs',
     `
       export const IGNORED_REACTION = '☑️';
@@ -148,26 +161,28 @@ async function loadParseCommentsRoute() {
     .replace("from '@/lib/discord-parser';", "from './discord-parser.mjs';")
     .replace("from '@/lib/discord-sync/spell-checker';", "from './spell-checker.mjs';")
     .replace("from '@/lib/discord-sync/google-sheets';", "from './google-sheets.mjs';")
+    .replace("from '@/lib/discord-sync/worship-prep-notifications';", "from './worship-prep-notifications.mjs';")
     .replace("from '@/lib/discord-sync/cron-state';", "from './cron-state.mjs';");
 
   await writeModule(dir, 'route.mjs', output);
 
-  const [route, discordClient, googleSheets] = await Promise.all([
+  const [route, discordClient, googleSheets, notifications] = await Promise.all([
     import(`${pathToFileURL(join(dir, 'route.mjs')).href}?v=${Date.now()}`),
     import(pathToFileURL(join(dir, 'discord-client.mjs')).href),
     import(pathToFileURL(join(dir, 'google-sheets.mjs')).href),
+    import(pathToFileURL(join(dir, 'worship-prep-notifications.mjs')).href),
   ]);
 
-  return { route, discordClient, googleSheets };
+  return { route, discordClient, googleSheets, notifications };
 }
 
 test('parse-comments reacts only to messages that produced parsed worship data', async () => {
-  const { route, discordClient, googleSheets } = await loadParseCommentsRoute();
+  const { route, discordClient, googleSheets, notifications } = await loadParseCommentsRoute();
   const previousChannelId = process.env.DISCORD_CHANNEL_ID;
   process.env.DISCORD_CHANNEL_ID = 'channel-1';
 
   try {
-    const response = await route.GET({});
+    const response = await route.GET({ url: 'https://storyboard.test/api/cron/discord/parse-comments' });
     const body = await response.json();
 
     assert.equal(response.status, 200);
@@ -177,6 +192,13 @@ test('parse-comments reacts only to messages that produced parsed worship data',
         sheetName: 'DB',
         row: 2,
         data: { scripture: '요 3:16' },
+      },
+    ]);
+    assert.deepEqual(notifications.notificationCalls, [
+      {
+        sundayDate: '260531',
+        origin: 'https://storyboard.test',
+        updateCount: 1,
       },
     ]);
     assert.deepEqual(discordClient.reactions, [

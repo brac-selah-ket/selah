@@ -4,12 +4,32 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { ActionResult, Conti } from '@/lib/types';
 import { getStoryboardRepository } from '@/lib/repositories/storyboard';
+import { checkAndSendWorshipPrepReadyNotification } from '@/lib/discord-sync/worship-prep-notifications';
+import { toYYMMDDFromIsoDate } from '@/lib/discord-sync/worship-prep-readiness';
 
 const contiSchema = z.object({
   title: z.string().transform(v => v.trim() || null),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '올바른 날짜 형식이 아닙니다 (YYYY-MM-DD)'),
   description: z.string().optional(),
 });
+
+async function safelyCheckWorshipPrepReadyNotification(input: { sundayDate: string; origin?: string }) {
+  try {
+    const result = await checkAndSendWorshipPrepReadyNotification(input);
+    if (!result.success) console.error('[checkAndSendWorshipPrepReadyNotification]', result.error ?? result.status);
+  } catch (error) {
+    console.error('[checkAndSendWorshipPrepReadyNotification]', error);
+  }
+}
+
+async function safelyCheckWorshipPrepReadyNotificationForIsoDate(isoDate: string) {
+  try {
+    const sundayDate = toYYMMDDFromIsoDate(isoDate);
+    await safelyCheckWorshipPrepReadyNotification({ sundayDate });
+  } catch (error) {
+    console.error('[checkAndSendWorshipPrepReadyNotification]', error);
+  }
+}
 
 export async function createConti(formData: FormData): Promise<ActionResult<Conti>> {
   try {
@@ -32,6 +52,7 @@ export async function createConti(formData: FormData): Promise<ActionResult<Cont
       description: validation.data.description || null,
     });
     revalidatePath('/contis');
+    await safelyCheckWorshipPrepReadyNotificationForIsoDate(conti.date);
 
     return {
       success: true,
@@ -66,6 +87,9 @@ export async function updateConti(id: string, formData: FormData): Promise<Actio
       description: validation.data.description || null,
     });
     revalidatePath('/contis');
+    if (result) {
+      await safelyCheckWorshipPrepReadyNotificationForIsoDate(result.date);
+    }
 
     return {
       success: true,

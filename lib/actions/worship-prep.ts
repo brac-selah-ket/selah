@@ -4,9 +4,12 @@ import { revalidatePath } from 'next/cache';
 import {
   buildInitialMessage,
   buildThreadName,
+  archiveThread,
   createForumThread,
   formatToYYMMDD,
+  getActiveForumThreads,
   getActiveThread,
+  getChannel,
   getProcessedMessageIds,
   getThreadMessages,
   getUpcomingSundayDate,
@@ -15,8 +18,10 @@ import {
   setActiveThread,
 } from '@/lib/discord-sync';
 import { parseDiscordMessages } from '@/lib/discord-parser';
+import { resolveGuildId, selectPreviousWorshipThread } from '@/lib/discord-sync/cron-state';
 import { correctSpelling } from '@/lib/discord-sync/spell-checker';
 import { findRowByDate, readRoleOptionsWithFallback, updateWorshipData } from '@/lib/discord-sync/google-sheets';
+import { checkAndSendWorshipPrepReadyNotification } from '@/lib/discord-sync/worship-prep-notifications';
 import type { ActionResult } from '@/lib/types';
 
 const SHEET_NAME = 'DB';
@@ -31,6 +36,15 @@ function toSheetDate(sundayDate: string): string {
   return `20${sundayDate.slice(0, 2)}.${sundayDate.slice(2, 4)}.${sundayDate.slice(4, 6)}`;
 }
 
+async function safelyCheckWorshipPrepReadyNotification(input: { sundayDate: string; origin?: string }) {
+  try {
+    const result = await checkAndSendWorshipPrepReadyNotification(input);
+    if (!result.success) console.error('[checkAndSendWorshipPrepReadyNotification]', result.error ?? result.status);
+  } catch (error) {
+    console.error('[checkAndSendWorshipPrepReadyNotification]', error);
+  }
+}
+
 export async function createWeeklyWorshipThread(): Promise<ActionResult<{ threadId: string; threadName: string; sundayDate: string }>> {
   try {
     const channelId = process.env.DISCORD_CHANNEL_ID;
@@ -42,13 +56,26 @@ export async function createWeeklyWorshipThread(): Promise<ActionResult<{ thread
     const yymmdd = formatToYYMMDD(sundayDate);
     const threadName = buildThreadName(yymmdd);
 
-    const thread = await createForumThread(channelId, threadName, buildInitialMessage(sundayDate));
-    await setActiveThread(thread.id, yymmdd);
+    const configuredGuildId = process.env.DISCORD_GUILD_ID;
+    const guildId = resolveGuildId({
+      configuredGuildId,
+      channel: configuredGuildId?.trim() ? null : await getChannel(channelId),
+    });
+    if (!guildId) {
+      return { success: false, error: 'DISCORD_GUILD_ID is not set and guild_id could not be resolved from DISCORD_CHANNEL_ID' };
+    }
 
     const options = (await readRoleOptionsWithFallback()).map((value) => ({ label: value, value }));
     if (options.length === 0) {
       return { success: false, error: '역할 선택 옵션이 비어 있습니다' };
     }
+
+    const previousThread = selectPreviousWorshipThread(await getActiveForumThreads(guildId, channelId), yymmdd);
+    if (previousThread) {
+      await archiveThread(previousThread.id);
+    }
+
+    const thread = await createForumThread(channelId, threadName, buildInitialMessage(sundayDate));
 
     const messageIds: string[] = [];
     if (thread.message?.id) {
@@ -63,6 +90,8 @@ export async function createWeeklyWorshipThread(): Promise<ActionResult<{ thread
     for (const messageId of messageIds) {
       await markMessageProcessed(thread.id, messageId, '', 'system');
     }
+
+    await setActiveThread(thread.id, yymmdd);
 
     revalidatePath('/worship-prep');
     return {
@@ -144,6 +173,7 @@ export async function parseActiveWorshipThreadComments(): Promise<ActionResult<{
         mergedData.title = await correctSpelling(mergedData.title);
       }
       await updateWorshipData(SHEET_NAME, targetRow, mergedData);
+      await safelyCheckWorshipPrepReadyNotification({ sundayDate: activeThread.sundayDate });
     }
 
     const parseStatus = Object.keys(mergedData).length > 0 ? 'parsed' : 'ignored';

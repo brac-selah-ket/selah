@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { integer, sqliteTable, text, uniqueIndex, index } from 'drizzle-orm/sqlite-core';
 
 export const songs = sqliteTable('songs', {
   id: text('id').primaryKey(),
@@ -52,7 +52,9 @@ export const contis = sqliteTable('contis', {
   description: text('description'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
-});
+}, (table) => [
+  index('contis_date_idx').on(table.date),
+]);
 
 export const contiSongs = sqliteTable('conti_songs', {
   id: text('id').primaryKey(),
@@ -96,3 +98,19 @@ export const songPageImages = sqliteTable('song_page_images', {
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
+
+export const worshipPrepNotifications = sqliteTable('worship_prep_notifications', {
+  id: text('id').primaryKey(),
+  sundayDate: text('sunday_date').notNull(),
+  type: text('type').notNull(),
+  status: text('status').notNull(),
+  threadId: text('thread_id'),
+  messageId: text('message_id'),
+  attempts: integer('attempts').notNull().default(0),
+  lastAttemptAt: text('last_attempt_at'),
+  sentAt: text('sent_at'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+}, (table) => [
+  uniqueIndex('worship_prep_notifications_week_type_unique').on(table.sundayDate, table.type),
+]);
