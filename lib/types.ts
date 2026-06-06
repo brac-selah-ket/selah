@@ -11,6 +11,7 @@ import type {
   discordThreadStates,
   discordProcessedMessages,
   discordInteractionReceipts,
+  worshipPrepNotifications,
 } from './db/schema';
 
 export type Song = InferSelectModel<typeof songs>;
@@ -117,6 +118,7 @@ export type SongPageImage = InferSelectModel<typeof songPageImages>;
 export type DiscordThreadState = InferSelectModel<typeof discordThreadStates>;
 export type DiscordProcessedMessage = InferSelectModel<typeof discordProcessedMessages>;
 export type DiscordInteractionReceipt = InferSelectModel<typeof discordInteractionReceipts>;
+export type WorshipPrepNotification = InferSelectModel<typeof worshipPrepNotifications>;
 
 export interface OverlayElement {
   id: string;

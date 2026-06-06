@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, boolean, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, timestamp, boolean, uniqueIndex, index } from 'drizzle-orm/pg-core';
 
 export const songs = pgTable('songs', {
   id: text('id').primaryKey(),
@@ -52,7 +52,9 @@ export const contis = pgTable('contis', {
   description: text('description'),
   createdAt: timestamp('created_at').notNull(),
   updatedAt: timestamp('updated_at').notNull(),
-});
+}, (table) => [
+  index('contis_date_idx').on(table.date),
+]);
 
 export const contiSongs = pgTable('conti_songs', {
   id: text('id').primaryKey(),
@@ -130,4 +132,20 @@ export const discordInteractionReceipts = pgTable('discord_interaction_receipts'
   processedAt: timestamp('processed_at').notNull(),
 }, (table) => [
   uniqueIndex('discord_interaction_receipts_interaction_id_unique').on(table.interactionId),
+]);
+
+export const worshipPrepNotifications = pgTable('worship_prep_notifications', {
+  id: text('id').primaryKey(),
+  sundayDate: text('sunday_date').notNull(),
+  type: text('type').notNull(),
+  status: text('status').notNull(),
+  threadId: text('thread_id'),
+  messageId: text('message_id'),
+  attempts: integer('attempts').notNull().default(0),
+  lastAttemptAt: timestamp('last_attempt_at'),
+  sentAt: timestamp('sent_at'),
+  createdAt: timestamp('created_at').notNull(),
+  updatedAt: timestamp('updated_at').notNull(),
+}, (table) => [
+  uniqueIndex('worship_prep_notifications_week_type_unique').on(table.sundayDate, table.type),
 ]);
