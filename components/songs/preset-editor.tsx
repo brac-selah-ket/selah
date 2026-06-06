@@ -35,24 +35,6 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
   }, [open])
 
   useEffect(() => {
-    if (open) {
-      let cancelled = false
-
-      void Promise.resolve().then(() => {
-        if (!cancelled) {
-          setSheetMusicLoading(false)
-          setSheetMusicPreviewPrepared(false)
-          setSheetMusicPreviewItem(null)
-        }
-      })
-
-      return () => {
-        cancelled = true
-      }
-    }
-  }, [open, songId, preset?.id])
-
-  useEffect(() => {
     if (!open) {
       let cancelled = false
 
@@ -70,9 +52,25 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
     }
   }, [open])
 
+  const currentPreviewItem = sheetMusicPreviewPrepared ? sheetMusicPreviewItem : null
   const previewLoading =
     sheetMusicLoading ||
-    (open && sheetMusic.length > 0 && !sheetMusicPreviewItem && !sheetMusicPreviewPrepared)
+    (open && sheetMusic.length > 0 && !currentPreviewItem && !sheetMusicPreviewPrepared)
+
+  function resetSheetMusicPreviewState() {
+    setSheetMusicLoading(false)
+    setSheetMusicPreviewPrepared(false)
+    setSheetMusicPreviewItem(null)
+  }
+
+  function handleEditorOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      openRef.current = false
+      resetSheetMusicPreviewState()
+    }
+
+    onOpenChange(nextOpen)
+  }
 
   function handlePreviewLoadingChange(loading: boolean) {
     if (!openRef.current) {
@@ -81,6 +79,14 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
 
     setSheetMusicLoading(loading)
     setSheetMusicPreviewPrepared(!loading)
+  }
+
+  function handleSheetMusicPreviewChange(item: SheetMusicPreviewItem | null) {
+    if (!openRef.current) {
+      return
+    }
+
+    setSheetMusicPreviewItem(item)
   }
 
   return (
@@ -92,7 +98,7 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
       open={open}
       initialDraft={songPresetToDraft(preset)}
       availableSheetMusic={sheetMusic}
-      sheetMusicPreviewItem={sheetMusicPreviewItem}
+      sheetMusicPreviewItem={currentPreviewItem}
       sheetMusicLoading={previewLoading}
       sheetMusicWorkspacePreview
       sheetMusicManagementSlot={
@@ -100,13 +106,13 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
           <SheetMusicGallery
             files={sheetMusic}
             previewMode="controlled"
-            onPreviewChange={setSheetMusicPreviewItem}
+            onPreviewChange={handleSheetMusicPreviewChange}
             onPreviewLoadingChange={handlePreviewLoadingChange}
           />
         ) : null
       }
       savingLabel="저장"
-      onOpenChange={onOpenChange}
+      onOpenChange={handleEditorOpenChange}
       onSave={async (draft) => {
         const data = arrangementDraftToSongPresetData(draft)
         const result = preset

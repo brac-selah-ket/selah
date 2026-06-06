@@ -23,20 +23,30 @@ test("preset editor forwards preview loading state to the arrangement editor", a
   assert.match(source, /const \[sheetMusicLoading, setSheetMusicLoading\] = useState/)
   assert.match(source, /const \[sheetMusicPreviewPrepared, setSheetMusicPreviewPrepared\] = useState/)
   assert.match(source, /const openRef = useRef\(open\)/)
+  assert.match(source, /useLayoutEffect\(\(\) => \{\s*openRef\.current = open\s*\}, \[open\]\)/)
   assert.match(
     source,
-    /useLayoutEffect\(\(\) => \{\s*openRef\.current = open\s*\}, \[open\]\)/,
+    /function resetSheetMusicPreviewState\(\) \{[\s\S]*setSheetMusicLoading\(false\)[\s\S]*setSheetMusicPreviewPrepared\(false\)[\s\S]*setSheetMusicPreviewItem\(null\)[\s\S]*\}/,
   )
   assert.match(
     source,
-    /if \(open\) \{[\s\S]*setSheetMusicLoading\(false\)[\s\S]*setSheetMusicPreviewPrepared\(false\)[\s\S]*setSheetMusicPreviewItem\(null\)[\s\S]*\}/,
+    /function handleEditorOpenChange\(nextOpen: boolean\) \{[\s\S]*if \(!nextOpen\) \{[\s\S]*openRef\.current = false[\s\S]*resetSheetMusicPreviewState\(\)[\s\S]*\}[\s\S]*onOpenChange\(nextOpen\)[\s\S]*\}/,
   )
+  assert.match(source, /const currentPreviewItem = sheetMusicPreviewPrepared \? sheetMusicPreviewItem : null/)
   assert.match(
     source,
-    /const previewLoading =\s*sheetMusicLoading \|\|\s*\(\s*open &&\s*sheetMusic\.length > 0 &&\s*!sheetMusicPreviewItem &&\s*!sheetMusicPreviewPrepared\s*\)/,
+    /const previewLoading =\s*sheetMusicLoading \|\|\s*\(\s*open &&\s*sheetMusic\.length > 0 &&\s*!currentPreviewItem &&\s*!sheetMusicPreviewPrepared\s*\)/,
   )
   assert.match(source, /if \(!openRef\.current\) \{\s*return\s*\}/)
+  assert.match(
+    source,
+    /function handleSheetMusicPreviewChange\(item: SheetMusicPreviewItem \| null\) \{[\s\S]*if \(!openRef\.current\) \{\s*return\s*\}[\s\S]*setSheetMusicPreviewItem\(item\)[\s\S]*\}/,
+  )
+  assert.match(source, /sheetMusicPreviewItem=\{currentPreviewItem\}/)
   assert.match(source, /sheetMusicLoading=\{previewLoading\}/)
+  assert.match(source, /onOpenChange=\{handleEditorOpenChange\}/)
+  assert.match(source, /onPreviewChange=\{handleSheetMusicPreviewChange\}/)
+  assert.doesNotMatch(source, /onPreviewChange=\{setSheetMusicPreviewItem\}/)
   assert.match(source, /onPreviewLoadingChange=\{handlePreviewLoadingChange\}/)
 })
 
