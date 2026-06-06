@@ -274,6 +274,22 @@ test('worship pptx export guards stale drawer and scripture preview async result
   assert.match(source, /disabled=\{isPending \|\| pptxTextLoading \|\| pptxTextDrawerOpen\}/);
 });
 
+test('conti detail header uses shared button variants for non-destructive actions', async () => {
+  const source = await readFile(
+    new URL('../app/(authenticated)/contis/[id]/page.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /import \{ Button \} from "@\/components\/ui\/button"/);
+  assert.doesNotMatch(source, /outlineButtonClass/);
+  assert.doesNotMatch(source, /iconButtonClass/);
+  assert.doesNotMatch(source, /defaultButtonClass/);
+  assert.doesNotMatch(source, /className=\{cn\(/);
+  assert.match(source, /<Button[\s\S]+variant="outline"[\s\S]+render=\{<Link[\s\S]+PDF 내보내기/);
+  assert.match(source, /<Button[\s\S]+variant="outline"[\s\S]+render=\{<Link[\s\S]+편집/);
+  assert.match(source, /<ContiDeleteButton contiId=\{conti\.id\} \/>/);
+});
+
 test('conti song drawer uses wide controlled sheet music preview instead of nested preview dialog', async () => {
   const dialogSource = await readFile(
     new URL('../components/ui/dialog.tsx', import.meta.url),
