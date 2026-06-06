@@ -42,7 +42,7 @@ export default async function WorshipPrepPage({
   const defaultConti = conti ? await getConti(conti.id) : null;
 
   return (
-    <div className='flex flex-col gap-6'>
+    <div className='flex flex-col gap-5'>
       <PageHeader title='예배 준비' description='가장 가까운 일요일 1주차를 기본으로 조회합니다'>
         {item && (
           <WorshipPptxExportButton
@@ -52,8 +52,10 @@ export default async function WorshipPrepPage({
           />
         )}
       </PageHeader>
-      <WorshipDateSelector selectedDate={selectedDate} />
-      <PrepAutomationPanel />
+      <div className='space-y-4'>
+        <WorshipDateSelector selectedDate={selectedDate} />
+        <PrepAutomationPanel />
+      </div>
       {!item ? (
         <div className='flex flex-col items-center justify-center py-12 text-center'>
           <p className='text-base text-muted-foreground'>선택한 주차 데이터가 없습니다</p>

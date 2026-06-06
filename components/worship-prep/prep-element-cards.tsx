@@ -1,107 +1,154 @@
+"use client";
+
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import type { Conti } from '@/lib/types';
 import type { WorshipPrepSummary } from '@/lib/queries/worship-prep';
+import { cn } from '@/lib/utils';
 
 interface PrepElementCardsProps {
   item: WorshipPrepSummary;
   conti: Conti | null;
 }
 
-function statusBadge(hasValue: boolean) {
-  return <Badge variant={hasValue ? 'default' : 'outline'}>{hasValue ? '완료' : '미입력'}</Badge>;
+interface PrepCardItem {
+  key: string;
+  category: string;
+  title: string;
+  value: string;
+  hasValue: boolean;
+  sourceLabel: '구글 시트' | '콘티';
+  valueClassName?: string;
 }
 
-function valueOrDash(value: string | null): string {
+function statusBadge(hasValue: boolean) {
+  return (
+    <Badge className='shrink-0' variant={hasValue ? 'default' : 'outline'}>
+      {hasValue ? '완료' : '미입력'}
+    </Badge>
+  );
+}
+
+function valueOrDash(value: string | null | undefined): string {
   return value && value.trim() ? value : '-';
 }
 
+function PrepCard({
+  item,
+  className,
+}: {
+  item: PrepCardItem;
+  className?: string;
+}) {
+  return (
+    <Card size='sm' className={cn('h-full', className)}>
+      <CardContent className='flex h-full flex-col gap-2'>
+        <div className='flex items-start justify-between gap-2'>
+          <p className='text-xs font-medium text-muted-foreground'>{item.category}</p>
+          <Badge
+            variant='secondary'
+            className='h-5 px-1.5 text-xs font-medium text-muted-foreground'
+          >
+            {item.sourceLabel}
+          </Badge>
+        </div>
+        <div className='min-w-0 space-y-1'>
+          <h3 className='text-sm font-medium text-muted-foreground'>{item.title}</h3>
+          <p
+            className={cn(
+              'break-words text-base font-semibold leading-snug text-foreground',
+              item.valueClassName,
+            )}
+          >
+            {item.value}
+          </p>
+        </div>
+        <div className='flex items-center gap-2 pt-1'>{statusBadge(item.hasValue)}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function PrepElementCards({ item, conti }: PrepElementCardsProps) {
+  const sheetCards: PrepCardItem[] = [
+    {
+      key: 'preacher',
+      category: '역할',
+      title: '설교자',
+      value: valueOrDash(item.preacher),
+      hasValue: Boolean(item.preacher),
+      sourceLabel: '구글 시트',
+    },
+    {
+      key: 'leader',
+      category: '역할',
+      title: '인도자',
+      value: valueOrDash(item.leader),
+      hasValue: Boolean(item.leader),
+      sourceLabel: '구글 시트',
+    },
+    {
+      key: 'worshipLeader',
+      category: '역할',
+      title: '찬양 인도자',
+      value: valueOrDash(item.worshipLeader),
+      hasValue: Boolean(item.worshipLeader),
+      sourceLabel: '구글 시트',
+    },
+    {
+      key: 'title',
+      category: '설교',
+      title: '설교 제목',
+      value: valueOrDash(item.title),
+      hasValue: Boolean(item.title),
+      sourceLabel: '구글 시트',
+    },
+    {
+      key: 'scripture',
+      category: '설교',
+      title: '말씀 본문',
+      value: valueOrDash(item.scripture),
+      hasValue: Boolean(item.scripture),
+      sourceLabel: '구글 시트',
+    },
+    {
+      key: 'songs',
+      category: '찬양',
+      title: '찬양 목록',
+      value: item.songs.length > 0 ? item.songs.join(', ') : '-',
+      hasValue: item.songs.length > 0,
+      sourceLabel: '구글 시트',
+      valueClassName: 'text-sm font-medium',
+    },
+  ];
+  const contiCard: PrepCardItem = {
+    key: 'conti',
+    category: '연결',
+    title: '콘티',
+    value: conti ? conti.title || `${conti.date} 콘티` : '연결된 콘티 없음',
+    hasValue: Boolean(conti),
+    sourceLabel: '콘티',
+  };
+
   return (
     <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'>
-      <Card>
-        <CardHeader>
-          <CardDescription>역할</CardDescription>
-          <CardTitle>설교자</CardTitle>
-        </CardHeader>
-        <CardContent className='space-y-2'>
-          {statusBadge(Boolean(item.preacher))}
-          <p className='text-sm text-muted-foreground'>{valueOrDash(item.preacher)}</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardDescription>역할</CardDescription>
-          <CardTitle>인도자</CardTitle>
-        </CardHeader>
-        <CardContent className='space-y-2'>
-          {statusBadge(Boolean(item.leader))}
-          <p className='text-sm text-muted-foreground'>{valueOrDash(item.leader)}</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardDescription>역할</CardDescription>
-          <CardTitle>찬양 인도자</CardTitle>
-        </CardHeader>
-        <CardContent className='space-y-2'>
-          {statusBadge(Boolean(item.worshipLeader))}
-          <p className='text-sm text-muted-foreground'>{valueOrDash(item.worshipLeader)}</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardDescription>설교</CardDescription>
-          <CardTitle>설교 제목</CardTitle>
-        </CardHeader>
-        <CardContent className='space-y-2'>
-          {statusBadge(Boolean(item.title))}
-          <p className='text-sm text-muted-foreground'>{valueOrDash(item.title)}</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardDescription>설교</CardDescription>
-          <CardTitle>말씀 본문</CardTitle>
-        </CardHeader>
-        <CardContent className='space-y-2'>
-          {statusBadge(Boolean(item.scripture))}
-          <p className='text-sm text-muted-foreground'>{valueOrDash(item.scripture)}</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardDescription>찬양</CardDescription>
-          <CardTitle>찬양 목록</CardTitle>
-        </CardHeader>
-        <CardContent className='space-y-2'>
-          {statusBadge(item.songs.length > 0)}
-          <p className='text-sm text-muted-foreground'>{item.songs.length > 0 ? item.songs.join(', ') : '-'}</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardDescription>연결</CardDescription>
-          <CardTitle>콘티</CardTitle>
-        </CardHeader>
-        <CardContent className='space-y-2'>
-          {statusBadge(Boolean(conti))}
-          {conti ? (
-            <Link href={`/contis/${conti.id}`} className='text-sm text-primary underline-offset-4 hover:underline'>
-              {conti.title || `${conti.date} 콘티`}
-            </Link>
-          ) : (
-            <p className='text-sm text-muted-foreground'>연결된 콘티 없음</p>
-          )}
-        </CardContent>
-      </Card>
+      {sheetCards.map((card) => (
+        <PrepCard key={card.key} item={card} />
+      ))}
+      {conti ? (
+        <Link
+          href={`/contis/${conti.id}`}
+          className='block h-full rounded-lg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
+        >
+          <PrepCard
+            item={contiCard}
+            className='transition-colors hover:border-primary/40 hover:bg-muted/30'
+          />
+        </Link>
+      ) : (
+        <PrepCard item={contiCard} />
+      )}
     </div>
   );
 }
