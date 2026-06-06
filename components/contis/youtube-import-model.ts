@@ -34,15 +34,17 @@ export function buildBatchImportItems(
   items: YouTubeImportReviewItem[],
   defaultPresetName: string,
 ): BatchImportPayloadItem[] {
-  return items.map((item) => ({
-    songId: item.matchedSong?.id ?? null,
-    newSongName: item.matchedSong ? null : item.editedName.trim(),
-    videoId: item.videoId,
-    title: item.originalTitle,
-    presetId: item.selectedPresetId,
-    createNewPreset: item.createNewPreset || !item.matchedSong,
-    presetName: item.presetName || defaultPresetName,
-    alreadyInConti: item.isAlreadyInConti,
-    replaceExistingYoutube: item.existingYoutubeRef ? item.replaceExistingYoutube : true,
-  }))
+  return items
+    .filter((item) => !item.excluded)
+    .map((item) => ({
+      songId: item.matchedSong?.id ?? null,
+      newSongName: item.matchedSong ? null : item.editedName.trim(),
+      videoId: item.videoId,
+      title: item.originalTitle,
+      presetId: item.selectedPresetId,
+      createNewPreset: item.createNewPreset || !item.matchedSong,
+      presetName: item.presetName || defaultPresetName,
+      alreadyInConti: item.isAlreadyInConti,
+      replaceExistingYoutube: item.existingYoutubeRef ? item.replaceExistingYoutube : true,
+    }))
 }

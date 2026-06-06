@@ -70,3 +70,21 @@ test("new song path creates a new song payload and defaults to playlist YouTube"
   assert.equal(item.replaceExistingYoutube, true)
   assert.equal(item.presetName, defaultPresetName)
 })
+
+test("excluded review items are omitted from the batch payload", () => {
+  const items = buildBatchImportItems(
+    [
+      existingItem,
+      {
+        ...existingItem,
+        id: "yt-3",
+        videoId: "excluded-video",
+        excluded: true,
+      },
+    ],
+    defaultPresetName,
+  )
+
+  assert.equal(items.length, 1)
+  assert.equal(items[0]?.videoId, "playlist-video")
+})
