@@ -114,6 +114,29 @@ export async function sendDropdownMessage(threadId: string, content: string, cus
   return parseDiscordResponse<{ id: string }>(response, 'Failed to send dropdown message');
 }
 
+export async function sendThreadMessage(threadId: string, content: string): Promise<{ id: string }> {
+  const response = await fetch(`${DISCORD_API_BASE}/channels/${threadId}/messages`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ content }),
+  });
+
+  return parseDiscordResponse<{ id: string }>(response, 'Failed to send thread message');
+}
+
+export async function archiveThread(threadId: string): Promise<void> {
+  const response = await fetch(`${DISCORD_API_BASE}/channels/${threadId}`, {
+    method: 'PATCH',
+    headers: getHeaders(),
+    body: JSON.stringify({ archived: true }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Failed to archive thread: ${response.status} ${body}`);
+  }
+}
+
 export async function getThreadMessages(threadId: string): Promise<DiscordMessage[]> {
   const response = await fetch(`${DISCORD_API_BASE}/channels/${threadId}/messages?limit=100`, {
     method: 'GET',

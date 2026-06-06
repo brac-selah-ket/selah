@@ -1,6 +1,8 @@
 export {
   createForumThread,
   sendDropdownMessage,
+  sendThreadMessage,
+  archiveThread,
   getThreadMessages,
   addMessageReaction,
   getChannel,

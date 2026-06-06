@@ -71,3 +71,31 @@ test('parse-comments requires cron authorization before Discord and Google side 
   assert.ok(sideEffectIndexes.every((index) => authIndex < index));
   assert.match(body, /status:\s*401/);
 });
+
+test('discord client archives worship threads without locking them', async () => {
+  const source = await readFile(
+    new URL('../lib/discord-sync/discord-client.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /export async function archiveThread/);
+  assert.match(source, /method:\s*'PATCH'/);
+  assert.match(source, /archived:\s*true/);
+
+  const archiveFunction = source.slice(
+    source.indexOf('export async function archiveThread'),
+    source.indexOf('export async function', source.indexOf('export async function archiveThread') + 1),
+  );
+  assert.doesNotMatch(archiveFunction, /locked/);
+});
+
+test('discord client sends plain messages to a thread channel', async () => {
+  const source = await readFile(
+    new URL('../lib/discord-sync/discord-client.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /export async function sendThreadMessage/);
+  assert.match(source, /\/channels\/\$\{threadId\}\/messages/);
+  assert.match(source, /body:\s*JSON\.stringify\(\{\s*content/);
+});
