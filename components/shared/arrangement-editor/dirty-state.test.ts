@@ -53,30 +53,56 @@ test("equivalent pdfMetadata objects with different key insertion order are trea
   const leftDraft: ArrangementDraft = {
     ...baseDraft,
     pdfMetadata: {
-      pageAssignments: [
+      files: [
         {
-          sectionName: "Verse",
-          pageIndex: 0,
+          sheetMusicFileId: "sheet-1",
+          pages: [
+            {
+              pdfPageIndex: 0,
+              cropX: 12,
+              imageScale: 1.1,
+              overlays: [
+                {
+                  id: "overlay-1",
+                  type: "custom",
+                  text: "Verse 1",
+                  x: 100,
+                  y: 120,
+                  fontSize: 18,
+                  color: "#ffffff",
+                },
+              ],
+            },
+          ],
         },
       ],
-      layout: {
-        showSongTitle: true,
-        marginTop: 12,
-      },
     },
   }
 
   const rightDraft: ArrangementDraft = {
     ...baseDraft,
     pdfMetadata: {
-      layout: {
-        marginTop: 12,
-        showSongTitle: true,
-      },
-      pageAssignments: [
+      files: [
         {
-          pageIndex: 0,
-          sectionName: "Verse",
+          pages: [
+            {
+              overlays: [
+                {
+                  color: "#ffffff",
+                  fontSize: 18,
+                  y: 120,
+                  x: 100,
+                  text: "Verse 1",
+                  type: "custom",
+                  id: "overlay-1",
+                },
+              ],
+              imageScale: 1.1,
+              cropX: 12,
+              pdfPageIndex: 0,
+            },
+          ],
+          sheetMusicFileId: "sheet-1",
         },
       ],
     },
