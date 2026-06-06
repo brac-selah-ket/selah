@@ -37,7 +37,7 @@ export function ContiForm({
   const [description, setDescription] = useState(sanitizeContiDescription(conti?.description) ?? "")
 
   const isEdit = !!conti
-  const defaultPresetName = title.trim() || date || "새 콘티"
+  const defaultPresetName = date || "새 콘티"
   const importState = useYouTubeImportState({
     defaultPresetName,
     existingSongIds: [],
@@ -49,6 +49,11 @@ export function ContiForm({
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+
+    if (!isEdit && enableInlineYouTubeImport && importState.isPending) {
+      toast.error("플레이리스트를 불러오는 중입니다")
+      return
+    }
 
     const formData = new FormData()
     formData.set("title", title)
@@ -168,9 +173,11 @@ export function ContiForm({
                   value={importState.url}
                   onChange={(e) => importState.setUrl(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !importState.isPending) {
+                    if (e.key === "Enter") {
                       e.preventDefault()
-                      importState.handleFetchPlaylist()
+                      if (!importState.isPending) {
+                        importState.handleFetchPlaylist()
+                      }
                     }
                   }}
                   disabled={importState.isPending || isPending}
@@ -192,7 +199,7 @@ export function ContiForm({
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-              <YouTubeImportReview
+                <YouTubeImportReview
                   items={reviewItems}
                   searchStates={importState.searchStates}
                   dropdownOpen={importState.dropdownOpen}
@@ -242,7 +249,13 @@ export function ContiForm({
         )}
 
         <div className="flex items-center gap-3 pt-2">
-          <Button type="submit" disabled={isPending}>
+          <Button
+            type="submit"
+            disabled={
+              isPending ||
+              (!isEdit && enableInlineYouTubeImport && importState.isPending)
+            }
+          >
             {isPending ? "저장 중..." : "저장"}
           </Button>
           <Button

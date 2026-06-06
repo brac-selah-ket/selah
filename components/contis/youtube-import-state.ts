@@ -1,10 +1,10 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
+import { useMemo, useRef, useState, useTransition } from "react"
 import { toast } from "sonner"
 import { fetchYouTubePlaylist } from "@/lib/actions/youtube"
 import { getPresetsForSong } from "@/lib/actions/song-presets"
-import type { Song, SongPreset } from "@/lib/types"
+import type { Song } from "@/lib/types"
 import type { YouTubeImportReviewItem } from "@/components/contis/youtube-import-model"
 
 type Step = "url-input" | "review"
@@ -60,6 +60,8 @@ export function useYouTubeImportState({
   const [searchStates, setSearchStates] = useState<Record<string, string>>({})
   const [dropdownOpen, setDropdownOpen] = useState<Record<string, boolean>>({})
   const [isPending, startTransition] = useTransition()
+  const playlistRequestTokenRef = useRef(0)
+  const matchRequestTokensRef = useRef<Record<string, number>>({})
 
   const existingSongSet = useMemo(
     () => new Set(existingSongIds),
@@ -83,6 +85,8 @@ export function useYouTubeImportState({
   }, [items])
 
   function resetState() {
+    playlistRequestTokenRef.current += 1
+    matchRequestTokensRef.current = {}
     setStep("url-input")
     setUrl("")
     setItems([])
@@ -96,8 +100,16 @@ export function useYouTubeImportState({
       return
     }
 
+    const requestToken = playlistRequestTokenRef.current + 1
+    playlistRequestTokenRef.current = requestToken
+    matchRequestTokensRef.current = {}
+
     startTransition(async () => {
       const result = await fetchYouTubePlaylist(url.trim())
+      if (playlistRequestTokenRef.current !== requestToken) {
+        return
+      }
+
       if (!result.success || !result.data) {
         toast.error(result.error ?? "플레이리스트를 불러오는 중 오류가 발생했습니다")
         return
@@ -135,15 +147,11 @@ export function useYouTubeImportState({
     setSearchStates((prev) => ({ ...prev, [itemId]: newName }))
   }
 
-  function applyPresets(itemId: string, presets: SongPreset[]) {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === itemId ? { ...item, presets } : item,
-      ),
-    )
-  }
-
   function handleMatchSong(itemId: string, song: Song | null) {
+    const requestToken = (matchRequestTokensRef.current[itemId] ?? 0) + 1
+    matchRequestTokensRef.current[itemId] = requestToken
+    const playlistToken = playlistRequestTokenRef.current
+
     setItems((prev) =>
       detectDuplicates(
         prev.map((item) => {
@@ -173,9 +181,28 @@ export function useYouTubeImportState({
     }
 
     getPresetsForSong(song.id).then((result) => {
-      if (result.success && result.data) {
-        applyPresets(itemId, result.data)
+      if (
+        !result.success ||
+        !result.data ||
+        playlistRequestTokenRef.current !== playlistToken ||
+        matchRequestTokensRef.current[itemId] !== requestToken
+      ) {
+        return
       }
+
+      setItems((prev) =>
+        prev.map((item) => {
+          if (
+            item.id !== itemId ||
+            item.matchedSong?.id !== song.id ||
+            matchRequestTokensRef.current[itemId] !== requestToken
+          ) {
+            return item
+          }
+
+          return { ...item, presets: result.data! }
+        }),
+      )
     })
   }
 
