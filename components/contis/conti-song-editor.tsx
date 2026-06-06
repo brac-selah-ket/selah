@@ -203,6 +203,7 @@ export function ContiSongEditor({
       initialDraft={contiSongToDraft(contiSong)}
       availableSheetMusic={songSheetMusic}
       sheetMusicPreviewItem={sheetMusicPreviewItem}
+      sheetMusicWorkspacePreview
       sheetMusicManagementSlot={
         <div className="space-y-4">
           <SheetMusicUploader

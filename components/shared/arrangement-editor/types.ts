@@ -40,6 +40,7 @@ export interface ArrangementEditorProps {
   availableSheetMusic: SheetMusicFile[]
   presetOptions?: ArrangementEditorPresetOption[]
   sheetMusicPreviewItem?: SheetMusicPreviewItem | null
+  sheetMusicWorkspacePreview?: boolean
   sheetMusicManagementSlot?: ReactNode
   savingLabel?: string
   onOpenChange: (open: boolean) => void

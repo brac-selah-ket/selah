@@ -311,6 +311,10 @@ test('conti song drawer uses wide controlled sheet music preview instead of nest
     new URL('../components/contis/conti-song-editor.tsx', import.meta.url),
     'utf8',
   );
+  const presetEditorSource = await readFile(
+    new URL('../components/songs/preset-editor.tsx', import.meta.url),
+    'utf8',
+  );
 
   assert.match(dialogSource, /type DialogContentSize = "sm" \| "md" \| "lg" \| "xl" \| "full"/);
   assert.match(dialogSource, /size = "sm"/);
@@ -352,7 +356,7 @@ test('conti song drawer uses wide controlled sheet music preview instead of nest
   );
   assert.match(
     arrangementSource,
-    /const hasDrawerPreview = mode === "conti-song" && hasSheetMusicWorkspace/,
+    /const hasDrawerPreview = sheetMusicWorkspacePreview && hasSheetMusicWorkspace/,
   );
   assert.doesNotMatch(
     arrangementSource,
@@ -368,15 +372,26 @@ test('conti song drawer uses wide controlled sheet music preview instead of nest
   assert.doesNotMatch(contiSongEditorSource, /space-y-4 rounded-lg border bg-background\/50 p-4/);
 
   assert.match(arrangementTypesSource, /sheetMusicPreviewItem\?: SheetMusicPreviewItem \| null/);
+  assert.match(arrangementTypesSource, /sheetMusicWorkspacePreview\?: boolean/);
   assert.match(arrangementSource, /SheetMusicPreviewPane/);
   assert.match(arrangementSource, /hasDrawerPreview/);
   assert.match(arrangementSource, /size=\{hasDrawerPreview \? "wide" : "default"\}/);
   assert.match(arrangementSource, /md:grid-cols-\[minmax\(320px,0\.9fr\)_minmax\(360px,1fr\)\]/);
 
   assert.match(contiSongEditorSource, /useState<SheetMusicPreviewItem \| null>\(null\)/);
+  assert.match(contiSongEditorSource, /sheetMusicWorkspacePreview/);
   assert.match(contiSongEditorSource, /previewMode="controlled"/);
   assert.match(contiSongEditorSource, /onPreviewChange=\{setSheetMusicPreviewItem\}/);
   assert.match(contiSongEditorSource, /sheetMusicPreviewItem=\{sheetMusicPreviewItem\}/);
+
+  assert.match(presetEditorSource, /SheetMusicPreviewItem/);
+  assert.match(presetEditorSource, /SheetMusicGallery/);
+  assert.match(presetEditorSource, /useState<SheetMusicPreviewItem \| null>\(null\)/);
+  assert.match(presetEditorSource, /sheetMusicWorkspacePreview/);
+  assert.match(presetEditorSource, /sheetMusicPreviewItem=\{sheetMusicPreviewItem\}/);
+  assert.match(presetEditorSource, /previewMode="controlled"/);
+  assert.match(presetEditorSource, /onPreviewChange=\{setSheetMusicPreviewItem\}/);
+  assert.doesNotMatch(presetEditorSource, /SheetMusicUploader/);
 });
 
 test('sheet music lyrics generator uses Gemini images and appends generated pages', async () => {
