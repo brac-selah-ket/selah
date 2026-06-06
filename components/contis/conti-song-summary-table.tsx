@@ -1,6 +1,6 @@
 "use client"
 
-import type { KeyboardEvent, MouseEvent } from "react"
+import type { MouseEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { YouTubeReferenceLink } from "@/components/shared/youtube-reference-link"
@@ -87,13 +87,6 @@ function stopRowClick(event: MouseEvent) {
   event.stopPropagation()
 }
 
-function handleEditRowKeyDown(event: KeyboardEvent, onEditRow: () => void) {
-  if (event.currentTarget !== event.target) return
-  if (event.key !== "Enter" && event.key !== " ") return
-  event.preventDefault()
-  onEditRow()
-}
-
 export function ContiSongSummaryTable({
   songs,
   mode,
@@ -124,21 +117,33 @@ export function ContiSongSummaryTable({
           return (
             <div
               key={song.id}
-              role="button"
-              tabIndex={0}
-              onClick={editRow}
-              onKeyDown={(event) => handleEditRowKeyDown(event, editRow)}
-              className="grid cursor-pointer grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border bg-background/70 px-3 py-3 text-sm transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-inset"
+              className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border bg-background/70 px-3 py-3 text-sm"
             >
-              <span className="font-semibold text-primary">{index + 1}</span>
+              <span
+                className="cursor-pointer rounded-sm font-semibold text-primary transition-colors hover:bg-muted/45"
+                onClick={editRow}
+              >
+                {index + 1}
+              </span>
               <div className="min-w-0">
-                <p className="truncate font-medium">{getSongName(song)}</p>
+                <p
+                  className="cursor-pointer truncate rounded-sm font-medium transition-colors hover:bg-muted/45"
+                  onClick={editRow}
+                >
+                  {getSongName(song)}
+                </p>
                 <div className="mt-1 flex min-w-0 max-w-full flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                  <span className="min-w-0 max-w-full truncate">
+                  <span
+                    className="min-w-0 max-w-full cursor-pointer truncate rounded-sm transition-colors hover:bg-muted/45"
+                    onClick={editRow}
+                  >
                     {getKeyTempoSummary(song)}
                   </span>
                   {presetName && (
-                    <span className="min-w-0 max-w-full truncate">
+                    <span
+                      className="min-w-0 max-w-full cursor-pointer truncate rounded-sm transition-colors hover:bg-muted/45"
+                      onClick={editRow}
+                    >
                       {presetName}
                     </span>
                   )}
@@ -156,7 +161,10 @@ export function ContiSongSummaryTable({
                   )}
                 </div>
                 {sectionSummary !== "-" && (
-                  <p className="mt-1 truncate text-xs text-muted-foreground">
+                  <p
+                    className="mt-1 cursor-pointer truncate rounded-sm text-xs text-muted-foreground transition-colors hover:bg-muted/45"
+                    onClick={editRow}
+                  >
                     {sectionSummary}
                   </p>
                 )}
@@ -248,25 +256,38 @@ export function ContiSongSummaryTable({
           return (
             <div
               key={song.id}
-              role={showActions ? "button" : undefined}
-              tabIndex={showActions ? 0 : undefined}
-              onClick={showActions ? editRow : undefined}
-              onKeyDown={
-                showActions
-                  ? (event) => handleEditRowKeyDown(event, editRow)
-                  : undefined
-              }
               className={cn(
                 `grid ${gridTemplateClass} items-center gap-3 border-b px-3 py-3 text-sm last:border-b-0`,
-                showActions &&
-                  "cursor-pointer transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-inset",
               )}
             >
-              <span className="font-semibold text-primary">{index + 1}</span>
-              <span className="min-w-0 truncate font-medium">
+              <span
+                className={cn(
+                  "font-semibold text-primary",
+                  showActions &&
+                    "cursor-pointer rounded-sm transition-colors hover:bg-muted/45",
+                )}
+                onClick={showActions ? editRow : undefined}
+              >
+                {index + 1}
+              </span>
+              <span
+                className={cn(
+                  "min-w-0 truncate font-medium",
+                  showActions &&
+                    "cursor-pointer rounded-sm transition-colors hover:bg-muted/45",
+                )}
+                onClick={showActions ? editRow : undefined}
+              >
                 {getSongName(song)}
               </span>
-              <span className="flex min-w-0 flex-wrap gap-1">
+              <span
+                className={cn(
+                  "flex min-w-0 flex-wrap gap-1",
+                  showActions &&
+                    "cursor-pointer rounded-sm transition-colors hover:bg-muted/45",
+                )}
+                onClick={showActions ? editRow : undefined}
+              >
                 {keys.length > 0
                   ? keys.map((key, keyIndex) => (
                       <Badge key={`${key}-${keyIndex}`} variant="key">
@@ -275,7 +296,14 @@ export function ContiSongSummaryTable({
                     ))
                   : "-"}
               </span>
-              <span className="flex min-w-0 flex-wrap gap-1">
+              <span
+                className={cn(
+                  "flex min-w-0 flex-wrap gap-1",
+                  showActions &&
+                    "cursor-pointer rounded-sm transition-colors hover:bg-muted/45",
+                )}
+                onClick={showActions ? editRow : undefined}
+              >
                 {tempos.length > 0
                   ? tempos.map((tempo, tempoIndex) => (
                       <Badge key={`${tempo}-${tempoIndex}`} variant="tempo">
@@ -284,10 +312,24 @@ export function ContiSongSummaryTable({
                     ))
                   : "-"}
               </span>
-              <span className="min-w-0 truncate text-muted-foreground">
+              <span
+                className={cn(
+                  "min-w-0 truncate text-muted-foreground",
+                  showActions &&
+                    "cursor-pointer rounded-sm transition-colors hover:bg-muted/45",
+                )}
+                onClick={showActions ? editRow : undefined}
+              >
                 {getSectionSummary(song)}
               </span>
-              <span className="min-w-0 truncate text-muted-foreground">
+              <span
+                className={cn(
+                  "min-w-0 truncate text-muted-foreground",
+                  showActions &&
+                    "cursor-pointer rounded-sm transition-colors hover:bg-muted/45",
+                )}
+                onClick={showActions ? editRow : undefined}
+              >
                 {presetName ?? "-"}
               </span>
               <span
