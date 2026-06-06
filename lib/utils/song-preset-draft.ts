@@ -1,5 +1,5 @@
 import type { ArrangementDraft } from "../../components/shared/arrangement-editor/types.ts"
-import type { SongPresetData, SongPresetWithSheetMusic } from "../types.ts"
+import type { PresetPdfMetadata, SongPresetData, SongPresetWithSheetMusic } from "../types.ts"
 import { normalizeYouTubeReference, toYouTubeInputValue } from "./youtube.ts"
 
 function parseJsonField<T>(field: string | null, fallback: T): T {
@@ -21,7 +21,7 @@ export function songPresetToDraft(preset: SongPresetWithSheetMusic | undefined):
     sectionLyricsMap: parseJsonField<Record<number, number[]>>(preset?.sectionLyricsMap ?? null, {}),
     notes: preset?.notes ?? null,
     sheetMusicFileIds: preset?.sheetMusicFileIds?.length ? preset.sheetMusicFileIds : null,
-    pdfMetadata: parseJsonField<SongPresetData["pdfMetadata"]>(preset?.pdfMetadata ?? null, null),
+    pdfMetadata: parseJsonField<PresetPdfMetadata | null>(preset?.pdfMetadata ?? null, null),
     youtubeReference: toYouTubeInputValue(preset?.youtubeReference),
     youtubeTitle: preset?.youtubeTitle ?? null,
     isDefault: preset?.isDefault ?? false,

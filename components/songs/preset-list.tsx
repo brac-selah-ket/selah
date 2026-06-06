@@ -39,11 +39,19 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
   const compact = editorOpen
 
   useEffect(() => {
-    setEditingPreset((current) => {
-      if (!current) return current
-      return presets.find((preset) => preset.id === current.id)
-    })
-  }, [presets])
+    if (!editingPreset) return
+
+    const refreshedPreset = presets.find((preset) => preset.id === editingPreset.id)
+    if (!refreshedPreset) {
+      setEditingPreset(undefined)
+      setEditorOpen(false)
+      return
+    }
+
+    if (refreshedPreset !== editingPreset) {
+      setEditingPreset(refreshedPreset)
+    }
+  }, [editingPreset, presets])
 
   const handleCreateClick = () => {
     setEditingPreset(undefined)

@@ -78,3 +78,9 @@ test("empty preset sheet music rows mean all sheet music in the editor", () => {
 
   assert.equal(draft.sheetMusicFileIds, null)
 })
+
+test("missing preset pdf metadata is normalized to null in the editor draft", () => {
+  const draft = songPresetToDraft({ ...preset, pdfMetadata: null })
+
+  assert.equal(draft.pdfMetadata, null)
+})
