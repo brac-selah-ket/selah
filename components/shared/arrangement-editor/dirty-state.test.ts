@@ -49,6 +49,42 @@ test("sheetMusicFileIds null and selecting all available ids are treated as unch
   assert.equal(areArrangementDraftsEqual(baseDraft, nextDraft, allSheetMusicIds), true)
 })
 
+test("equivalent pdfMetadata objects with different key insertion order are treated as unchanged", () => {
+  const leftDraft: ArrangementDraft = {
+    ...baseDraft,
+    pdfMetadata: {
+      pageAssignments: [
+        {
+          sectionName: "Verse",
+          pageIndex: 0,
+        },
+      ],
+      layout: {
+        showSongTitle: true,
+        marginTop: 12,
+      },
+    },
+  }
+
+  const rightDraft: ArrangementDraft = {
+    ...baseDraft,
+    pdfMetadata: {
+      layout: {
+        marginTop: 12,
+        showSongTitle: true,
+      },
+      pageAssignments: [
+        {
+          pageIndex: 0,
+          sectionName: "Verse",
+        },
+      ],
+    },
+  }
+
+  assert.equal(areArrangementDraftsEqual(leftDraft, rightDraft), true)
+})
+
 test("real key changes are detected", () => {
   const nextDraft: ArrangementDraft = {
     ...baseDraft,

@@ -82,6 +82,22 @@ function normalizeSheetMusicFileIds(
   return normalizedIds
 }
 
+function normalizePdfMetadataValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(normalizePdfMetadataValue)
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, nestedValue]) => [key, normalizePdfMetadataValue(nestedValue)]),
+    )
+  }
+
+  return value
+}
+
 export function normalizeArrangementDraftForDirtyCheck(
   draft: ArrangementDraft,
   allSheetMusicIds: string[] = [],
@@ -95,7 +111,7 @@ export function normalizeArrangementDraftForDirtyCheck(
     sectionLyricsMap: normalizeSectionLyricsMap(draft.sectionLyricsMap),
     notes: normalizeOptionalString(draft.notes),
     sheetMusicFileIds: normalizeSheetMusicFileIds(draft.sheetMusicFileIds, allSheetMusicIds),
-    pdfMetadata: draft.pdfMetadata,
+    pdfMetadata: normalizePdfMetadataValue(draft.pdfMetadata) as ArrangementDraft["pdfMetadata"],
     youtubeReference: normalizeYouTubeReference(draft.youtubeReference)?.videoId ?? normalizeOptionalString(draft.youtubeReference),
     youtubeTitle: normalizeOptionalString(draft.youtubeTitle),
     isDefault: draft.isDefault,

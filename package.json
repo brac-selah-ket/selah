@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test lib/utils/youtube.test.ts lib/utils/lyrics-validation.test.ts lib/actions/sheet-music-lyrics.test.ts lib/utils/preset-overrides.test.ts components/shared/arrangement-editor/save-rules.test.ts lib/storage/storage.test.ts lib/repositories/storyboard/provider.test.ts lib/cron-auth.test.ts lib/sheet-music-assets.test.ts lib/auth-redirect.test.ts tests/discord-endpoint-source.test.mjs tests/discord-parse-comments-route.test.mjs tests/blob-to-r2-migration-source.test.mjs tests/sheet-music-cors-source.test.mjs",
+    "test": "node --experimental-strip-types --test lib/utils/youtube.test.ts lib/utils/lyrics-validation.test.ts lib/actions/sheet-music-lyrics.test.ts lib/utils/preset-overrides.test.ts components/shared/arrangement-editor/dirty-state.test.ts components/shared/arrangement-editor/save-rules.test.ts lib/storage/storage.test.ts lib/repositories/storyboard/provider.test.ts lib/cron-auth.test.ts lib/sheet-music-assets.test.ts lib/auth-redirect.test.ts tests/discord-endpoint-source.test.mjs tests/discord-parse-comments-route.test.mjs tests/blob-to-r2-migration-source.test.mjs tests/sheet-music-cors-source.test.mjs",
     "db:turso:generate": "drizzle-kit generate --config=drizzle.turso.config.ts",
     "db:turso:push": "drizzle-kit push --config=drizzle.turso.config.ts",
     "db:export:neon": "node scripts/storyboard-migration/export-neon.mjs",
