@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrangementEditor } from "@/components/shared/arrangement-editor"
 import type { SheetMusicPreviewItem } from "@/components/shared/sheet-music-preview"
@@ -28,22 +28,29 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
   const [sheetMusicLoading, setSheetMusicLoading] = useState(false)
   const [sheetMusicPreviewPrepared, setSheetMusicPreviewPrepared] = useState(false)
   const [sheetMusicPreviewItem, setSheetMusicPreviewItem] = useState<SheetMusicPreviewItem | null>(null)
+  const openRef = useRef(open)
+
+  useLayoutEffect(() => {
+    openRef.current = open
+  }, [open])
 
   useEffect(() => {
-    let cancelled = false
+    if (open) {
+      let cancelled = false
 
-    void Promise.resolve().then(() => {
-      if (!cancelled) {
-        setSheetMusicLoading(false)
-        setSheetMusicPreviewPrepared(false)
-        setSheetMusicPreviewItem(null)
+      void Promise.resolve().then(() => {
+        if (!cancelled) {
+          setSheetMusicLoading(false)
+          setSheetMusicPreviewPrepared(false)
+          setSheetMusicPreviewItem(null)
+        }
+      })
+
+      return () => {
+        cancelled = true
       }
-    })
-
-    return () => {
-      cancelled = true
     }
-  }, [songId, preset?.id])
+  }, [open, songId, preset?.id])
 
   useEffect(() => {
     if (!open) {
@@ -68,6 +75,10 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
     (open && sheetMusic.length > 0 && !sheetMusicPreviewItem && !sheetMusicPreviewPrepared)
 
   function handlePreviewLoadingChange(loading: boolean) {
+    if (!openRef.current) {
+      return
+    }
+
     setSheetMusicLoading(loading)
     setSheetMusicPreviewPrepared(!loading)
   }

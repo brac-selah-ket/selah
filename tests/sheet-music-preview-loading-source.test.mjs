@@ -22,10 +22,20 @@ test("preset editor forwards preview loading state to the arrangement editor", a
 
   assert.match(source, /const \[sheetMusicLoading, setSheetMusicLoading\] = useState/)
   assert.match(source, /const \[sheetMusicPreviewPrepared, setSheetMusicPreviewPrepared\] = useState/)
+  assert.match(source, /const openRef = useRef\(open\)/)
+  assert.match(
+    source,
+    /useLayoutEffect\(\(\) => \{\s*openRef\.current = open\s*\}, \[open\]\)/,
+  )
+  assert.match(
+    source,
+    /if \(open\) \{[\s\S]*setSheetMusicLoading\(false\)[\s\S]*setSheetMusicPreviewPrepared\(false\)[\s\S]*setSheetMusicPreviewItem\(null\)[\s\S]*\}/,
+  )
   assert.match(
     source,
     /const previewLoading =\s*sheetMusicLoading \|\|\s*\(\s*open &&\s*sheetMusic\.length > 0 &&\s*!sheetMusicPreviewItem &&\s*!sheetMusicPreviewPrepared\s*\)/,
   )
+  assert.match(source, /if \(!openRef\.current\) \{\s*return\s*\}/)
   assert.match(source, /sheetMusicLoading=\{previewLoading\}/)
   assert.match(source, /onPreviewLoadingChange=\{handlePreviewLoadingChange\}/)
 })
