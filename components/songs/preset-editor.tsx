@@ -25,6 +25,7 @@ interface PresetEditorProps {
 
 export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }: PresetEditorProps) {
   const router = useRouter()
+  const initialDraft = songPresetToDraft(preset)
   const [sheetMusicLoading, setSheetMusicLoading] = useState(false)
   const [sheetMusicPreviewPrepared, setSheetMusicPreviewPrepared] = useState(false)
   const [sheetMusicPreviewItem, setSheetMusicPreviewItem] = useState<SheetMusicPreviewItem | null>(null)
@@ -89,6 +90,10 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
     setSheetMusicPreviewItem(item)
   }
 
+  if (!open) {
+    return null
+  }
+
   return (
     <ArrangementEditor
       mode="preset"
@@ -96,7 +101,7 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
       songId={songId}
       songName={preset?.name ?? "새 프리셋"}
       open={open}
-      initialDraft={songPresetToDraft(preset)}
+      initialDraft={initialDraft}
       availableSheetMusic={sheetMusic}
       sheetMusicPreviewItem={currentPreviewItem}
       sheetMusicLoading={previewLoading}

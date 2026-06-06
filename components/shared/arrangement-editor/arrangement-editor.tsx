@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useLayoutEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Drawer } from "@/components/ui/drawer"
 import { Button } from "@/components/ui/button"
@@ -130,7 +130,7 @@ export function ArrangementEditor({
     return { ...draftToPrune, sheetMusicFileIds }
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (open && !wasOpenRef.current) {
       const nextDraft = cloneDraft(initialDraft)
       setDraft(nextDraft)
