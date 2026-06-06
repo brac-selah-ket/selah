@@ -24,3 +24,26 @@ test('turso schema defines worship prep notification state and conti date index'
   assert.match(source, /uniqueIndex\('worship_prep_notifications_week_type_unique'\)\.on\(table\.sundayDate,\s*table\.type\)/);
   assert.match(source, /index\('contis_date_idx'\)\.on\(table\.date\)/);
 });
+
+test('notification state store uses atomic claim before send and sent marking', async () => {
+  const source = await readFile(
+    new URL('../lib/discord-sync/worship-prep-notification-state.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /export async function getWorshipPrepNotification/);
+  assert.match(source, /export async function claimWorshipPrepNotificationWithStore/);
+  assert.match(source, /export async function claimWorshipPrepNotification/);
+  assert.match(source, /export async function markWorshipPrepNotificationSent/);
+  assert.match(source, /export async function markWorshipPrepNotificationFailed/);
+  assert.match(source, /export async function markWorshipPrepNotificationSentWithStore/);
+  assert.match(source, /export async function markWorshipPrepNotificationFailedWithStore/);
+  assert.match(source, /getNotificationClaimSkipReason/);
+  assert.match(source, /onConflictDoNothing/);
+  assert.match(source, /\.returning\(\)/);
+  assert.match(source, /lte\(/);
+  assert.match(source, /status:\s*'pending'/);
+  assert.match(source, /status:\s*'sent'/);
+  assert.match(source, /status:\s*'failed'/);
+  assert.match(source, /getStoryboardDatabaseProviderName/);
+});
