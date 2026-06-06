@@ -3,7 +3,9 @@ import { readWorshipDataByDate } from '@/lib/discord-sync/google-sheets';
 import {
   getActiveForumThreads,
   getChannel,
+  getThreadMessages,
   sendThreadMessage,
+  type DiscordMessage,
 } from '@/lib/discord-sync/discord-client';
 import {
   resolveGuildId,
@@ -57,6 +59,14 @@ function hasActiveClaimReference(
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+export async function findExistingWorshipPrepReadyMessage(
+  threadId: string,
+  content: string,
+): Promise<DiscordMessage | null> {
+  const messages = await getThreadMessages(threadId);
+  return messages.find((message) => message.content === content && message.author.bot !== false) ?? null;
 }
 
 export async function findDiscordThreadForSundayDate(sundayDate: string) {
@@ -159,6 +169,29 @@ export async function checkAndSendWorshipPrepReadyNotification({
 
     const url = buildWorshipPrepUrl(baseUrl, isoDate);
     const message = buildWorshipPrepReadyMessage(url);
+    const existingReadyMessage = await findExistingWorshipPrepReadyMessage(thread.id, message);
+
+    if (existingReadyMessage) {
+      try {
+        await markWorshipPrepNotificationSent(claim.record, existingReadyMessage.id);
+      } catch (error) {
+        return {
+          success: false,
+          status: 'error',
+          error: errorMessage(error, 'Existing Discord notification found but state update failed'),
+          threadId: thread.id,
+          messageId: existingReadyMessage.id,
+        };
+      }
+
+      return {
+        success: true,
+        status: 'sent',
+        threadId: thread.id,
+        messageId: existingReadyMessage.id,
+      };
+    }
+
     let sent: { id: string };
 
     try {

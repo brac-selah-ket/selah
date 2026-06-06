@@ -74,24 +74,33 @@ test('notification orchestration checks sent state before expensive reads and cl
   assert.ok(functionIndex !== -1);
 
   const body = source.slice(functionIndex);
+  const existingMessageHelperIndex = source.indexOf('export async function findExistingWorshipPrepReadyMessage');
+  const existingMessageHelperBody = source.slice(existingMessageHelperIndex, functionIndex);
   const stateReadIndex = body.indexOf('getWorshipPrepNotification');
   const skipIndex = body.indexOf('getNotificationClaimSkipReason');
   const sheetReadIndex = body.indexOf('readWorshipDataByDate');
   const claimIndex = body.indexOf('claimWorshipPrepNotification');
+  const existingMessageIndex = body.indexOf('findExistingWorshipPrepReadyMessage');
   const sendIndex = body.indexOf('sendThreadMessage');
-  const sentIndex = body.indexOf('markWorshipPrepNotificationSent');
+  const sentIndex = body.indexOf('markWorshipPrepNotificationSent', sendIndex);
   const failedIndex = body.indexOf('markWorshipPrepNotificationFailed');
 
+  assert.ok(existingMessageHelperIndex !== -1);
+  assert.match(existingMessageHelperBody, /getThreadMessages/);
+  assert.match(existingMessageHelperBody, /message\.content\s*===\s*content/);
+  assert.match(existingMessageHelperBody, /message\.author\.bot\s*!==\s*false/);
   assert.ok(stateReadIndex !== -1);
   assert.ok(skipIndex !== -1);
   assert.ok(sheetReadIndex !== -1);
   assert.ok(claimIndex !== -1);
+  assert.ok(existingMessageIndex !== -1);
   assert.ok(sendIndex !== -1);
   assert.ok(sentIndex !== -1);
   assert.ok(failedIndex !== -1);
   assert.ok(stateReadIndex < sheetReadIndex);
   assert.ok(skipIndex < sheetReadIndex);
   assert.ok(claimIndex < sendIndex);
+  assert.ok(existingMessageIndex < sendIndex);
   assert.ok(sendIndex < sentIndex);
   assert.ok(failedIndex < sentIndex);
 });
