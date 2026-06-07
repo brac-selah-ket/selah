@@ -20,8 +20,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Storyboard",
-  description: "찬양 콘티 관리 서비스",
+  applicationName: "(selah)",
+  title: "(selah)",
+  description: "예배 준비를 한 흐름으로 맞추는 워크스페이스",
+  icons: { icon: "/icon.svg" },
 };
 
 export default function RootLayout({

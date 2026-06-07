@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# (selah)
 
-## Getting Started
+`(selah)`는 예배 준비, 콘티, 찬양 라이브러리, 말씀 본문, 악보, PPT 산출물을 한 흐름으로 맞추는 예배 준비 워크스페이스입니다.
 
-First, run the development server:
+예배 준비를 한 흐름으로 맞추는 예배 준비 워크스페이스입니다.
+
+## 주요 기능
+
+- 주차별 예배 준비 데이터 조회
+- Discord 예배 준비 스레드 생성, 메시지 파싱, 역할 선택 연동
+- 콘티 생성, 수정, YouTube playlist 기반 곡 가져오기
+- 찬양 라이브러리, 악보, 프리셋, 키/템포/섹션/가사 관리
+- 말씀 본문 미리보기와 예배 PPT 내보내기
+- 콘티별 PPT/PDF 산출물 준비
+
+## 기술 스택
+
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- Tailwind CSS v4
+- Drizzle ORM
+- Neon / Turso
+- Vercel Blob / Cloudflare R2
+- Vercel Cron
+
+## 시작하기
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+개발 서버는 기본적으로 [http://localhost:3000](http://localhost:3000)에서 실행됩니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 환경 변수
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+필요한 값은 `.env.example`을 기준으로 설정합니다. 서버에서 생성하는 Discord 알림 링크에는 `APP_BASE_URL`이 필요합니다.
 
-## Learn More
+```bash
+cp .env.example .env.local
+```
 
-To learn more about Next.js, take a look at the following resources:
+주요 환경 변수:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `AUTH_PASSWORD`, `AUTH_SECRET`: 공유 비밀번호 로그인
+- `APP_BASE_URL`: 배포된 앱의 canonical URL
+- `DATABASE_PROVIDER`: `neon` 또는 `turso`
+- `STORAGE_PROVIDER`: `vercel-blob` 또는 `cloudflare-r2`
+- `GOOGLE_SERVICE_ACCOUNT_JSON`, `GOOGLE_SHEET_ID`, `GOOGLE_DRIVE_TEMPLATE_FOLDER_ID`: Google Sheets/Drive/PPTX 연동
+- `DISCORD_BOT_TOKEN`, `DISCORD_CHANNEL_ID`, `DISCORD_GUILD_ID`, `DISCORD_PUBLIC_KEY`: Discord 연동
+- `CRON_SECRET`: Vercel Cron 인증
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 명령어
 
-## Deploy on Vercel
+```bash
+pnpm dev
+pnpm build
+pnpm lint
+pnpm test
+pnpm db:turso:generate
+pnpm db:turso:push
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 브랜딩
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+사용자-facing 제품명은 `(selah)`입니다. 기존 `storyboard` 이름은 일부 migration script와 내부 repository 경계에 남아 있을 수 있으며, 운영 리소스 rename이 필요한 시점에 별도 작업으로 정리합니다.

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
+import { usePathname } from "next/navigation";
 import {
   DrawerProvider,
   useDrawerPortal,
@@ -14,9 +15,19 @@ import { Menu01Icon } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/layout/brand-mark";
 
+function getSectionThemeClassName(pathname: string): string {
+  if (pathname.startsWith("/contis") || pathname.startsWith("/songs")) {
+    return "theme-chapel";
+  }
+
+  return "theme-selah";
+}
+
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const { portalRef, isOpen, drawerSize } = useDrawerPortal();
   const { setIsOpen: setNavOpen } = useMobileNav();
+  const pathname = usePathname();
+  const sectionThemeClassName = getSectionThemeClassName(pathname);
   const [isDesktopDrawer, setIsDesktopDrawer] = useState(false);
 
   useEffect(() => {
@@ -39,7 +50,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const drawerTransition = isOpen ? "none" : "transform 300ms ease-in-out";
 
   return (
-    <div className="flex min-h-screen">
+    <div className={cn("flex min-h-screen bg-background text-foreground", sectionThemeClassName)}>
       <Sidebar />
       <div className="flex flex-1 flex-col md:ml-45 min-w-0">
         <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur md:hidden">

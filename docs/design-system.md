@@ -2,7 +2,9 @@
 
 ## Brand
 
-`selah` is the visible product brand. Storyboard may remain as internal/product context, but user-facing navigation and app chrome should lead with `(selah)`.
+`(selah)` is the visible product and community brand mark. User-facing navigation, metadata, documentation, and app chrome should lead with `(selah)`.
+
+Do not introduce product suffixes such as `Prep`, `Order`, or `Board` in the first branding pass. Functional clarity should come from supporting copy such as `worship preparation workspace` and Korean page descriptions.
 
 ## Color Tokens
 
@@ -15,6 +17,20 @@
 - `--ring`: `#8c6d5c`, focus rings.
 
 Use semantic Tailwind classes (`bg-primary`, `text-muted-foreground`, `border-border`) instead of hard-coded hex values in components.
+
+## Section Theme Direction
+
+The canonical `(selah)` brand color is brown:
+
+- Primary: `#5a3c31`
+- Primary foreground: `#f5edcf`
+
+Song and setlist-focused routes may use Chapel Green as a full route primary:
+
+- Chapel Green: `#305a53`
+- Chapel Green foreground: `#f8f1de`
+
+When Chapel Green is active, swap the full route token set, including sidebar, active navigation, buttons, rings, and primary badges. Do not mix brown and Chapel Green as peer primary colors on the same route.
 
 ## Typography
 
