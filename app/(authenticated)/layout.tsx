@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { AppShell } from "@/components/layout/app-shell"
 
 export default function AuthenticatedLayout({
@@ -8,7 +9,9 @@ export default function AuthenticatedLayout({
   return (
     <>
       <link rel="preload" href="/pdf.worker.min.mjs" as="script" crossOrigin="anonymous" />
-      <AppShell>{children}</AppShell>
+      <Suspense fallback={null}>
+        <AppShell>{children}</AppShell>
+      </Suspense>
     </>
   )
 }

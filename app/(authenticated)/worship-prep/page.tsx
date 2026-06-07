@@ -7,8 +7,6 @@ import { getWorshipPrepDetail } from '@/lib/queries/worship-prep';
 import { getConti, getContiByDate, getContis } from '@/lib/queries/contis';
 import { getDefaultWorshipPrepIsoDate } from '@/lib/worship-prep/default-date';
 
-export const dynamic = 'force-dynamic';
-
 function normalizeDate(value: string | undefined): string {
   if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return value;
