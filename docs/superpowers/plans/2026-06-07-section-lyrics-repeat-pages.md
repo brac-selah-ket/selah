@@ -1,6 +1,6 @@
 # 섹션-가사 반복 페이지 매핑 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Dispatch a fresh subagent per task, then run spec-compliance review and code-quality review before marking each task complete. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 콘티 곡 편집의 섹션-가사 매핑에서 hover 가사 미리보기를 복구하고 동일 가사 페이지를 여러 번 배치할 수 있게 한다.
 
@@ -110,6 +110,7 @@ Add `tests/section-lyrics-mapper-source.test.mjs` to the existing explicit `pnpm
 
 **Files:**
 - Verify only.
+- Modify only if browser QA exposes a regression required to complete the requested behavior.
 
 - [ ] **Step 1: Run targeted tests**
 
@@ -131,11 +132,41 @@ Expected: all tests PASS.
 
 Open `http://localhost:3000/contis/UKe4hSuijHtR`, open the conti song editor, verify page button hover shows lyrics, click the same page twice, verify both occurrences appear and one occurrence can be removed independently.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Run static checks**
+
+Run:
+```bash
+pnpm exec tsc --noEmit --pretty false
+pnpm lint
+```
+
+Expected: TypeScript exits 0. ESLint exits 0; existing warnings are acceptable only if there are 0 errors and no new warning category caused by this feature.
+
+- [ ] **Step 5: Commit**
 
 Commit the spec, plan, tests, and implementation with:
 
 ```bash
-git add docs/superpowers/specs/2026-06-07-section-lyrics-repeat-pages-design.md docs/superpowers/plans/2026-06-07-section-lyrics-repeat-pages.md components/contis/section-lyrics-map-utils.ts components/contis/section-lyrics-map-utils.test.ts components/contis/section-lyrics-mapper.tsx tests/section-lyrics-mapper-source.test.mjs package.json
+git add docs/superpowers/specs/2026-06-07-section-lyrics-repeat-pages-design.md docs/superpowers/plans/2026-06-07-section-lyrics-repeat-pages.md components/contis/section-lyrics-map-utils.ts components/contis/section-lyrics-map-utils.test.ts components/contis/section-lyrics-mapper.tsx components/layout/app-shell.tsx tests/drawer-transform-source.test.mjs tests/section-lyrics-mapper-source.test.mjs package.json
 git commit -m "fix: allow repeated lyric page mappings"
 ```
+
+- [ ] **Step 6: Push and create PR**
+
+Push the completed branch and open a PR only after Step 1 through Step 4 pass:
+
+```bash
+git push -u origin fix/section-lyrics-repeat-pages
+gh pr create --base main --head fix/section-lyrics-repeat-pages --title "Support repeated lyric page mappings" --body "## Summary
+- Change section-lyrics mapping from checkbox toggles to appendable page chips so the same lyric page can be used multiple times in order.
+- Keep lyric preview tooltip wiring on page controls and preview badges.
+- Stabilize drawer positioning if browser QA exposes an offscreen-open regression.
+
+## Verification
+- pnpm test
+- pnpm exec tsc --noEmit --pretty false
+- pnpm lint
+- In-app browser QA on /contis/UKe4hSuijHtR"
+```
+
+Expected: PR is created against `main`, and any remote preview/checks that start are visible from `gh pr view`.
