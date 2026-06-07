@@ -29,8 +29,8 @@ test('conti queries use next cache tags and hourly cache life', async () => {
     ['getContis', /cacheTag\(cacheTags\.contis\(\)\)/],
     ['getContisWithSongSummaries', /cacheTag\(cacheTags\.contis\(\)\)/],
     ['getContiByDate', /cacheTag\(\s*cacheTags\.contis\(\),\s*cacheTags\.contiByDate\(date\)\s*\)/],
-    ['getConti', /cacheTag\(cacheTags\.conti\(id\)\)/],
-    ['getContiForExport', /cacheTag\(cacheTags\.conti\(id\)\)/],
+    ['getConti', /cacheTag\(\s*cacheTags\.contis\(\),\s*cacheTags\.conti\(id\)\s*\)/],
+    ['getContiForExport', /cacheTag\(\s*cacheTags\.contis\(\),\s*cacheTags\.conti\(id\)\s*\)/],
     ['getContiPdfExport', /cacheTag\(cacheTags\.conti\(contiId\)\)/],
   ]) {
     const body = getFunctionBody(source, name);
@@ -96,6 +96,9 @@ test('conti-song mutations invalidate conti tags and only batch import invalidat
   const reorderBody = getFunctionBody(source, 'reorderContiSongs');
   assert.match(reorderBody, /invalidateConti\(contiId\)/);
   assert.doesNotMatch(reorderBody, /invalidateSong\(songId\)/);
+
+  const syncBody = getFunctionBody(source, 'syncPresetPdfMetadataFromContiLayout');
+  assert.match(syncBody, /invalidateConti\(contiId\)/);
 
   const batchImportBody = getFunctionBody(source, 'batchImportSongsToConti');
   assert.match(batchImportBody, /invalidateConti\(contiId\)/);

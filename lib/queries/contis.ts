@@ -26,14 +26,14 @@ export async function getContiByDate(date: string) {
 export async function getConti(id: string) {
   'use cache';
   cacheLife('hours');
-  cacheTag(cacheTags.conti(id));
+  cacheTag(cacheTags.contis(), cacheTags.conti(id));
   return getStoryboardRepository().getConti(id);
 }
 
 export async function getContiForExport(id: string) {
   'use cache';
   cacheLife('hours');
-  cacheTag(cacheTags.conti(id));
+  cacheTag(cacheTags.contis(), cacheTags.conti(id));
   return getStoryboardRepository().getContiForExport(id);
 }
 

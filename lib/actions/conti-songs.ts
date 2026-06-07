@@ -165,6 +165,7 @@ export async function syncPresetPdfMetadataFromContiLayout(
   try {
     const parsed = JSON.parse(layoutStateText) as PdfLayoutState;
     const result = await getStoryboardRepository().syncPresetPdfMetadataFromContiLayout(contiId, parsed);
+    invalidateConti(contiId);
 
     return {
       success: true,
