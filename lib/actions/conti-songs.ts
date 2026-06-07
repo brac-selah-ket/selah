@@ -20,7 +20,6 @@ export async function addSongToConti(
   try {
     const contiSong = await getStoryboardRepository().addSongToConti(contiId, songId, initialOverrides);
     invalidateConti(contiId);
-    invalidateSong(songId);
     revalidatePath('/contis');
 
     return {

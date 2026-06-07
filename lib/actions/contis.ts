@@ -92,7 +92,7 @@ export async function updateConti(id: string, formData: FormData): Promise<Actio
     });
     if (result) {
       invalidateContiWithDate(result.id, result.date);
-      if (existing && existing.date !== result.date) {
+      if (existing?.date && existing.date !== result.date) {
         invalidateContiDate(existing.date);
       }
     }
