@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import test from "node:test"
+import { test } from "vitest"
 import { songPresetToContiOverrides } from "./preset-overrides.ts"
 
 const preset = {

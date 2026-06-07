@@ -54,12 +54,13 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         ref={portalRef}
         style={{ transform: drawerTransform, transition: drawerTransition }}
         className={cn(
-          "fixed inset-x-0 bottom-0 z-[60] h-[90vh] overflow-hidden rounded-t-2xl bg-background shadow-xl",
+          "fixed inset-x-0 bottom-0 h-[90vh] overflow-hidden rounded-t-2xl bg-background shadow-xl",
+          isOpen ? "z-[60]" : "z-50",
           !isOpen && "pointer-events-none",
           "md:inset-y-0 md:left-auto md:right-0 md:h-screen md:max-h-none md:rounded-none md:border-l",
           drawerSize === "wide"
-            ? "md:w-[min(1040px,calc(100vw-13rem))] xl:w-[min(1120px,calc(100vw-13rem))]"
-            : "md:w-[min(640px,76vw)] xl:w-[40%]",
+            ? "md:z-[60] md:w-[min(1040px,calc(100vw-11.25rem))] xl:w-[min(1120px,calc(100vw-11.25rem))]"
+            : isOpen ? "md:z-[60] md:w-[min(640px,76vw)] xl:w-[40%]" : "md:z-auto md:w-0 md:border-l-0",
         )}
       />
     </div>

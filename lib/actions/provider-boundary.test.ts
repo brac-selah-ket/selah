@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import test from 'node:test';
-
+import { test } from 'vitest';
 test('server actions do not import concrete database modules directly', () => {
   const actionsDir = new URL('.', import.meta.url).pathname;
   const actionFiles = readdirSync(actionsDir).filter((file) => file.endsWith('.ts') && !file.endsWith('.test.ts'));

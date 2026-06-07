@@ -4,8 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import test from 'node:test';
-
+import { test } from 'vitest';
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
 
@@ -166,12 +165,25 @@ async function loadParseCommentsRoute() {
 
   await writeModule(dir, 'route.mjs', output);
 
-  const [route, discordClient, googleSheets, notifications] = await Promise.all([
-    import(`${pathToFileURL(join(dir, 'route.mjs')).href}?v=${Date.now()}`),
-    import(pathToFileURL(join(dir, 'discord-client.mjs')).href),
-    import(pathToFileURL(join(dir, 'google-sheets.mjs')).href),
-    import(pathToFileURL(join(dir, 'worship-prep-notifications.mjs')).href),
-  ]);
+  // Vitest's module runner gives each top-level dynamic import() its own module
+  // instance, so importing the stub modules separately would not share the
+  // mutable state (e.g. `updates`) that route.mjs mutates. Loading everything
+  // through a single entry module keeps them in one graph, where Vitest
+  // deduplicates shared modules — matching Node's native ESM singleton behavior.
+  await writeModule(
+    dir,
+    'harness.mjs',
+    `
+      export * as route from './route.mjs';
+      export * as discordClient from './discord-client.mjs';
+      export * as googleSheets from './google-sheets.mjs';
+      export * as notifications from './worship-prep-notifications.mjs';
+    `,
+  );
+
+  const { route, discordClient, googleSheets, notifications } = await import(
+    `${pathToFileURL(join(dir, 'harness.mjs')).href}?v=${Date.now()}`
+  );
 
   return { route, discordClient, googleSheets, notifications };
 }

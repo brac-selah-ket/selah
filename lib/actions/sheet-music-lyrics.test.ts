@@ -1,7 +1,6 @@
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
-import test from "node:test"
-
+import { test } from "vitest"
 import { DEFAULT_GEMINI_LYRICS_MODEL } from "./sheet-music-lyrics-config.ts"
 import {
   generateLyricsFromSheetMusicImages,

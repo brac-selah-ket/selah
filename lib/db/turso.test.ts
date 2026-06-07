@@ -3,8 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { after, describe, it } from 'node:test';
-
+import { afterAll, describe, it } from 'vitest';
 const tempDirs: string[] = [];
 
 async function importTursoModuleForNode() {
@@ -28,7 +27,7 @@ async function importTursoModuleForNode() {
   return import(pathToFileURL(testModulePath).href);
 }
 
-after(async () => {
+afterAll(async () => {
   await Promise.all(tempDirs.map((dir) => rm(dir, { recursive: true, force: true })));
 });
 

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import test from "node:test"
+import { test } from "vitest"
 import { readFile } from "node:fs/promises"
 
 test("section lyrics mapper uses append/remove helpers for repeatable page mappings", async () => {
