@@ -54,7 +54,7 @@ function SidebarContent() {
           >
             <BrandMark />
             <span className="text-xs font-medium text-sidebar-foreground/65">
-              Storyboard worship setlist
+              worship preparation workspace
             </span>
           </Link>
         )}
