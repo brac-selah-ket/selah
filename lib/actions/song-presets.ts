@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { ActionResult, SongPreset, SongPresetData, SongPresetWithSheetMusic } from '@/lib/types';
+import { invalidateSongPresets } from '@/lib/cache/invalidation';
 import { getSongPresets, getSongPresetsWithSheetMusic } from '@/lib/queries/songs';
 import { resolveYouTubeReferenceMetadata } from '@/lib/actions/youtube-metadata';
 import { getStoryboardRepository } from '@/lib/repositories/storyboard';
@@ -34,6 +35,7 @@ export async function createSongPreset(songId: string, data: SongPresetData): Pr
 
     const preset = await getStoryboardRepository().createSongPreset(songId, d, resolvedYoutube);
 
+    invalidateSongPresets(songId);
     revalidatePath(`/songs/${songId}`);
     return { success: true, data: preset };
   } catch {
@@ -53,6 +55,7 @@ export async function updateSongPreset(presetId: string, data: Partial<SongPrese
       return { success: false, error: '프리셋을 찾을 수 없습니다' };
     }
 
+    invalidateSongPresets(updatedPreset.songId);
     revalidatePath(`/songs/${updatedPreset.songId}`);
     return { success: true, data: updatedPreset };
   } catch {
@@ -67,6 +70,7 @@ export async function deleteSongPreset(presetId: string): Promise<ActionResult> 
       return { success: false, error: '프리셋을 찾을 수 없습니다' };
     }
 
+    invalidateSongPresets(existing.songId);
     revalidatePath(`/songs/${existing.songId}`);
     return { success: true };
   } catch {
@@ -77,6 +81,7 @@ export async function deleteSongPreset(presetId: string): Promise<ActionResult> 
 export async function setDefaultPreset(songId: string, presetId: string): Promise<ActionResult> {
   try {
     await getStoryboardRepository().setDefaultPreset(songId, presetId);
+    invalidateSongPresets(songId);
     revalidatePath(`/songs/${songId}`);
     return { success: true };
   } catch {
