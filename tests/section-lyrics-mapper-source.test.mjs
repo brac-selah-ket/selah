@@ -38,3 +38,13 @@ test("section lyrics mapper keeps lyric preview tooltips on page controls and pr
   assert.match(source, /\{lyric \|\| "\([\uBE48] 페이지\)"\}/)
   assert.match(source, /\{lyrics\[lyricsIndex\] \|\| "\([\uBE48] 페이지\)"\}/)
 })
+
+test("section lyrics page controls are visibly interactive and screen-reader explicit", async () => {
+  const source = await readFile(
+    new URL("../components/contis/section-lyrics-mapper.tsx", import.meta.url),
+    "utf8",
+  )
+
+  assert.match(source, /aria-label=\{`페이지 \$\{lyricsIndex \+ 1\} 가사 추가`\}/)
+  assert.match(source, /cursor-pointer/)
+})

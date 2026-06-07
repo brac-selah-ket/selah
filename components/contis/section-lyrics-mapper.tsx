@@ -112,8 +112,9 @@ export function SectionLyricsMapper({
                         render={
                           <button
                             type="button"
+                            aria-label={`페이지 ${lyricsIndex + 1} 가사 추가`}
                             onClick={() => addLyricsForSection(sectionIndex, lyricsIndex)}
-                            className="rounded-md border bg-card px-2.5 py-1 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted focus-visible:border-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/45"
+                            className="cursor-pointer rounded-md border bg-card px-2.5 py-1 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted focus-visible:border-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/45"
                           >
                             페이지 {lyricsIndex + 1}
                           </button>
