@@ -16,6 +16,24 @@ test("moves to the next Sunday after the current Sunday has passed", () => {
   )
 })
 
+test("uses the Korea calendar date when the server timezone is UTC", () => {
+  const originalTz = process.env.TZ
+  process.env.TZ = "UTC"
+
+  try {
+    assert.equal(
+      getDefaultWorshipPrepIsoDate(new Date("2026-06-07T16:30:00.000Z")),
+      "2026-06-14",
+    )
+  } finally {
+    if (originalTz === undefined) {
+      delete process.env.TZ
+    } else {
+      process.env.TZ = originalTz
+    }
+  }
+})
+
 test("uses the nearest upcoming Sunday before Sunday", () => {
   assert.equal(
     getDefaultWorshipPrepIsoDate(new Date(2026, 5, 6, 12)),
