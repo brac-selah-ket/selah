@@ -3,6 +3,7 @@ import test from "node:test"
 
 import {
   addLyricsPageToSection,
+  moveLyricsPageOccurrence,
   pruneInvalidLyricsPages,
   removeLyricsPageOccurrence,
 } from "./section-lyrics-map-utils.ts"
@@ -36,6 +37,25 @@ test("removes the section key when the last occurrence is removed", () => {
 
   assert.deepEqual(result, {})
   assert.deepEqual(initial, { 1: [2] })
+})
+
+test("moves a lyrics page occurrence within the selected order", () => {
+  const initial = { 1: [0, 2, 0] }
+
+  const movedUp = moveLyricsPageOccurrence(initial, 1, 2, "up")
+  const movedDown = moveLyricsPageOccurrence(initial, 1, 0, "down")
+
+  assert.deepEqual(movedUp, { 1: [0, 0, 2] })
+  assert.deepEqual(movedDown, { 1: [2, 0, 0] })
+  assert.deepEqual(initial, { 1: [0, 2, 0] })
+})
+
+test("does not move a lyrics page occurrence beyond the selected order bounds", () => {
+  const initial = { 1: [0, 2] }
+
+  assert.strictEqual(moveLyricsPageOccurrence(initial, 1, 0, "up"), initial)
+  assert.strictEqual(moveLyricsPageOccurrence(initial, 1, 1, "down"), initial)
+  assert.strictEqual(moveLyricsPageOccurrence(initial, 2, 0, "down"), initial)
 })
 
 test("prunes invalid page indexes without deduping valid repeated indexes", () => {

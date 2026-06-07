@@ -59,6 +59,36 @@ export function removeLyricsPageOccurrence(
   return next
 }
 
+export function moveLyricsPageOccurrence(
+  sectionLyricsMap: SectionLyricsMap,
+  sectionIndex: number,
+  occurrenceIndex: number,
+  direction: "up" | "down",
+): SectionLyricsMap {
+  const lyricsIndices = sectionLyricsMap[sectionIndex] ?? []
+  const targetIndex = direction === "up" ? occurrenceIndex - 1 : occurrenceIndex + 1
+
+  if (
+    occurrenceIndex < 0
+    || occurrenceIndex >= lyricsIndices.length
+    || targetIndex < 0
+    || targetIndex >= lyricsIndices.length
+  ) {
+    return sectionLyricsMap
+  }
+
+  const next = cloneSectionLyricsMap(sectionLyricsMap)
+  const nextLyricsIndices = [...lyricsIndices]
+
+  ;[nextLyricsIndices[occurrenceIndex], nextLyricsIndices[targetIndex]] = [
+    nextLyricsIndices[targetIndex],
+    nextLyricsIndices[occurrenceIndex],
+  ]
+  next[sectionIndex] = nextLyricsIndices
+
+  return next
+}
+
 export function pruneInvalidLyricsPages(
   sectionLyricsMap: SectionLyricsMap,
   lyricsCount: number,

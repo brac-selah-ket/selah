@@ -9,6 +9,7 @@ test("section lyrics mapper uses append/remove helpers for repeatable page mappi
   )
 
   assert.match(source, /addLyricsPageToSection/)
+  assert.match(source, /moveLyricsPageOccurrence/)
   assert.match(source, /removeLyricsPageOccurrence/)
   assert.match(source, /pruneInvalidLyricsPages/)
   assert.doesNotMatch(source, /type="checkbox"/)
@@ -22,6 +23,11 @@ test("section lyrics mapper shows selected order with individually removable rep
   )
 
   assert.match(source, /선택된 순서/)
+  assert.match(source, /aria-label=\{`선택 \$\{occurrenceIndex \+ 1\}번째 페이지 \$\{lyricsIndex \+ 1\} 위로 이동`\}/)
+  assert.match(source, /aria-label=\{`선택 \$\{occurrenceIndex \+ 1\}번째 페이지 \$\{lyricsIndex \+ 1\} 아래로 이동`\}/)
+  assert.match(source, /disabled=\{occurrenceIndex === 0\}/)
+  assert.match(source, /disabled=\{occurrenceIndex === selectedLyricsIndices\.length - 1\}/)
+  assert.match(source, /className="cursor-pointer border-l px-1\.5 py-1 text-muted-foreground/)
   assert.match(source, /aria-label=\{`페이지 \$\{lyricsIndex \+ 1\} 매핑 제거`\}/)
   assert.match(source, /배치된 가사 페이지가 없습니다/)
 })
