@@ -53,6 +53,8 @@ export async function updateSong(id: string, formData: FormData): Promise<Action
     const result = await getStoryboardRepository().updateSong(id, { name: validation.data.name });
     invalidateSong(id);
     revalidatePath('/songs');
+    revalidatePath(`/songs/${id}`);
+    revalidatePath(`/songs/${id}/edit`);
 
     return {
       success: true,
@@ -79,6 +81,8 @@ export async function deleteSong(id: string): Promise<ActionResult> {
 
     invalidateSong(id);
     revalidatePath('/songs');
+    revalidatePath(`/songs/${id}`);
+    revalidatePath(`/songs/${id}/edit`);
 
     return {
       success: true,

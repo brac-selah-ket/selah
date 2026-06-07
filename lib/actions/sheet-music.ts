@@ -50,6 +50,8 @@ export async function uploadSheetMusic(
     });
     invalidateSongDetail(songId);
     revalidatePath('/songs');
+    revalidatePath(`/songs/${songId}`);
+    revalidatePath(`/songs/${songId}/edit`);
 
     return {
       success: true,
@@ -80,6 +82,8 @@ export async function deleteSheetMusic(fileId: string): Promise<ActionResult> {
     await repository.deleteSheetMusicFile(fileId);
     invalidateSongDetail(file.songId);
     revalidatePath('/songs');
+    revalidatePath(`/songs/${file.songId}`);
+    revalidatePath(`/songs/${file.songId}/edit`);
 
     return {
       success: true,
@@ -100,6 +104,8 @@ export async function reorderSheetMusic(
     await getStoryboardRepository().reorderSheetMusic(songId, orderedIds);
     invalidateSongDetail(songId);
     revalidatePath('/songs');
+    revalidatePath(`/songs/${songId}`);
+    revalidatePath(`/songs/${songId}/edit`);
 
     return {
       success: true,

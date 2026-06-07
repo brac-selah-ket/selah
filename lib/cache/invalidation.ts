@@ -22,7 +22,7 @@ export function invalidateSongs() {
 }
 
 export function invalidateSong(songId: string) {
-  updateCacheTags(cacheTags.songs(), cacheTags.song(songId), cacheTags.contis());
+  updateCacheTags(cacheTags.songs(), cacheTags.song(songId), cacheTags.songPresets(songId), cacheTags.contis());
 }
 
 export function invalidateSongDetail(songId: string) {
