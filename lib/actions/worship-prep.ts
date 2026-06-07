@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { invalidateWorshipPrepSundayDate } from '@/lib/cache/invalidation';
 import {
   buildInitialMessage,
   buildThreadName,
@@ -92,6 +93,7 @@ export async function createWeeklyWorshipThread(): Promise<ActionResult<{ thread
     }
 
     await setActiveThread(thread.id, yymmdd);
+    invalidateWorshipPrepSundayDate(yymmdd);
 
     revalidatePath('/worship-prep');
     return {
@@ -173,6 +175,7 @@ export async function parseActiveWorshipThreadComments(): Promise<ActionResult<{
         mergedData.title = await correctSpelling(mergedData.title);
       }
       await updateWorshipData(SHEET_NAME, targetRow, mergedData);
+      invalidateWorshipPrepSundayDate(activeThread.sundayDate);
       await safelyCheckWorshipPrepReadyNotification({ sundayDate: activeThread.sundayDate });
     }
 

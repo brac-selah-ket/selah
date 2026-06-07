@@ -1,3 +1,5 @@
+import { cacheLife, cacheTag } from 'next/cache';
+import { cacheTags } from '@/lib/cache/tags';
 import { readRecentWorshipData, readWorshipDataByDate, type SheetWorshipRow } from '@/lib/discord-sync/google-sheets';
 
 export interface WorshipPrepStatus {
@@ -37,7 +39,20 @@ function toStatus(row: SheetWorshipRow): WorshipPrepStatus {
   };
 }
 
+function cacheWorshipPrepForExternalSheetChanges() {
+  cacheLife({
+    stale: 60,
+    revalidate: 60,
+    expire: 300,
+  });
+}
+
 export async function getWorshipPrepList(weeks = 8): Promise<WorshipPrepSummary[]> {
+  'use cache';
+
+  cacheWorshipPrepForExternalSheetChanges();
+  cacheTag(cacheTags.worshipPrepList());
+
   const rows = await readRecentWorshipData(weeks);
   return rows.map((row) => ({
     ...row,
@@ -46,6 +61,11 @@ export async function getWorshipPrepList(weeks = 8): Promise<WorshipPrepSummary[
 }
 
 export async function getWorshipPrepDetail(isoDate: string): Promise<WorshipPrepSummary | null> {
+  'use cache';
+
+  cacheWorshipPrepForExternalSheetChanges();
+  cacheTag(cacheTags.worshipPrep(isoDate));
+
   const row = await readWorshipDataByDate(isoDate);
   if (!row) {
     return null;
