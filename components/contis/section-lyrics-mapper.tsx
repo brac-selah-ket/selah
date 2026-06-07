@@ -1,9 +1,18 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { ArrowDown01Icon, ArrowUp01Icon, Cancel01Icon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
+import {
+  addLyricsPageToSection,
+  moveLyricsPageOccurrence,
+  pruneInvalidLyricsPages,
+  removeLyricsPageOccurrence,
+} from "@/components/contis/section-lyrics-map-utils"
+
 interface SectionLyricsMapperProps {
   sectionOrder: string[]
   lyrics: string[]
@@ -27,17 +36,7 @@ export function SectionLyricsMapper({
 
   // Purge ghost page references when lyrics pages are added/removed
   useEffect(() => {
-    setSectionLyricsMap(prev => {
-      const next: Record<number, number[]> = {}
-      let changed = false
-      for (const [key, indices] of Object.entries(prev)) {
-        const filtered = indices.filter(i => i < lyrics.length)
-        if (filtered.length !== indices.length) changed = true
-        if (filtered.length > 0) next[Number(key)] = filtered
-        else { changed = true }
-      }
-      return changed ? next : prev
-    })
+    setSectionLyricsMap(prev => pruneInvalidLyricsPages(prev, lyrics.length))
   }, [lyrics.length])
 
   const onChangeRef = useRef(onChange)
@@ -54,22 +53,22 @@ export function SectionLyricsMapper({
     onChangeRef.current({ sectionLyricsMap })
   }, [sectionLyricsMap])
 
-  const toggleLyricsForSection = (sectionIndex: number, lyricsIndex: number) => {
-    const currentLyrics = sectionLyricsMap[sectionIndex] || []
-    const newLyrics = currentLyrics.includes(lyricsIndex)
-      ? currentLyrics.filter((i) => i !== lyricsIndex)
-      : [...currentLyrics, lyricsIndex].sort((a, b) => a - b)
+  const addLyricsForSection = (sectionIndex: number, lyricsIndex: number) => {
+    setSectionLyricsMap(prev => addLyricsPageToSection(prev, sectionIndex, lyricsIndex))
+  }
 
-    if (newLyrics.length === 0) {
-      const newMap = { ...sectionLyricsMap }
-      delete newMap[sectionIndex]
-      setSectionLyricsMap(newMap)
-    } else {
-      setSectionLyricsMap({
-        ...sectionLyricsMap,
-        [sectionIndex]: newLyrics,
-      })
-    }
+  const removeLyricsForSection = (sectionIndex: number, occurrenceIndex: number) => {
+    setSectionLyricsMap(prev => removeLyricsPageOccurrence(prev, sectionIndex, occurrenceIndex))
+  }
+
+  const moveLyricsForSection = (
+    sectionIndex: number,
+    occurrenceIndex: number,
+    direction: "up" | "down",
+  ) => {
+    setSectionLyricsMap(prev => (
+      moveLyricsPageOccurrence(prev, sectionIndex, occurrenceIndex, direction)
+    ))
   }
 
   if (sectionOrder.length === 0) {
@@ -98,57 +97,113 @@ export function SectionLyricsMapper({
     <div className="space-y-4">
       <h3 className="text-base font-medium">섹션-가사 매핑</h3>
       <Accordion multiple defaultValue={[]} className="gap-3">
-        {sectionOrder.map((section, sectionIndex) => (
-          <AccordionItem
-            key={sectionIndex}
-            value={String(sectionIndex)}
-            className="ring-foreground/10 rounded-lg bg-muted/50 ring-1"
-          >
-            <AccordionTrigger className="w-full p-3 hover:no-underline">
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-sm font-medium">
-                  [{sectionIndex}]
-                </span>
-                <span className="text-base font-medium">{section}</span>
-                <span className="text-muted-foreground text-sm font-normal">
-                  ({(sectionLyricsMap[sectionIndex] || []).length}페이지)
-                </span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="flex flex-wrap gap-1.5 px-3 pb-3">
-                {lyrics.map((lyric, lyricsIndex) => {
-                  const isSelected =
-                    sectionLyricsMap[sectionIndex]?.includes(lyricsIndex) || false
-                  return (
-                    <Tooltip key={lyricsIndex}>
-                      <TooltipTrigger
-                        render={
-                          <label
-                            className="flex cursor-pointer items-center gap-1.5"
-                          />
-                        }
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() =>
-                            toggleLyricsForSection(sectionIndex, lyricsIndex)
+        {sectionOrder.map((section, sectionIndex) => {
+          const selectedLyricsIndices = sectionLyricsMap[sectionIndex] || []
+
+          return (
+            <AccordionItem
+              key={sectionIndex}
+              value={String(sectionIndex)}
+              className="ring-foreground/10 rounded-lg bg-muted/50 ring-1"
+            >
+              <AccordionTrigger className="w-full p-3 hover:no-underline">
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground text-sm font-medium">
+                    [{sectionIndex}]
+                  </span>
+                  <span className="text-base font-medium">{section}</span>
+                  <span className="text-muted-foreground text-sm font-normal">
+                    ({selectedLyricsIndices.length}페이지)
+                  </span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3 px-3 pb-3">
+                  <div className="flex flex-wrap gap-1.5">
+                    {lyrics.map((lyric, lyricsIndex) => (
+                      <Tooltip key={lyricsIndex}>
+                        <TooltipTrigger
+                          render={
+                            <button
+                              type="button"
+                              aria-label={`페이지 ${lyricsIndex + 1} 가사 추가`}
+                              onClick={() => addLyricsForSection(sectionIndex, lyricsIndex)}
+                              className="cursor-pointer rounded-md border bg-card px-2.5 py-1 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted focus-visible:border-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/45"
+                            >
+                              페이지 {lyricsIndex + 1}
+                            </button>
                           }
-                          className="size-4 cursor-pointer rounded"
                         />
-                        <span className="text-base">페이지 {lyricsIndex + 1}</span>
-                      </TooltipTrigger>
-                      <TooltipContent className="whitespace-pre-wrap">
-                        {lyric || "(빈 페이지)"}
-                      </TooltipContent>
-                    </Tooltip>
-                  )
-                })}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        ))}
+                        <TooltipContent className="whitespace-pre-wrap">
+                          {lyric || "(빈 페이지)"}
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2 rounded-md bg-background/70 p-2">
+                    <div className="text-muted-foreground text-xs font-medium">
+                      선택된 순서
+                    </div>
+                    {selectedLyricsIndices.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedLyricsIndices.map((lyricsIndex, occurrenceIndex) => (
+                          <span
+                            key={`${lyricsIndex}-${occurrenceIndex}`}
+                            className="inline-flex items-center overflow-hidden rounded-md border bg-muted/70 text-sm"
+                          >
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <span className="px-2 py-1 font-medium">
+                                    페이지 {lyricsIndex + 1}
+                                  </span>
+                                }
+                              />
+                              <TooltipContent className="whitespace-pre-wrap">
+                                {lyrics[lyricsIndex] || "(빈 페이지)"}
+                              </TooltipContent>
+                            </Tooltip>
+                            <button
+                              type="button"
+                              aria-label={`선택 ${occurrenceIndex + 1}번째 페이지 ${lyricsIndex + 1} 위로 이동`}
+                              onClick={() => moveLyricsForSection(sectionIndex, occurrenceIndex, "up")}
+                              disabled={occurrenceIndex === 0}
+                              className="cursor-pointer border-l px-1.5 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+                            >
+                              <HugeiconsIcon icon={ArrowUp01Icon} strokeWidth={2} size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`선택 ${occurrenceIndex + 1}번째 페이지 ${lyricsIndex + 1} 아래로 이동`}
+                              onClick={() => moveLyricsForSection(sectionIndex, occurrenceIndex, "down")}
+                              disabled={occurrenceIndex === selectedLyricsIndices.length - 1}
+                              className="cursor-pointer border-l px-1.5 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+                            >
+                              <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`페이지 ${lyricsIndex + 1} 매핑 제거`}
+                              onClick={() => removeLyricsForSection(sectionIndex, occurrenceIndex)}
+                              className="cursor-pointer border-l px-1.5 py-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
+                            >
+                              <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} size={14} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground text-sm">
+                        배치된 가사 페이지가 없습니다
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )
+        })}
       </Accordion>
 
       {/* Preview section — always visible, outside accordion */}
@@ -175,8 +230,8 @@ export function SectionLyricsMapper({
                   [{sectionIndex}] {section}:
                 </span>
                 <div className="flex flex-wrap gap-1">
-                  {lyricsIndices.map((lyricsIndex) => (
-                    <Tooltip key={lyricsIndex}>
+                  {lyricsIndices.map((lyricsIndex, occurrenceIndex) => (
+                    <Tooltip key={`${lyricsIndex}-${occurrenceIndex}`}>
                       <TooltipTrigger render={<span />}>
                         <Badge variant="secondary" className="text-sm">
                           페이지 {lyricsIndex + 1}
