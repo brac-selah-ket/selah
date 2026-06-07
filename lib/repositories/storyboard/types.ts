@@ -199,6 +199,7 @@ export interface StoryboardRepository {
   getContiByDate(date: string): Promise<Conti | null>;
   getConti(id: string): Promise<ContiWithSongs | null>;
   getContiForExport(id: string): Promise<ContiWithSongsAndSheetMusic | null>;
+  getContiSong(contiSongId: string): Promise<ContiSong | null>;
   getContiPdfExport(contiId: string): Promise<ContiPdfExport | null>;
   getContiPdfExportById(exportId: string): Promise<ContiPdfExport | null>;
   getSheetMusicFile(fileId: string): Promise<SheetMusicFile | null>;

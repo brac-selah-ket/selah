@@ -520,6 +520,17 @@ export const tursoStoryboardRepository: StoryboardRepository = {
     return { ...conti, songs: songsWithSheetMusic };
   },
 
+  async getContiSong(contiSongId: string) {
+    const tursoDb = getTursoDb();
+    const result = await tursoDb
+      .select()
+      .from(contiSongs)
+      .where(eq(contiSongs.id, contiSongId))
+      .limit(1);
+
+    return result[0] ? mapContiSong(result[0]) : null;
+  },
+
   async getContiPdfExport(contiId: string): Promise<ContiPdfExport | null> {
     const tursoDb = getTursoDb();
     const result = await tursoDb

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { ActionResult, Conti } from '@/lib/types';
 import { getStoryboardRepository } from '@/lib/repositories/storyboard';
+import { invalidateContiDate, invalidateContiWithDate } from '@/lib/cache/invalidation';
 import { checkAndSendWorshipPrepReadyNotification } from '@/lib/discord-sync/worship-prep-notifications';
 import { toYYMMDDFromIsoDate } from '@/lib/discord-sync/worship-prep-readiness';
 
@@ -51,6 +52,7 @@ export async function createConti(formData: FormData): Promise<ActionResult<Cont
       date: validation.data.date,
       description: validation.data.description || null,
     });
+    invalidateContiWithDate(conti.id, conti.date);
     revalidatePath('/contis');
     await safelyCheckWorshipPrepReadyNotificationForIsoDate(conti.date);
 
@@ -81,11 +83,19 @@ export async function updateConti(id: string, formData: FormData): Promise<Actio
       };
     }
 
-    const result = await getStoryboardRepository().updateConti(id, {
+    const repository = getStoryboardRepository();
+    const existing = await repository.getConti(id);
+    const result = await repository.updateConti(id, {
       title: validation.data.title,
       date: validation.data.date,
       description: validation.data.description || null,
     });
+    if (result) {
+      invalidateContiWithDate(result.id, result.date);
+      if (existing && existing.date !== result.date) {
+        invalidateContiDate(existing.date);
+      }
+    }
     revalidatePath('/contis');
     if (result) {
       await safelyCheckWorshipPrepReadyNotificationForIsoDate(result.date);
@@ -105,7 +115,12 @@ export async function updateConti(id: string, formData: FormData): Promise<Actio
 
 export async function deleteConti(id: string): Promise<ActionResult> {
   try {
-    await getStoryboardRepository().deleteConti(id);
+    const repository = getStoryboardRepository();
+    const existing = await repository.getConti(id);
+    await repository.deleteConti(id);
+    if (existing) {
+      invalidateContiWithDate(id, existing.date);
+    }
     revalidatePath('/contis');
 
     return {
