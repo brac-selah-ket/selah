@@ -29,7 +29,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const sectionThemeClassName = getSectionThemeClassName(pathname);
 
   return (
-    <div className={cn("flex min-h-screen", sectionThemeClassName)}>
+    <div className={cn("flex min-h-screen bg-background text-foreground", sectionThemeClassName)}>
       <Sidebar />
       <div className="flex flex-1 flex-col md:ml-45 min-w-0">
         <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur md:hidden">

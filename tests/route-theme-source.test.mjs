@@ -15,6 +15,7 @@ test("authenticated app shell chooses chapel theme for conti and song routes", a
   assert.match(source, /pathname\.startsWith\("\/songs"\)/)
   assert.match(source, /return "theme-chapel"/)
   assert.match(source, /getSectionThemeClassName\(pathname\)/)
+  assert.match(source, /"flex min-h-screen bg-background text-foreground"/)
 })
 
 test("globals define chapel green as a full route primary token set", async () => {
