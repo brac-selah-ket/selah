@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
-
+import { test } from 'vitest';
 import { getStoryboardDatabaseProviderName } from './provider.ts';
 
 test('database provider defaults to Neon for missing or blank values', () => {

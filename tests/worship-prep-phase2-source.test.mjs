@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import test from "node:test"
+import { test } from "vitest"
 import { readFile } from "node:fs/promises"
 
 test("worship prep element cards use compact source and value hierarchy", async () => {
