@@ -404,9 +404,9 @@ test('conti song drawer uses wide controlled sheet music preview instead of nest
   assert.match(presetEditorSource, /SheetMusicGallery/);
   assert.match(presetEditorSource, /useState<SheetMusicPreviewItem \| null>\(null\)/);
   assert.match(presetEditorSource, /sheetMusicWorkspacePreview/);
-  assert.match(presetEditorSource, /sheetMusicPreviewItem=\{sheetMusicPreviewItem\}/);
+  assert.match(presetEditorSource, /sheetMusicPreviewItem=\{currentPreviewItem\}/);
   assert.match(presetEditorSource, /previewMode="controlled"/);
-  assert.match(presetEditorSource, /onPreviewChange=\{setSheetMusicPreviewItem\}/);
+  assert.match(presetEditorSource, /onPreviewChange=\{handleSheetMusicPreviewChange\}/);
   assert.doesNotMatch(presetEditorSource, /SheetMusicUploader/);
 });
 

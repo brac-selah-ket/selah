@@ -43,15 +43,19 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       <aside
         ref={portalRef}
         className={cn(
-          "fixed inset-x-0 bottom-0 z-[60] h-[90vh] overflow-hidden rounded-t-2xl bg-background shadow-xl",
+          "fixed inset-x-0 bottom-0 h-[90vh] overflow-hidden rounded-t-2xl bg-background shadow-xl",
+          isOpen ? "z-[60]" : "z-50",
           "[transform:var(--drawer-transform)] transition-transform duration-300 ease-in-out",
           isOpen
             ? "[--drawer-transform:translateX(0)]"
             : "[--drawer-transform:translateY(100%)] pointer-events-none md:[--drawer-transform:translateX(100%)]",
-          "md:inset-y-0 md:left-auto md:right-0 md:h-screen md:max-h-none md:rounded-none md:border-l",
+          "md:inset-y-0 md:left-auto md:right-0 md:h-screen md:max-h-none md:rounded-none",
           drawerSize === "wide"
-            ? "md:w-[min(1040px,calc(100vw-13rem))] xl:w-[min(1120px,calc(100vw-13rem))]"
-            : "md:w-[min(640px,76vw)] xl:w-[40%]",
+            ? isOpen
+              ? "md:z-[60] md:w-[min(1040px,calc(100vw-11.25rem))] xl:w-[min(1120px,calc(100vw-11.25rem))]"
+              : "md:z-auto md:w-0 md:border-l-0"
+            : isOpen ? "md:z-[60] md:w-[min(640px,76vw)] xl:w-[40%]" : "md:z-auto md:w-0 md:border-l-0",
+          isOpen ? "md:border-l" : null,
           "md:transition-transform md:duration-300 md:ease-in-out",
         )}
       />
