@@ -64,8 +64,8 @@ Create `tests/cache-infrastructure-source.test.mjs`:
 
 ```js
 import { readFile } from 'node:fs/promises';
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'vitest';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -112,7 +112,7 @@ test('invalidation helpers use immediate action and route invalidation APIs', as
 Run:
 
 ```bash
-node --test tests/cache-infrastructure-source.test.mjs
+pnpm test tests/cache-infrastructure-source.test.mjs
 ```
 
 Expected: FAIL. `lib/cache/tags.ts` 또는 `cacheComponents: true`가 없다는 assertion 실패가 나와야 한다.
@@ -249,7 +249,7 @@ export function expireWorshipPrepSundayDate(sundayDate: string) {
 Run:
 
 ```bash
-node --test tests/cache-infrastructure-source.test.mjs
+pnpm test tests/cache-infrastructure-source.test.mjs
 ```
 
 Expected: PASS.
@@ -278,8 +278,8 @@ Create `tests/cache-songs-source.test.mjs`:
 
 ```js
 import { readFile } from 'node:fs/promises';
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'vitest';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -313,7 +313,7 @@ test('song mutations invalidate song cache tags after successful writes', async 
 Run:
 
 ```bash
-node --test tests/cache-songs-source.test.mjs
+pnpm test tests/cache-songs-source.test.mjs
 ```
 
 Expected: FAIL because song query/actions do not import cache helpers yet.
@@ -479,7 +479,7 @@ revalidatePath(`/songs/${songId}`);
 Run:
 
 ```bash
-node --test tests/cache-songs-source.test.mjs
+pnpm test tests/cache-songs-source.test.mjs
 ```
 
 Expected: PASS.
@@ -489,7 +489,7 @@ Expected: PASS.
 Run:
 
 ```bash
-node --test tests/song-preset-refresh-source.test.mjs tests/sheet-music-preview-loading-source.test.mjs
+pnpm test tests/song-preset-refresh-source.test.mjs tests/sheet-music-preview-loading-source.test.mjs
 ```
 
 Expected: PASS.
@@ -521,8 +521,8 @@ Create `tests/cache-contis-source.test.mjs`:
 
 ```js
 import { readFile } from 'node:fs/promises';
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'vitest';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -568,7 +568,7 @@ test('conti mutations invalidate conti cache tags after successful writes', asyn
 Run:
 
 ```bash
-node --test tests/cache-contis-source.test.mjs
+pnpm test tests/cache-contis-source.test.mjs
 ```
 
 Expected: FAIL because conti cache helpers and `getContiSong()` do not exist yet.
@@ -818,7 +818,7 @@ revalidatePath('/contis');
 Run:
 
 ```bash
-node --test tests/cache-contis-source.test.mjs
+pnpm test tests/cache-contis-source.test.mjs
 ```
 
 Expected: PASS.
@@ -859,8 +859,8 @@ Create `tests/cache-worship-prep-source.test.mjs`:
 
 ```js
 import { readFile } from 'node:fs/promises';
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'vitest';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -899,7 +899,7 @@ test('worship prep pages do not force dynamic rendering after query-level cache'
 Run:
 
 ```bash
-node --test tests/cache-worship-prep-source.test.mjs
+pnpm test tests/cache-worship-prep-source.test.mjs
 ```
 
 Expected: FAIL because worship prep query and route handlers do not use cache helpers yet.
@@ -1034,7 +1034,7 @@ Files:
 Run:
 
 ```bash
-node --test tests/cache-worship-prep-source.test.mjs
+pnpm test tests/cache-worship-prep-source.test.mjs
 ```
 
 Expected: PASS.
@@ -1044,7 +1044,7 @@ Expected: PASS.
 Run:
 
 ```bash
-node --test tests/worship-prep-source.test.mjs tests/worship-prep-loading-source.test.mjs tests/worship-prep-default-date.test.ts
+pnpm test tests/worship-prep-source.test.mjs tests/worship-prep-loading-source.test.mjs tests/worship-prep-default-date.test.ts
 ```
 
 Expected: PASS.
@@ -1068,7 +1068,7 @@ git commit -m "feat: cache worship prep queries"
 Run:
 
 ```bash
-node --test tests/cache-infrastructure-source.test.mjs tests/cache-songs-source.test.mjs tests/cache-contis-source.test.mjs tests/cache-worship-prep-source.test.mjs
+pnpm test tests/cache-infrastructure-source.test.mjs tests/cache-songs-source.test.mjs tests/cache-contis-source.test.mjs tests/cache-worship-prep-source.test.mjs
 ```
 
 Expected: PASS.
