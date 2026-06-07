@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
-
+import { test } from 'vitest';
 import { getSheetMusicAssetUrl, getSheetMusicDownloadUrl } from './sheet-music-assets.ts';
 
 test('sheet music asset URLs are same-origin API URLs', () => {

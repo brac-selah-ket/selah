@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test, onTestFinished } from 'vitest';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
@@ -19,12 +19,12 @@ async function loadExportService() {
   return import(`data:text/javascript;base64,${Buffer.from(transpiled).toString('base64')}`);
 }
 
-test('sendPptxTextInspectRequest rejects malformed success data', async (t) => {
+test('sendPptxTextInspectRequest rejects malformed success data', async () => {
   const originalFetch = globalThis.fetch;
   const originalAuthSecret = process.env.AUTH_SECRET;
   const originalApiUrl = process.env.PPTX_API_URL;
 
-  t.after(() => {
+  onTestFinished(() => {
     globalThis.fetch = originalFetch;
     if (originalAuthSecret === undefined) {
       delete process.env.AUTH_SECRET;

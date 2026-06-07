@@ -1,6 +1,5 @@
 import assert from "node:assert/strict"
-import test from "node:test"
-
+import { test } from "vitest"
 import { getDefaultWorshipPrepIsoDate } from "../lib/worship-prep/default-date.ts"
 
 test("keeps the current Sunday as the default worship prep date", () => {
