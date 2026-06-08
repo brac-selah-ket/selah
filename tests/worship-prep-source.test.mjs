@@ -15,7 +15,7 @@ test('worship pptx confirm step shows the sermon title used for export', async (
   );
 });
 
-test('worship prep date selector refreshes immediately on calendar change', async () => {
+test('worship prep date selector reads the selected date from the URL query on the client', async () => {
   const pageSource = await readFile(
     new URL('../app/(authenticated)/worship-prep/page.tsx', import.meta.url),
     'utf8',
@@ -26,13 +26,22 @@ test('worship prep date selector refreshes immediately on calendar change', asyn
   );
 
   assert.match(pageSource, /import \{ WorshipDateSelector \}/);
-  assert.match(pageSource, /<WorshipDateSelector selectedDate=\{selectedDate\} \/>/);
+  assert.match(pageSource, /import \{[^}]*\bSuspense\b[^}]*\} from ["']react["']/);
+  assert.match(pageSource, /function WorshipDateSelectorFallback/);
+  assert.match(pageSource, /<Suspense fallback=\{<WorshipDateSelectorFallback \/>\}>/);
+  assert.match(pageSource, /<WorshipDateSelector \/>/);
+  assert.doesNotMatch(pageSource, /<WorshipDateSelector selectedDate=\{selectedDate\} \/>/);
+  assert.doesNotMatch(pageSource, /<WorshipDateSelector defaultDate=\{defaultDate\} \/>/);
   assert.doesNotMatch(pageSource, /<form[\s\S]+method='GET'/);
   assert.doesNotMatch(pageSource, /주차 변경/);
 
   assert.match(selectorSource, /"use client"/);
-  assert.match(selectorSource, /useRouter\(\)/);
+  assert.match(selectorSource, /getDefaultWorshipPrepIsoDate/);
+  assert.match(selectorSource, /useSearchParams\(\)/);
+  assert.match(selectorSource, /searchParams\.get\(["']date["']\)/);
+  assert.match(selectorSource, /normalizeDate/);
   assert.match(selectorSource, /DatePicker/);
+  assert.match(selectorSource, /value=\{selectedDate\}/);
   assert.match(selectorSource, /onChange=\{handleChange\}/);
   assert.match(selectorSource, /router\.push\(`\$\{pathname\}\?\$\{params\.toString\(\)\}`\)/);
 });

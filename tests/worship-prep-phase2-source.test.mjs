@@ -42,9 +42,11 @@ test("worship prep page uses tighter section spacing and groups controls", async
     "utf8",
   )
 
-  assert.match(source, /className='flex flex-col gap-5'/)
+  assert.match(source, /className=["']flex flex-col gap-5["']/)
   assert.match(
     source,
-    /<div className='space-y-4'>\s*<WorshipDateSelector selectedDate=\{selectedDate\} \/>\s*<PrepAutomationPanel \/>\s*<\/div>/,
+    /<div className=["']space-y-4["']>[\s\S]*<Suspense fallback=\{<WorshipDateSelectorFallback \/>\}>[\s\S]*<WorshipDateSelector \/>[\s\S]*<\/Suspense>[\s\S]*<PrepAutomationPanel \/>[\s\S]*<\/div>/,
   )
+  assert.doesNotMatch(source, /<WorshipDateSelector selectedDate=\{selectedDate\} \/>/)
+  assert.doesNotMatch(source, /<WorshipDateSelector defaultDate=\{defaultDate\} \/>/)
 })
