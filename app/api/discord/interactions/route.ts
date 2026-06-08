@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse, after } from 'next/server';
+import { expireWorshipPrepSundayDate } from '@/lib/cache/invalidation';
 import { addMessageReaction, getChannel } from '@/lib/discord-sync/discord-client';
 import { verifyDiscordInteraction } from '@/lib/discord-sync/interaction-verify';
 import { parseWorshipThreadName } from '@/lib/discord-sync/cron-state';
@@ -126,6 +127,7 @@ export async function POST(request: NextRequest) {
 
     try {
       await updateRoleSelectionInSheet(customId, selectedValue, sundayDate);
+      expireWorshipPrepSundayDate(sundayDate);
     } catch (error) {
       return NextResponse.json({
         type: CHANNEL_MESSAGE_WITH_SOURCE,

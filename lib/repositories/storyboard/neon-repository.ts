@@ -334,6 +334,16 @@ export const neonStoryboardRepository: StoryboardRepository = {
     return { ...conti, songs: songsWithSheetMusic };
   },
 
+  async getContiSong(contiSongId: string) {
+    const result = await db
+      .select()
+      .from(contiSongs)
+      .where(eq(contiSongs.id, contiSongId))
+      .limit(1);
+
+    return result[0] ?? null;
+  },
+
   async getContiPdfExport(contiId: string): Promise<ContiPdfExport | null> {
     const result = await db
       .select()

@@ -4,8 +4,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getWorshipPrepDetail } from '@/lib/queries/worship-prep';
 
-export const dynamic = 'force-dynamic';
-
 function formatDate(date: string): string {
   const [year, month, day] = date.split('-');
   return `${year}년 ${month}월 ${day}일`;

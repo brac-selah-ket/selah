@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { expireWorshipPrepSundayDate } from '@/lib/cache/invalidation';
 import { isCronAuthorized } from '@/lib/cron-auth';
 import { addMessageReaction, getActiveForumThreads, getChannel, getThreadMessages } from '@/lib/discord-sync/discord-client';
 import { parseDiscordMessages } from '@/lib/discord-parser';
@@ -124,6 +125,7 @@ export async function GET(request: NextRequest) {
         mergedData.title = await correctSpelling(mergedData.title);
       }
       await updateWorshipData(SHEET_NAME, targetRow, mergedData);
+      expireWorshipPrepSundayDate(activeThread.sundayDate);
       await safelyCheckWorshipPrepReadyNotification({ sundayDate: activeThread.sundayDate, origin: new URL(request.url).origin });
     }
 

@@ -10,6 +10,7 @@ import type {
 import { createSongPreset, updateSongPreset } from './song-presets';
 import { z } from 'zod';
 import { getStoryboardRepository } from '@/lib/repositories/storyboard';
+import { invalidateConti, invalidateSong, invalidateSongs } from '@/lib/cache/invalidation';
 
 export async function addSongToConti(
   contiId: string,
@@ -18,6 +19,7 @@ export async function addSongToConti(
 ): Promise<ActionResult<ContiSong>> {
   try {
     const contiSong = await getStoryboardRepository().addSongToConti(contiId, songId, initialOverrides);
+    invalidateConti(contiId);
     revalidatePath('/contis');
 
     return {
@@ -34,7 +36,12 @@ export async function addSongToConti(
 
 export async function removeSongFromConti(contiSongId: string): Promise<ActionResult> {
   try {
-    await getStoryboardRepository().removeContiSong(contiSongId);
+    const repository = getStoryboardRepository();
+    const source = await repository.getContiSong(contiSongId);
+    await repository.removeContiSong(contiSongId);
+    if (source) {
+      invalidateConti(source.contiId);
+    }
     revalidatePath('/contis');
 
     return {
@@ -53,7 +60,12 @@ export async function updateContiSong(
   data: Partial<ContiSongOverrides>
 ): Promise<ActionResult> {
   try {
-    await getStoryboardRepository().updateContiSong(contiSongId, data);
+    const repository = getStoryboardRepository();
+    const source = await repository.getContiSong(contiSongId);
+    await repository.updateContiSong(contiSongId, data);
+    if (source) {
+      invalidateConti(source.contiId);
+    }
     revalidatePath('/contis');
 
     return {
@@ -73,6 +85,7 @@ export async function reorderContiSongs(
 ): Promise<ActionResult> {
   try {
     await getStoryboardRepository().reorderContiSongs(contiId, orderedIds);
+    invalidateConti(contiId);
     revalidatePath('/contis');
 
     return {
@@ -152,6 +165,7 @@ export async function syncPresetPdfMetadataFromContiLayout(
   try {
     const parsed = JSON.parse(layoutStateText) as PdfLayoutState;
     const result = await getStoryboardRepository().syncPresetPdfMetadataFromContiLayout(contiId, parsed);
+    invalidateConti(contiId);
 
     return {
       success: true,
@@ -212,6 +226,17 @@ export async function batchImportSongsToConti(
     }
 
     const result = await getStoryboardRepository().batchImportSongsToConti(contiId, validatedItems)
+
+    invalidateConti(contiId)
+    invalidateSongs()
+    const existingSongIds = new Set(
+      validatedItems
+        .map((item) => item.songId)
+        .filter((songId): songId is string => Boolean(songId))
+    )
+    for (const songId of existingSongIds) {
+      invalidateSong(songId)
+    }
 
     revalidatePath('/contis')
     revalidatePath('/songs')

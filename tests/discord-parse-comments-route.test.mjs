@@ -114,6 +114,16 @@ async function loadParseCommentsRoute() {
   );
   await writeModule(
     dir,
+    'cache-invalidation.mjs',
+    `
+      export const expirations = [];
+      export function expireWorshipPrepSundayDate(sundayDate) {
+        expirations.push(sundayDate);
+      }
+    `,
+  );
+  await writeModule(
+    dir,
     'worship-prep-notifications.mjs',
     `
       import { updates } from './google-sheets.mjs';
@@ -160,6 +170,7 @@ async function loadParseCommentsRoute() {
     .replace("from '@/lib/discord-parser';", "from './discord-parser.mjs';")
     .replace("from '@/lib/discord-sync/spell-checker';", "from './spell-checker.mjs';")
     .replace("from '@/lib/discord-sync/google-sheets';", "from './google-sheets.mjs';")
+    .replace("from '@/lib/cache/invalidation';", "from './cache-invalidation.mjs';")
     .replace("from '@/lib/discord-sync/worship-prep-notifications';", "from './worship-prep-notifications.mjs';")
     .replace("from '@/lib/discord-sync/cron-state';", "from './cron-state.mjs';");
 
@@ -177,19 +188,20 @@ async function loadParseCommentsRoute() {
       export * as route from './route.mjs';
       export * as discordClient from './discord-client.mjs';
       export * as googleSheets from './google-sheets.mjs';
+      export * as cacheInvalidation from './cache-invalidation.mjs';
       export * as notifications from './worship-prep-notifications.mjs';
     `,
   );
 
-  const { route, discordClient, googleSheets, notifications } = await import(
+  const { route, discordClient, googleSheets, cacheInvalidation, notifications } = await import(
     `${pathToFileURL(join(dir, 'harness.mjs')).href}?v=${Date.now()}`
   );
 
-  return { route, discordClient, googleSheets, notifications };
+  return { route, discordClient, googleSheets, cacheInvalidation, notifications };
 }
 
 test('parse-comments reacts only to messages that produced parsed worship data', async () => {
-  const { route, discordClient, googleSheets, notifications } = await loadParseCommentsRoute();
+  const { route, discordClient, googleSheets, cacheInvalidation, notifications } = await loadParseCommentsRoute();
   const previousChannelId = process.env.DISCORD_CHANNEL_ID;
   process.env.DISCORD_CHANNEL_ID = 'channel-1';
 
@@ -206,6 +218,7 @@ test('parse-comments reacts only to messages that produced parsed worship data',
         data: { scripture: '요 3:16' },
       },
     ]);
+    assert.deepEqual(cacheInvalidation.expirations, ['260531']);
     assert.deepEqual(notifications.notificationCalls, [
       {
         sundayDate: '260531',

@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStoryboardRepository } from '@/lib/repositories/storyboard';
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },

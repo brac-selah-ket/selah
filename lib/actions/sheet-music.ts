@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import type { ActionResult, SheetMusicFile } from '@/lib/types';
+import { invalidateSongDetail } from '@/lib/cache/invalidation';
 import { getStoryboardRepository } from '@/lib/repositories/storyboard';
 import { deleteObject, putObject } from '@/lib/storage';
 import { createUploadObjectKey } from '@/lib/storage/keys';
@@ -47,7 +48,10 @@ export async function uploadSheetMusic(
       fileName: file.name,
       fileType: file.type,
     });
+    invalidateSongDetail(songId);
     revalidatePath('/songs');
+    revalidatePath(`/songs/${songId}`);
+    revalidatePath(`/songs/${songId}/edit`);
 
     return {
       success: true,
@@ -76,7 +80,10 @@ export async function deleteSheetMusic(fileId: string): Promise<ActionResult> {
     await deleteObject(file.fileUrl);
 
     await repository.deleteSheetMusicFile(fileId);
+    invalidateSongDetail(file.songId);
     revalidatePath('/songs');
+    revalidatePath(`/songs/${file.songId}`);
+    revalidatePath(`/songs/${file.songId}/edit`);
 
     return {
       success: true,
@@ -95,7 +102,10 @@ export async function reorderSheetMusic(
 ): Promise<ActionResult> {
   try {
     await getStoryboardRepository().reorderSheetMusic(songId, orderedIds);
+    invalidateSongDetail(songId);
     revalidatePath('/songs');
+    revalidatePath(`/songs/${songId}`);
+    revalidatePath(`/songs/${songId}/edit`);
 
     return {
       success: true,

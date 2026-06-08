@@ -3,15 +3,21 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import { DatePicker } from "@/components/ui/date-picker"
+import { getDefaultWorshipPrepIsoDate } from "@/lib/worship-prep/default-date"
 
-interface WorshipDateSelectorProps {
-  selectedDate: string
+function normalizeDate(value: string | null, fallback: string): string {
+  if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value
+  }
+
+  return fallback
 }
 
-export function WorshipDateSelector({ selectedDate }: WorshipDateSelectorProps) {
+export function WorshipDateSelector() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const selectedDate = normalizeDate(searchParams.get("date"), getDefaultWorshipPrepIsoDate())
 
   function handleChange(nextDate: string) {
     const params = new URLSearchParams(searchParams.toString())

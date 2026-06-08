@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import type { ActionResult, ContiPdfExport } from '@/lib/types';
 import { getStoryboardRepository } from '@/lib/repositories/storyboard';
+import { invalidateConti } from '@/lib/cache/invalidation';
 import { deleteObject, putObject } from '@/lib/storage';
 
 export async function saveContiPdfLayout(
@@ -13,6 +14,7 @@ export async function saveContiPdfLayout(
     const pdfExport = await getStoryboardRepository().upsertContiPdfExport(contiId, {
       layoutState,
     });
+    invalidateConti(contiId);
 
     return {
       success: true,
@@ -58,6 +60,7 @@ export async function exportContiPdf(
 
     await repository.upsertContiPdfExport(contiId, { pdfUrl: object.url });
 
+    invalidateConti(contiId);
     revalidatePath('/contis');
 
     return {
@@ -95,6 +98,7 @@ export async function deleteContiPdfExport(
     }
 
     await repository.deleteContiPdfExport(exportId);
+    invalidateConti(existing.contiId);
     revalidatePath('/contis');
 
     return { success: true };

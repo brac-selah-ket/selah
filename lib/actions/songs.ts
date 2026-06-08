@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { ActionResult, Song } from '@/lib/types';
+import { invalidateSong, invalidateSongs } from '@/lib/cache/invalidation';
 import { getStoryboardRepository } from '@/lib/repositories/storyboard';
 
 const songSchema = z.object({
@@ -22,6 +23,7 @@ export async function createSong(formData: FormData): Promise<ActionResult<Song>
     }
 
     const song = await getStoryboardRepository().createSong(validation.data.name);
+    invalidateSongs();
     revalidatePath('/songs');
 
     return {
@@ -49,7 +51,10 @@ export async function updateSong(id: string, formData: FormData): Promise<Action
     }
 
     const result = await getStoryboardRepository().updateSong(id, { name: validation.data.name });
+    invalidateSong(id);
     revalidatePath('/songs');
+    revalidatePath(`/songs/${id}`);
+    revalidatePath(`/songs/${id}/edit`);
 
     return {
       success: true,
@@ -74,7 +79,10 @@ export async function deleteSong(id: string): Promise<ActionResult> {
       };
     }
 
+    invalidateSong(id);
     revalidatePath('/songs');
+    revalidatePath(`/songs/${id}`);
+    revalidatePath(`/songs/${id}/edit`);
 
     return {
       success: true,
