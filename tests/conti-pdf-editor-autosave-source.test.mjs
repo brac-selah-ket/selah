@@ -26,7 +26,15 @@ test("pdf autosave debounces first edit and collapses overlapping saves", async 
     /const triggerAutoSave = useCallback/,
     /async function handleManualSave/
   )
-  const beforeTimer = triggerBody.split(/setTimeout/)[0]
+  const timerStart = triggerBody.search(
+    /saveTimerRef\.current\s*=\s*setTimeout/
+  )
+  assert.notEqual(
+    timerStart,
+    -1,
+    "triggerAutoSave should assign saveTimerRef.current with setTimeout"
+  )
+  const beforeTimer = triggerBody.slice(0, timerStart)
 
   assert.match(triggerBody, /setTimeout/)
   assert.match(triggerBody, /3000/)
@@ -59,5 +67,9 @@ test("overlay dragging updates local state during move and autosaves once on poi
     /return \{/
   )
   assert.match(upBody, /hasDraggedRef\.current/)
+  assert.match(
+    upBody,
+    /else\s+if\s*\(\s*hasDraggedRef\.current\s*\)[\s\S]*triggerAutoSave\(\)/
+  )
   assert.match(upBody, /triggerAutoSave\(\)/)
 })
