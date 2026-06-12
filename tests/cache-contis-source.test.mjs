@@ -31,7 +31,7 @@ test('conti queries use next cache tags and hourly cache life', async () => {
     ['getContiByDate', /cacheTag\(\s*cacheTags\.contis\(\),\s*cacheTags\.contiByDate\(date\)\s*\)/],
     ['getConti', /cacheTag\(\s*cacheTags\.contis\(\),\s*cacheTags\.conti\(id\)\s*\)/],
     ['getContiForExport', /cacheTag\(\s*cacheTags\.contis\(\),\s*cacheTags\.conti\(id\)\s*\)/],
-    ['getContiPdfExport', /cacheTag\(cacheTags\.contiPdfExport\(contiId\)\)/],
+    ['getContiPdfExport', /cacheTag\(\s*cacheTags\.contiPdfExport\(contiId\)\s*\)/],
   ]) {
     const body = getFunctionBody(source, name);
     assert.match(body, /'use cache'/, `${name} should opt into cache components`);
@@ -115,15 +115,15 @@ test('conti pdf export mutations invalidate only pdf export tags', async () => {
   const saveBody = getFunctionBody(source, 'saveContiPdfLayout');
   assert.match(saveBody, /invalidateContiPdfExport\(contiId\)/);
   assert.doesNotMatch(saveBody, /invalidateConti\(contiId\)/);
-  assert.doesNotMatch(saveBody, /revalidatePath\(['"]\/contis['"]\)/);
+  assert.doesNotMatch(saveBody, /revalidatePath\(\s*['"]\/contis['"]/);
 
   const exportBody = getFunctionBody(source, 'exportContiPdf');
   assert.match(exportBody, /invalidateContiPdfExport\(contiId\)/);
   assert.doesNotMatch(exportBody, /invalidateConti\(contiId\)/);
-  assert.doesNotMatch(exportBody, /revalidatePath\(['"]\/contis['"]\)/);
+  assert.doesNotMatch(exportBody, /revalidatePath\(\s*['"]\/contis['"]/);
 
   const deleteBody = getFunctionBody(source, 'deleteContiPdfExport');
   assert.match(deleteBody, /invalidateContiPdfExport\(existing\.contiId\)/);
   assert.doesNotMatch(deleteBody, /invalidateConti\(existing\.contiId\)/);
-  assert.doesNotMatch(deleteBody, /revalidatePath\(['"]\/contis['"]\)/);
+  assert.doesNotMatch(deleteBody, /revalidatePath\(\s*['"]\/contis['"]/);
 });
