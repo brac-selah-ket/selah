@@ -56,18 +56,24 @@ export function useAutoSave(
   const persistLayout = useCallback(
     async (layoutState: PdfLayoutState): Promise<boolean> => {
       setSaveStatus("saving");
-      const result = await saveContiPdfLayout(
-        contiId,
-        JSON.stringify(layoutState),
-      );
-      if (result.success) {
-        setSaveStatus("saved");
-        return true;
-      }
+      try {
+        const result = await saveContiPdfLayout(
+          contiId,
+          JSON.stringify(layoutState),
+        );
+        if (result.success) {
+          setSaveStatus("saved");
+          return true;
+        }
 
-      setSaveStatus("unsaved");
-      toast.error(result.error ?? "저장 중 오류가 발생했습니다");
-      return false;
+        setSaveStatus("unsaved");
+        toast.error(result.error ?? "저장 중 오류가 발생했습니다");
+        return false;
+      } catch {
+        setSaveStatus("unsaved");
+        toast.error("저장 중 오류가 발생했습니다");
+        return false;
+      }
     },
     [contiId],
   );
