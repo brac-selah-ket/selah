@@ -5,6 +5,7 @@ export const cacheTags = {
   contis: () => 'contis',
   conti: (contiId: string) => `conti:${contiId}`,
   contiByDate: (date: string) => `conti-by-date:${date}`,
+  contiPdfExport: (contiId: string) => `conti-pdf-export:${contiId}`,
   worshipPrep: (date: string) => `worship-prep:${date}`,
   worshipPrepList: () => 'worship-prep-list',
 };

@@ -45,6 +45,10 @@ export function invalidateContiDate(date: string) {
   updateCacheTags(cacheTags.contis(), cacheTags.contiByDate(date));
 }
 
+export function invalidateContiPdfExport(contiId: string) {
+  updateCacheTags(cacheTags.contiPdfExport(contiId));
+}
+
 export function invalidateContiWithDate(contiId: string, date: string) {
   updateCacheTags(cacheTags.contis(), cacheTags.conti(contiId), cacheTags.contiByDate(date));
 }

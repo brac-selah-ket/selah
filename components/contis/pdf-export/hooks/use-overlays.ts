@@ -17,6 +17,7 @@ export function useOverlays(
   );
   const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const pointerStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const hasDraggedRef = useRef(false);
 
   function updateOverlay(overlayId: string, updates: Partial<OverlayElement>) {
     setPages((prev) =>
@@ -31,6 +32,23 @@ export function useOverlays(
       }),
     );
     triggerAutoSave();
+  }
+
+  function updateOverlayPosition(
+    overlayId: string,
+    updates: Pick<OverlayElement, "x" | "y">,
+  ) {
+    setPages((prev) =>
+      prev.map((page, i) => {
+        if (i !== currentPageIndex) return page;
+        return {
+          ...page,
+          overlays: page.overlays.map((o) =>
+            o.id === overlayId ? { ...o, ...updates } : o,
+          ),
+        };
+      }),
+    );
   }
 
   function addCustomOverlay() {
@@ -66,7 +84,6 @@ export function useOverlays(
     triggerAutoSave();
   }
 
-  // NEW FEATURE: Reset non-custom overlays to defaults
   function resetOverlaysToDefault(
     songIndex: number,
     sectionOrder: string[],
@@ -85,15 +102,14 @@ export function useOverlays(
     triggerAutoSave();
   }
 
-  // Overlay drag handlers
   function handlePointerDown(e: React.PointerEvent, overlayId: string) {
     e.stopPropagation();
 
-    // Allow contentEditable text editing
     if ((e.target as HTMLElement).isContentEditable) return;
 
     e.preventDefault();
     pointerStartRef.current = { x: e.clientX, y: e.clientY };
+    hasDraggedRef.current = false;
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
@@ -120,13 +136,18 @@ export function useOverlays(
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
+    const dx = e.clientX - pointerStartRef.current.x;
+    const dy = e.clientY - pointerStartRef.current.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (!hasDraggedRef.current && distance < 5) return;
 
     const x =
       ((e.clientX - rect.left - dragOffsetRef.current.x) / rect.width) * 100;
     const y =
       ((e.clientY - rect.top - dragOffsetRef.current.y) / rect.height) * 100;
 
-    updateOverlay(overlayId, {
+    hasDraggedRef.current = true;
+    updateOverlayPosition(overlayId, {
       x: Math.max(0, Math.min(100, x)),
       y: Math.max(0, Math.min(100, y)),
     });
@@ -135,12 +156,14 @@ export function useOverlays(
   function handlePointerUp(e: React.PointerEvent, overlayId: string) {
     if (draggingId === overlayId) {
       setDraggingId(null);
-      // If movement < 5px, treat as click (select overlay)
-      const dx = e.clientX - pointerStartRef.current.x;
-      const dy = e.clientY - pointerStartRef.current.y;
-      if (Math.sqrt(dx * dx + dy * dy) < 5) {
+
+      if (hasDraggedRef.current) {
+        triggerAutoSave();
+      } else {
         setSelectedOverlayId(overlayId);
       }
+
+      hasDraggedRef.current = false;
     }
   }
 
