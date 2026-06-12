@@ -63,9 +63,14 @@ test("overlay dragging updates local state during move and autosaves once on poi
   assert.match(moveBody, /pointerStartRef\.current\.x/)
   assert.match(moveBody, /pointerStartRef\.current\.y/)
   assert.match(moveBody, /const distance\s*=\s*Math\.sqrt\(dx \* dx \+ dy \* dy\)/)
-  assert.match(moveBody, /if\s*\(\s*distance\s*<\s*5\s*\)\s*return/)
+  assert.match(
+    moveBody,
+    /if\s*\(\s*!hasDraggedRef\.current\s*&&\s*distance\s*<\s*5\s*\)\s*return/
+  )
 
-  const distanceCheck = moveBody.search(/if\s*\(\s*distance\s*<\s*5\s*\)\s*return/)
+  const distanceCheck = moveBody.search(
+    /if\s*\(\s*!hasDraggedRef\.current\s*&&\s*distance\s*<\s*5\s*\)\s*return/
+  )
   const markDragged = moveBody.search(/hasDraggedRef\.current\s*=\s*true/)
   const positionUpdate = moveBody.search(/updateOverlayPosition\(overlayId/)
   assert.ok(
@@ -85,7 +90,8 @@ test("overlay dragging updates local state during move and autosaves once on poi
   assert.match(upBody, /hasDraggedRef\.current/)
   assert.match(
     upBody,
-    /else\s+if\s*\(\s*hasDraggedRef\.current\s*\)[\s\S]*triggerAutoSave\(\)/
+    /if\s*\(\s*hasDraggedRef\.current\s*\)\s*\{[\s\S]*triggerAutoSave\(\)[\s\S]*\}\s*else\s*\{[\s\S]*setSelectedOverlayId\(overlayId\)/
   )
+  assert.doesNotMatch(upBody, /distance\s*<\s*5/)
   assert.match(upBody, /triggerAutoSave\(\)/)
 })
