@@ -109,8 +109,8 @@ test('conti-song mutations invalidate conti tags and only batch import invalidat
 test('conti pdf export mutations invalidate only pdf export tags', async () => {
   const source = await read('lib/actions/conti-pdf-exports.ts');
 
-  assert.match(source, /import \{ invalidateContiPdfExport \} from ['"]@\/lib\/cache\/invalidation['"]/);
-  assert.doesNotMatch(source, /import \{ invalidateConti \} from ['"]@\/lib\/cache\/invalidation['"]/);
+  assert.match(source, /import\s+\{[^}]*\binvalidateContiPdfExport\b[^}]*\}\s+from ['"]@\/lib\/cache\/invalidation['"]/);
+  assert.doesNotMatch(source, /import\s+\{[^}]*\binvalidateConti\b[^}]*\}\s+from ['"]@\/lib\/cache\/invalidation['"]/);
 
   const saveBody = getFunctionBody(source, 'saveContiPdfLayout');
   assert.match(saveBody, /invalidateContiPdfExport\(contiId\)/);
