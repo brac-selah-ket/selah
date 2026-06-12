@@ -136,6 +136,10 @@ export function useOverlays(
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
+    const dx = e.clientX - pointerStartRef.current.x;
+    const dy = e.clientY - pointerStartRef.current.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance < 5) return;
 
     const x =
       ((e.clientX - rect.left - dragOffsetRef.current.x) / rect.width) * 100;

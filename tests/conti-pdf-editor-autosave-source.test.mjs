@@ -60,6 +60,22 @@ test("overlay dragging updates local state during move and autosaves once on poi
   assert.match(moveBody, /hasDraggedRef\.current\s*=\s*true/)
   assert.doesNotMatch(moveBody, /triggerAutoSave\(\)/)
   assert.doesNotMatch(moveBody, /updateOverlay\(overlayId/)
+  assert.match(moveBody, /pointerStartRef\.current\.x/)
+  assert.match(moveBody, /pointerStartRef\.current\.y/)
+  assert.match(moveBody, /const distance\s*=\s*Math\.sqrt\(dx \* dx \+ dy \* dy\)/)
+  assert.match(moveBody, /if\s*\(\s*distance\s*<\s*5\s*\)\s*return/)
+
+  const distanceCheck = moveBody.search(/if\s*\(\s*distance\s*<\s*5\s*\)\s*return/)
+  const markDragged = moveBody.search(/hasDraggedRef\.current\s*=\s*true/)
+  const positionUpdate = moveBody.search(/updateOverlayPosition\(overlayId/)
+  assert.ok(
+    distanceCheck < markDragged,
+    "pointer move should ignore shaky clicks before marking as dragged"
+  )
+  assert.ok(
+    distanceCheck < positionUpdate,
+    "pointer move should ignore shaky clicks before updating position"
+  )
 
   const upBody = sliceBetween(
     source,
