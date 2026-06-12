@@ -70,7 +70,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           !isOpen && "pointer-events-none",
           "md:inset-y-0 md:left-auto md:right-0 md:h-screen md:max-h-none md:rounded-none md:border-l",
           drawerSize === "wide"
-            ? "md:z-[60] md:w-[min(1040px,calc(100vw-11.25rem))] xl:w-[min(1120px,calc(100vw-11.25rem))]"
+            ? "md:z-[60] md:w-[min(1040px,calc(100vw-11.25rem))] xl:w-[min(1120px,calc(100vw-11.25rem))] min-[1920px]:w-[calc(100vw-13.25rem)]"
             : isOpen ? "md:z-[60] md:w-[min(640px,76vw)] xl:w-[40%]" : "md:z-auto md:w-0 md:border-l-0",
         )}
       />
