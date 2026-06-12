@@ -20,6 +20,23 @@ function getRepositoryMethodBody(source, name) {
   return match[1];
 }
 
+function getNamedImportsFrom(source, modulePath) {
+  const imports = [];
+  const escapedPath = modulePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`import\\s+\\{([\\s\\S]*?)\\}\\s+from ['"]${escapedPath}['"]`, 'g');
+
+  for (const match of source.matchAll(pattern)) {
+    imports.push(
+      ...match[1]
+        .split(',')
+        .map((value) => value.trim().split(/\s+as\s+/)[0].trim())
+        .filter(Boolean)
+    );
+  }
+
+  return imports;
+}
+
 test('conti queries use next cache tags and hourly cache life', async () => {
   const source = await read('lib/queries/contis.ts');
 
@@ -108,22 +125,37 @@ test('conti-song mutations invalidate conti tags and only batch import invalidat
 
 test('conti pdf export mutations invalidate only pdf export tags', async () => {
   const source = await read('lib/actions/conti-pdf-exports.ts');
+  const broadContiInvalidators = [
+    'invalidateContis',
+    'invalidateContiWithDate',
+    'invalidateContiDate',
+    'invalidateConti',
+  ];
 
-  assert.match(source, /import\s+\{[^}]*\binvalidateContiPdfExport\b[^}]*\}\s+from ['"]@\/lib\/cache\/invalidation['"]/);
-  assert.doesNotMatch(source, /import\s+\{[^}]*\binvalidateConti\b[^}]*\}\s+from ['"]@\/lib\/cache\/invalidation['"]/);
+  const invalidationImports = getNamedImportsFrom(source, '@/lib/cache/invalidation');
+  assert.ok(invalidationImports.includes('invalidateContiPdfExport'));
+  for (const invalidator of broadContiInvalidators) {
+    assert.ok(!invalidationImports.includes(invalidator), `${invalidator} should not be imported`);
+  }
 
   const saveBody = getFunctionBody(source, 'saveContiPdfLayout');
   assert.match(saveBody, /invalidateContiPdfExport\(contiId\)/);
-  assert.doesNotMatch(saveBody, /invalidateConti\(contiId\)/);
+  for (const invalidator of broadContiInvalidators) {
+    assert.doesNotMatch(saveBody, new RegExp(`\\b${invalidator}\\s*\\(`));
+  }
   assert.doesNotMatch(saveBody, /revalidatePath\(\s*['"]\/contis['"]/);
 
   const exportBody = getFunctionBody(source, 'exportContiPdf');
   assert.match(exportBody, /invalidateContiPdfExport\(contiId\)/);
-  assert.doesNotMatch(exportBody, /invalidateConti\(contiId\)/);
+  for (const invalidator of broadContiInvalidators) {
+    assert.doesNotMatch(exportBody, new RegExp(`\\b${invalidator}\\s*\\(`));
+  }
   assert.doesNotMatch(exportBody, /revalidatePath\(\s*['"]\/contis['"]/);
 
   const deleteBody = getFunctionBody(source, 'deleteContiPdfExport');
   assert.match(deleteBody, /invalidateContiPdfExport\(existing\.contiId\)/);
-  assert.doesNotMatch(deleteBody, /invalidateConti\(existing\.contiId\)/);
+  for (const invalidator of broadContiInvalidators) {
+    assert.doesNotMatch(deleteBody, new RegExp(`\\b${invalidator}\\s*\\(`));
+  }
   assert.doesNotMatch(deleteBody, /revalidatePath\(\s*['"]\/contis['"]/);
 });
