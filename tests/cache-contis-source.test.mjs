@@ -31,7 +31,7 @@ test('conti queries use next cache tags and hourly cache life', async () => {
     ['getContiByDate', /cacheTag\(\s*cacheTags\.contis\(\),\s*cacheTags\.contiByDate\(date\)\s*\)/],
     ['getConti', /cacheTag\(\s*cacheTags\.contis\(\),\s*cacheTags\.conti\(id\)\s*\)/],
     ['getContiForExport', /cacheTag\(\s*cacheTags\.contis\(\),\s*cacheTags\.conti\(id\)\s*\)/],
-    ['getContiPdfExport', /cacheTag\(cacheTags\.conti\(contiId\)\)/],
+    ['getContiPdfExport', /cacheTag\(cacheTags\.contiPdfExport\(contiId\)\)/],
   ]) {
     const body = getFunctionBody(source, name);
     assert.match(body, /'use cache'/, `${name} should opt into cache components`);
@@ -106,11 +106,24 @@ test('conti-song mutations invalidate conti tags and only batch import invalidat
   assert.match(batchImportBody, /invalidateSong\(songId\)/);
 });
 
-test('conti pdf export mutations invalidate related conti tags', async () => {
+test('conti pdf export mutations invalidate only pdf export tags', async () => {
   const source = await read('lib/actions/conti-pdf-exports.ts');
 
-  assert.match(source, /import \{ invalidateConti \} from ['"]@\/lib\/cache\/invalidation['"]/);
-  assert.match(getFunctionBody(source, 'saveContiPdfLayout'), /invalidateConti\(contiId\)/);
-  assert.match(getFunctionBody(source, 'exportContiPdf'), /invalidateConti\(contiId\)/);
-  assert.match(getFunctionBody(source, 'deleteContiPdfExport'), /invalidateConti\(existing\.contiId\)/);
+  assert.match(source, /import \{ invalidateContiPdfExport \} from ['"]@\/lib\/cache\/invalidation['"]/);
+  assert.doesNotMatch(source, /import \{ invalidateConti \} from ['"]@\/lib\/cache\/invalidation['"]/);
+
+  const saveBody = getFunctionBody(source, 'saveContiPdfLayout');
+  assert.match(saveBody, /invalidateContiPdfExport\(contiId\)/);
+  assert.doesNotMatch(saveBody, /invalidateConti\(contiId\)/);
+  assert.doesNotMatch(saveBody, /revalidatePath\(['"]\/contis['"]\)/);
+
+  const exportBody = getFunctionBody(source, 'exportContiPdf');
+  assert.match(exportBody, /invalidateContiPdfExport\(contiId\)/);
+  assert.doesNotMatch(exportBody, /invalidateConti\(contiId\)/);
+  assert.doesNotMatch(exportBody, /revalidatePath\(['"]\/contis['"]\)/);
+
+  const deleteBody = getFunctionBody(source, 'deleteContiPdfExport');
+  assert.match(deleteBody, /invalidateContiPdfExport\(existing\.contiId\)/);
+  assert.doesNotMatch(deleteBody, /invalidateConti\(existing\.contiId\)/);
+  assert.doesNotMatch(deleteBody, /revalidatePath\(['"]\/contis['"]\)/);
 });

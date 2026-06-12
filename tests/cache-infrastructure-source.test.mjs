@@ -37,6 +37,7 @@ test('cache tag helpers define stable storyboard tags', async () => {
     'contis',
     'conti:',
     'conti-by-date:',
+    'conti-pdf-export:',
     'worship-prep:',
     'worship-prep-list',
   ]) {
@@ -52,5 +53,6 @@ test('invalidation helpers use immediate action and route invalidation APIs', as
   assert.match(source, /expire:\s*0/);
   assert.match(source, /invalidateSong/);
   assert.match(source, /invalidateConti/);
+  assert.match(source, /invalidateContiPdfExport/);
   assert.match(source, /invalidateWorshipPrepDate/);
 });
