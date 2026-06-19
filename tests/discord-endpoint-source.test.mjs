@@ -289,6 +289,33 @@ test('manual worship prep parse action checks readiness after worship data updat
   assert.match(body, /safelyCheckWorshipPrepReadyNotification\(\{\s*sundayDate:\s*activeThread\.sundayDate\s*\}\)/);
 });
 
+test('manual worship prep automation resolves the current Discord forum thread before stored state', async () => {
+  const source = await readFile(
+    new URL('../lib/actions/worship-prep.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /selectTargetWorshipThread/);
+
+  const helper = source.slice(
+    source.indexOf('async function getCurrentWorshipThread'),
+    source.indexOf('export async function createWeeklyWorshipThread'),
+  );
+  assert.match(helper, /getActiveForumThreads\(guildId,\s*channelId\)/);
+  assert.match(helper, /selectTargetWorshipThread/);
+  assert.match(helper, /await setActiveThread\(selected\.id,\s*selected\.sundayDate\)/);
+  assert.match(helper, /const activeThread = await getActiveThread\(\)/);
+
+  const parseBody = source.slice(
+    source.indexOf('export async function parseActiveWorshipThreadComments'),
+    source.indexOf('export async function resendWorshipRoleDropdowns'),
+  );
+  assert.match(parseBody, /const activeThread = await getCurrentWorshipThread\(\)/);
+
+  const resendBody = source.slice(source.indexOf('export async function resendWorshipRoleDropdowns'));
+  assert.match(resendBody, /const activeThread = await getCurrentWorshipThread\(\)/);
+});
+
 test('conti actions check worship prep readiness after create and update', async () => {
   const source = await readFile(
     new URL('../lib/actions/contis.ts', import.meta.url),
