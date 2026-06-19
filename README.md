@@ -20,7 +20,7 @@
 - TypeScript
 - Tailwind CSS v4
 - Drizzle ORM
-- Neon / Turso
+- Turso / libSQL
 - Vercel Blob / Cloudflare R2
 - Vercel Cron
 
@@ -45,7 +45,7 @@ cp .env.example .env.local
 
 - `AUTH_PASSWORD`, `AUTH_SECRET`: 공유 비밀번호 로그인
 - `APP_BASE_URL`: 배포된 앱의 canonical URL
-- `DATABASE_PROVIDER`: `neon` 또는 `turso`
+- `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`: Turso/libSQL 데이터베이스
 - `STORAGE_PROVIDER`: `vercel-blob` 또는 `cloudflare-r2`
 - `GOOGLE_SERVICE_ACCOUNT_JSON`, `GOOGLE_SHEET_ID`, `GOOGLE_DRIVE_TEMPLATE_FOLDER_ID`: Google Sheets/Drive/PPTX 연동
 - `DISCORD_BOT_TOKEN`, `DISCORD_CHANNEL_ID`, `DISCORD_GUILD_ID`, `DISCORD_PUBLIC_KEY`: Discord 연동
