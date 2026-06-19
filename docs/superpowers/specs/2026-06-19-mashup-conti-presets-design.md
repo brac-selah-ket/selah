@@ -1,235 +1,235 @@
-# Mashup Conti Presets Design
+# 매시업 콘티 프리셋 설계
 
-Date: 2026-06-19
-Status: Approved design for implementation planning
+날짜: 2026-06-19
+상태: 구현 계획 작성 전 승인된 설계
 
-## Summary
+## 요약
 
-Add first-class support for two-song mashup presets. A mashup preset is one shared preset that appears on both participating song detail pages, carries one shared sheet-music/PDF layout, and can be applied to two adjacent songs in a conti as one worship order item.
+두 곡 매시업 프리셋을 1급 기능으로 추가한다. 매시업 프리셋은 참여하는 두 곡 상세 화면 양쪽에 같은 프리셋으로 보이고, 하나의 악보 선택과 PDF 레이아웃을 공유하며, 콘티에서는 인접한 두 곡에 적용되어 하나의 찬양 순서처럼 동작한다.
 
-The selected direction keeps `song_presets` as the canonical preset body and adds a `song_preset_songs` join table so a preset can belong to one or more songs. The first implementation supports exactly two-song mashups in the UI, while the relation model remains ordered and can later support longer medleys.
+선택한 방향은 `song_presets`를 프리셋 본문을 담는 기준 엔티티로 유지하고, `song_preset_songs` 조인 테이블을 추가해 하나의 프리셋이 여러 곡에 연결될 수 있게 하는 것이다. 첫 구현의 UI는 정확히 두 곡 매시업만 지원하지만, 관계 모델은 순서를 가진 구조로 둬서 이후 더 긴 메들리로 확장할 수 있다.
 
-## Context
+## 배경
 
-The current model treats every preset as owned by one song:
+현재 모델은 모든 프리셋이 한 곡에 소속된다고 가정한다.
 
-- `song_presets.song_id` points to a single `songs.id`.
-- `preset_sheet_music` points to a preset and one or more sheet-music files.
-- `conti_songs.preset_id` applies one preset to one conti song row.
-- PDF export currently uses `conti.songs` indexes to generate pages and overlay numbers.
-- PPT export currently turns each conti song with section order into an independent `찬양 N` section.
+- `song_presets.song_id`는 단일 `songs.id`를 가리킨다.
+- `preset_sheet_music`은 프리셋과 악보 파일들을 연결한다.
+- `conti_songs.preset_id`는 콘티 곡 한 행에 프리셋 하나를 적용한다.
+- PDF export는 현재 `conti.songs` 배열 인덱스로 페이지와 오버레이 번호를 만든다.
+- PPT export는 섹션 순서가 있는 각 콘티 곡을 독립적인 `찬양 N` 섹션으로 변환한다.
 
-That model works for one song, but it cannot represent a real mashup case where song A and song B both exist in the library, both should show the same mashup preset, and the conti should use one shared PDF layout.
+이 모델은 한 곡 프리셋에는 충분하지만, A곡과 B곡이 라이브러리에 따로 존재하고, 두 곡 상세 화면 모두에서 같은 매시업 프리셋을 보여야 하며, 콘티에서는 하나의 공유 PDF 레이아웃을 써야 하는 실제 매시업 케이스를 표현할 수 없다.
 
-## Goals
+## 목표
 
-- Let one preset be associated with both participating songs.
-- Show the same mashup preset in both song detail pages.
-- Allow creating a mashup preset from a song detail page by searching or creating the linked song.
-- Allow connecting adjacent songs during YouTube playlist import review.
-- Allow connecting adjacent songs inside an existing conti.
-- Treat a mashup group as one order item in conti display, PDF export, and PPT export by default.
-- Use the mashup preset's sheet-music selection and PDF metadata once, not once per song.
-- Let users split an applied mashup group without deleting the preset.
-- Let users choose whether split restores the previous per-song presets or clears presets.
-- Add a customizable PPT/display title for mashup presets.
+- 하나의 프리셋을 참여 곡 두 개에 연결한다.
+- 두 곡 상세 화면 모두에서 같은 매시업 프리셋을 보여준다.
+- 곡 상세 화면에서 연결할 곡을 검색하거나 새로 만들어 매시업 프리셋을 생성할 수 있게 한다.
+- YouTube 재생목록 가져오기 리뷰에서 인접 곡을 매시업으로 연결할 수 있게 한다.
+- 기존 콘티 안에서 인접 곡을 매시업으로 연결할 수 있게 한다.
+- 매시업 그룹은 콘티 표시, PDF export, PPT export 기본값에서 하나의 순서로 취급한다.
+- 매시업 프리셋의 악보 선택과 PDF 메타데이터는 두 곡에 중복 적용하지 않고 한 번만 사용한다.
+- 적용된 매시업 그룹은 프리셋 자체를 삭제하지 않고 분리할 수 있게 한다.
+- 분리할 때 연결 전 각 곡의 프리셋을 복원할지, 프리셋 없이 분리할지 사용자가 고를 수 있게 한다.
+- 매시업 프리셋에 PPT/표시용 커스텀 제목을 둘 수 있게 한다.
 
-## Non-Goals
+## 비목표
 
-- No support for non-adjacent conti song grouping.
-- No UI support for three-or-more-song medleys in this phase.
-- No automatic deletion of mashup presets when a conti group is split.
-- No broad redesign of the arrangement editor beyond adding mashup-specific controls.
-- No migration that immediately removes `song_presets.song_id`; keep it for compatibility during this phase.
+- 비인접 콘티 곡 그룹핑은 지원하지 않는다.
+- 이번 단계에서는 세 곡 이상 메들리 UI를 만들지 않는다.
+- 콘티 매시업 그룹을 분리할 때 매시업 프리셋 엔티티를 자동 삭제하지 않는다.
+- 매시업 전용 제어를 추가하는 범위를 넘어 arrangement editor 전체를 크게 재설계하지 않는다.
+- `song_presets.song_id`를 즉시 제거하는 마이그레이션은 하지 않는다. 이번 단계에서는 호환성을 위해 남긴다.
 
-## Selected Approach
+## 선택한 접근
 
-Use `song_presets` as the canonical preset entity and add a join table for preset-song ownership.
+`song_presets`는 프리셋 기준 엔티티로 유지하고, 프리셋과 곡의 소유 관계를 나타내는 조인 테이블을 추가한다.
 
-Alternatives considered:
+검토한 대안은 다음과 같다.
 
-- Replacing `song_presets.song_id` with JSON `song_ids` would make the schema look smaller, but it would lose FK validation, cascade semantics, and clean song-to-preset lookup.
-- Keeping separate A-song and B-song presets tied by a `mashupGroupId` would preserve the current one-song ownership model, but the two records could drift and would not satisfy the requirement that the PDF layout is truly shared.
+- `song_presets.song_id`를 JSON `song_ids`로 바꾸는 방식은 스키마 변경이 작아 보이지만 FK 검증, cascade 동작, 곡별 프리셋 조회를 잃는다.
+- A곡 프리셋과 B곡 프리셋을 따로 두고 `mashupGroupId`로 묶는 방식은 현재의 한 곡 소유 모델을 유지하지만, 두 레코드가 서로 어긋날 수 있고 PDF 레이아웃을 진짜로 공유한다는 요구와 맞지 않는다.
 
-The join table gives a single shared preset body while keeping relational integrity and direct lookup from either song.
+조인 테이블 방식은 하나의 공유 프리셋 본문을 유지하면서 관계 무결성과 양쪽 곡에서의 직접 조회를 보장한다.
 
-## Data Model
+## 데이터 모델
 
-### Preset Ownership
+### 프리셋 소유 관계
 
-Add `song_preset_songs`:
+`song_preset_songs`를 추가한다.
 
 - `id`
-- `preset_id` references `song_presets.id` with cascade delete
-- `song_id` references `songs.id` with cascade delete
-- `sort_order` for the song's position inside the preset
-- nullable `part_label`, written as `null` in the first implementation and reserved for future part labels
+- `preset_id`: `song_presets.id` 참조, 프리셋 삭제 시 cascade
+- `song_id`: `songs.id` 참조, 곡 삭제 시 cascade
+- `sort_order`: 프리셋 안에서 곡의 순서
+- `part_label`: nullable. 첫 구현에서는 `null`로 두고 이후 파트 라벨용으로 예약한다.
 
-Unique constraints:
+유니크 제약:
 
-- `(preset_id, song_id)` to prevent duplicate song links
-- `(preset_id, sort_order)` to keep the ordered parts unambiguous
+- `(preset_id, song_id)`: 같은 프리셋에 같은 곡이 중복 연결되지 않게 한다.
+- `(preset_id, sort_order)`: 프리셋 안의 곡 순서가 모호해지지 않게 한다.
 
-Backfill one row for every existing preset using the current `song_presets.song_id` and `sort_order = 0`.
+기존 모든 프리셋은 현재 `song_presets.song_id`를 사용해 `song_preset_songs`에 `sort_order = 0` 행 하나를 백필한다.
 
-Keep `song_presets.song_id` in this phase as a legacy primary song field. New code should use `song_preset_songs`; legacy code can still treat `song_id` as the first linked song. Removing the legacy column is explicitly out of scope for this phase.
+이번 단계에서는 `song_presets.song_id`를 legacy primary song 필드로 유지한다. 새 코드는 `song_preset_songs`를 기준으로 동작하고, legacy 코드는 `song_id`를 첫 번째 연결 곡으로 취급할 수 있다. legacy 컬럼 제거는 명시적으로 이번 범위 밖이다.
 
-### Preset Type And Title
+### 프리셋 타입과 제목
 
-Add to `song_presets`:
+`song_presets`에 다음 필드를 추가한다.
 
-- `preset_type`: `single` or `mashup`, default `single`
+- `preset_type`: `single` 또는 `mashup`, 기본값 `single`
 - `display_title`: nullable text
 
-A mashup preset must have exactly two linked songs in this phase. Its default display/PPT title is the first linked song's name. If `display_title` is set, use it for the group title and PPT title.
+이번 단계에서 매시업 프리셋은 정확히 두 곡과 연결되어야 한다. 기본 표시/PPT 제목은 첫 번째 연결 곡 이름이다. `display_title`이 있으면 콘티 그룹 제목과 PPT 제목에 사용한다.
 
-### Conti Mashup Application
+### 콘티 매시업 적용
 
-Add to `conti_songs`:
+`conti_songs`에 다음 필드를 추가한다.
 
-- `mashup_group_id`: nullable text shared by the two grouped rows
-- `mashup_part_order`: nullable integer, `0` for the front song and `1` for the following song
-- `pre_mashup_preset_id`: nullable preset reference used only to restore the row when splitting
+- `mashup_group_id`: 두 묶음 행이 공유하는 nullable text
+- `mashup_part_order`: nullable integer. 앞 곡은 `0`, 뒤 곡은 `1`
+- `pre_mashup_preset_id`: 분리 시 복원을 위해 연결 전 프리셋을 저장하는 nullable preset reference
 
-When two adjacent conti rows are connected:
+인접한 두 콘티 행을 연결할 때:
 
-- Generate one `mashup_group_id`.
-- Set both rows' `preset_id` to the shared mashup preset.
-- Set `mashup_part_order` according to the row order.
-- Store each row's previous `preset_id` in `pre_mashup_preset_id`.
+- 하나의 `mashup_group_id`를 생성한다.
+- 두 행의 `preset_id`를 공유 매시업 프리셋으로 설정한다.
+- 현재 행 순서에 맞춰 `mashup_part_order`를 설정한다.
+- 각 행의 기존 `preset_id`를 `pre_mashup_preset_id`에 저장한다.
 
-When a mashup is split:
+매시업을 분리할 때:
 
-- Read the saved `pre_mashup_preset_id` values before mutating either row.
-- Confirm with the user and offer two choices: restore previous presets or split without presets.
-- If restoring, set each row's `preset_id` back to its saved `pre_mashup_preset_id`.
-- If clearing, set both rows' `preset_id` to `null`.
-- Always clear `mashup_group_id`, `mashup_part_order`, and `pre_mashup_preset_id` after deciding the new `preset_id` values.
-- Do not delete the mashup preset.
+- 두 행을 변경하기 전에 저장된 `pre_mashup_preset_id` 값을 읽는다.
+- 사용자에게 confirm을 띄우고 “원래 프리셋 복원”과 “프리셋 없이 분리” 중 하나를 선택하게 한다.
+- 복원을 선택하면 각 행의 `preset_id`를 저장해둔 `pre_mashup_preset_id`로 되돌린다.
+- 프리셋 없이 분리하면 두 행의 `preset_id`를 `null`로 둔다.
+- 새 `preset_id` 값을 결정한 뒤 `mashup_group_id`, `mashup_part_order`, `pre_mashup_preset_id`를 항상 비운다.
+- 매시업 프리셋 자체는 삭제하지 않는다.
 
 ## UX
 
-### Song Library
+### 찬양 라이브러리
 
-Song detail pages add a "매시업 프리셋 추가" action.
+곡 상세 화면에 “매시업 프리셋 추가” 액션을 추가한다.
 
-Flow:
+흐름:
 
-1. Search for the linked song.
-2. If the linked song does not exist, create it inline.
-3. Choose whether the current song is the first or second song.
-4. Create a mashup preset linked to both songs in that order.
-5. Open the shared arrangement editor for keys, tempos, sections, lyrics, sheet music, PDF metadata, notes, YouTube reference, and `display_title`.
+1. 연결할 곡을 검색한다.
+2. 연결할 곡이 없으면 인라인으로 새 곡을 만든다.
+3. 현재 곡이 앞 곡인지 뒤 곡인지 선택한다.
+4. 두 곡을 해당 순서로 연결한 매시업 프리셋을 만든다.
+5. 공유 arrangement editor를 열어 key, tempo, section order, lyrics, sheet music, PDF metadata, notes, YouTube reference, `display_title`을 편집한다.
 
-Both song detail pages show the same preset with a "매시업" label. Editing it from either page edits the same preset.
+두 곡 상세 화면 모두 같은 프리셋을 “매시업” 라벨과 함께 보여준다. 어느 쪽에서 편집하든 같은 프리셋을 편집한다.
 
-### YouTube Playlist Import
+### YouTube 재생목록 가져오기
 
-In the playlist review step, show a mashup button between adjacent import items.
+재생목록 리뷰 단계에서 인접한 import item 사이에 매시업 버튼을 보여준다.
 
-When clicked:
+버튼을 누르면:
 
-- Resolve the two items to existing songs or stage new-song creation before the preset search/apply step.
-- Search for a `preset_type = mashup` preset whose linked song order matches those two songs.
-- If matching presets exist, let the user choose one.
-- If none exist, allow creating a blank mashup preset for that pair.
-- Mark the two review items as connected so the created conti applies the shared preset and group metadata.
+- 두 항목을 기존 곡으로 resolve하거나, 프리셋 검색/적용 전에 새 곡 생성을 stage한다.
+- 두 곡 순서와 일치하는 `preset_type = mashup` 프리셋을 검색한다.
+- 매칭 프리셋이 있으면 선택하게 한다.
+- 없으면 해당 곡 쌍의 빈 매시업 프리셋을 만들 수 있게 한다.
+- 두 리뷰 항목을 연결된 상태로 표시해, 생성된 콘티에 공유 프리셋과 그룹 메타데이터가 적용되게 한다.
 
-Duplicate detection remains in place. A review item that is excluded cannot be part of a mashup.
+기존 중복 감지는 유지한다. 제외된 리뷰 항목은 매시업에 포함될 수 없다.
 
-### Conti Detail And Edit
+### 콘티 상세와 편집
 
-For ungrouped adjacent songs, show a connection affordance between rows. Clicking it searches for an ordered mashup preset for those two songs. If one exists, apply it; if none exists, offer to create a blank mashup preset.
+그룹에 속하지 않은 인접 곡 사이에 연결 affordance를 보여준다. 클릭하면 두 곡 순서에 맞는 매시업 프리셋을 검색한다. 있으면 적용하고, 없으면 빈 매시업 프리셋 생성을 제안한다.
 
-Grouped rows render as one visually thicker mashup row:
+그룹 행은 시각적으로 두꺼운 하나의 매시업 row처럼 렌더링한다.
 
-- The group occupies one visible order number.
-- The row shows a "매시업" label and the group title.
-- The front and following song remain visible inside the row.
-- A highlighted "이어지는 매시업 프리셋" strip appears between the inner song parts.
-- Clicking the strip opens the split confirm dialog.
+- 그룹은 하나의 표시 순번을 차지한다.
+- row에는 “매시업” 라벨과 그룹 제목을 보여준다.
+- 앞 곡과 뒤 곡은 row 안에 계속 표시한다.
+- 내부 곡 사이에 강조된 “이어지는 매시업 프리셋” 스트립을 둔다.
+- 이 스트립을 클릭하면 분리 confirm dialog를 연다.
 
-The split dialog offers "원래 프리셋 복원" and "프리셋 없이 분리".
+분리 dialog는 “원래 프리셋 복원”과 “프리셋 없이 분리”를 제공한다.
 
-## Derived Arrangement Items
+## 파생 arrangement item
 
-Introduce a derived view model for display and export:
+표시와 export를 위한 파생 view model을 도입한다.
 
-- Single item: one conti song.
-- Mashup item: two conti songs with the same `mashup_group_id`, ordered by `mashup_part_order`.
+- 단일 item: 콘티 곡 하나
+- 매시업 item: 같은 `mashup_group_id`를 가진 두 콘티 곡. `mashup_part_order`로 정렬한다.
 
-This view model should have a stable item key:
+이 view model은 안정적인 item key를 가져야 한다.
 
-- single: `conti-song:<contiSongId>`
-- mashup: `mashup:<mashupGroupId>`
+- 단일: `conti-song:<contiSongId>`
+- 매시업: `mashup:<mashupGroupId>`
 
-Existing components that need raw rows can still use `conti.songs`. UI tables, PDF export, and PPT export should use the derived arrangement items when they care about visible order.
+raw 행이 필요한 기존 컴포넌트는 계속 `conti.songs`를 사용할 수 있다. 표시 순서가 중요한 UI table, PDF export, PPT export는 파생 arrangement item을 사용한다.
 
-## Export Behavior
+## Export 동작
 
 ### PDF
 
-PDF export/editor treats a mashup item as one order item.
+PDF export/editor는 매시업 item을 하나의 순서 item으로 취급한다.
 
-- Use the shared mashup preset's selected sheet music.
-- Use the shared mashup preset's `pdfMetadata`.
-- Generate those pages once.
-- Use the visible arrangement item index for overlay song numbers.
-- Syncing PDF metadata from a conti layout writes back to the shared mashup preset.
+- 공유 매시업 프리셋의 선택 악보를 사용한다.
+- 공유 매시업 프리셋의 `pdfMetadata`를 사용한다.
+- 해당 페이지 세트를 한 번만 생성한다.
+- 오버레이 곡 번호는 표시 arrangement item 인덱스를 사용한다.
+- 콘티 layout에서 PDF metadata를 동기화할 때 공유 매시업 프리셋에 다시 저장한다.
 
-The PDF editor should resolve saved layouts by stable arrangement item key where possible. Existing index-based `songIndex` can remain for backward compatibility, but new mashup behavior should avoid assuming that one visible order item equals one raw `conti_songs` index.
+PDF editor는 가능하면 안정적인 arrangement item key로 저장된 layout을 resolve한다. 기존 index 기반 `songIndex`는 backward compatibility를 위해 남길 수 있지만, 새 매시업 동작은 “표시 순서 item 하나 = raw `conti_songs` index 하나”라고 가정하지 않아야 한다.
 
 ### PPT
 
-Default PPT export merges a mashup item into one praise section.
+기본 PPT export는 매시업 item을 하나의 찬양 섹션으로 합친다.
 
-- Section name remains generated as `찬양 N`.
-- Song title is `display_title` when set.
-- If no `display_title` exists, use the first linked song's name.
-- Section order, lyrics, and section-lyrics map come from the shared mashup preset arrangement data.
+- 섹션 이름은 기존처럼 `찬양 N`으로 생성한다.
+- 곡 제목은 `display_title`이 있으면 그것을 사용한다.
+- `display_title`이 없으면 첫 번째 연결 곡 이름을 사용한다.
+- section order, lyrics, section-lyrics map은 공유 매시업 프리셋의 arrangement 데이터를 사용한다.
 
-The PPT export UI should offer a "매시업 분리 내보내기" option. When enabled, mashup groups are exported as separate song sections using the current per-row behavior.
+PPT export UI에는 “매시업 분리 내보내기” 옵션을 제공한다. 이 옵션을 켜면 매시업 그룹을 기존 per-row 방식처럼 별도 곡 섹션으로 내보낸다.
 
-## Validation And Error Handling
+## 검증과 에러 처리
 
-- Mashup creation requires exactly two linked songs in this phase.
-- Conti connection requires two adjacent, ungrouped rows.
-- A row already in a mashup group must be split before being connected to another row.
-- A mashup preset match requires `preset_type = mashup` and the same ordered song pair.
-- If a selected mashup preset's linked songs do not match the two conti rows, block application and show a toast.
-- If linked sheet music no longer exists, show the existing sheet music empty state and prevent PDF generation until corrected.
-- If split restore references a deleted previous preset, restore what still exists and clear missing references.
-- Mutation failures use the existing server action result/toast pattern.
+- 이번 단계에서 매시업 생성은 정확히 두 곡 연결을 요구한다.
+- 콘티 연결은 인접하고 그룹에 속하지 않은 두 행에만 허용한다.
+- 이미 매시업 그룹에 속한 행은 먼저 분리해야 다른 행과 연결할 수 있다.
+- 매시업 프리셋 매칭은 `preset_type = mashup`과 같은 ordered song pair를 기준으로 한다.
+- 선택한 매시업 프리셋의 연결 곡이 두 콘티 행과 맞지 않으면 적용을 막고 toast를 보여준다.
+- 연결된 악보가 더 이상 존재하지 않으면 기존 악보 empty state를 보여주고, 수정 전까지 PDF 생성을 막는다.
+- 분리 복원 대상 프리셋이 삭제되어 있으면 존재하는 것만 복원하고 누락된 참조는 비운다.
+- mutation 실패는 기존 server action result/toast 패턴을 따른다.
 
-## Testing And Verification
+## 테스트와 검증
 
-Focused tests should cover:
+집중 테스트 범위:
 
-- Backfilling `song_preset_songs` from existing `song_presets.song_id`.
-- Querying presets for a song through `song_preset_songs`.
-- Creating a mashup preset from either song order.
-- Finding mashup presets by ordered song pair.
-- Applying a mashup to adjacent conti rows.
-- Rejecting non-adjacent or already-grouped rows.
-- Splitting with previous preset restore.
-- Splitting with presets cleared.
-- Rendering the derived arrangement item view model.
-- PDF export/editor generating one page set for a mashup group.
-- PPT export merging mashups by default.
-- PPT export separating mashups when the option is enabled.
-- YouTube import review connecting adjacent items and creating/applying the shared preset.
+- 기존 `song_presets.song_id`에서 `song_preset_songs` 백필
+- `song_preset_songs`를 통한 곡별 프리셋 조회
+- 현재 곡이 앞/뒤인 매시업 프리셋 생성
+- ordered song pair로 매시업 프리셋 검색
+- 인접한 콘티 행에 매시업 적용
+- 비인접 행 또는 이미 그룹에 속한 행 연결 거부
+- 이전 프리셋 복원 방식으로 분리
+- 프리셋 clear 방식으로 분리
+- 파생 arrangement item view model 렌더링
+- PDF export/editor가 매시업 그룹에 대해 페이지 세트를 한 번만 생성
+- PPT export가 기본값으로 매시업을 합쳐 내보냄
+- PPT export의 분리 옵션
+- YouTube import review에서 인접 항목 연결 및 공유 프리셋 생성/적용
 
-Verification commands for implementation should include:
+구현 검증 명령:
 
 - `pnpm lint`
-- targeted Vitest tests for repository helpers, view-model helpers, PDF/PPT helpers, and import-state behavior
+- repository helper, view-model helper, PDF/PPT helper, import-state behavior 대상 Vitest 테스트
 
-## Implementation Notes
+## 구현 메모
 
-The implementation should stay close to existing patterns:
+기존 패턴을 유지한다.
 
-- Server actions continue returning `{ success, error, data }`.
-- Repository interfaces get explicit mashup preset and conti group methods.
-- Neon and Turso schemas/migrations must stay in sync.
-- JSON text columns may continue for arrangement data, but relationship data should use relational tables.
-- Existing arrangement editor should be extended rather than duplicated.
+- Server action은 계속 `{ success, error, data }`를 반환한다.
+- Repository interface에 명시적인 매시업 프리셋/콘티 그룹 메서드를 추가한다.
+- Neon과 Turso schema/migration은 동기화한다.
+- arrangement 데이터에는 기존 JSON text column을 계속 사용할 수 있지만, 관계 데이터는 relational table로 둔다.
+- 기존 arrangement editor를 복제하지 말고 확장한다.
