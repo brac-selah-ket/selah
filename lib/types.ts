@@ -1,25 +1,71 @@
-import type { InferSelectModel } from 'drizzle-orm';
-import type {
-  songs,
-  sheetMusicFiles,
-  contis,
-  contiSongs,
-  songPresets,
-  contiPdfExports,
-  songPageImages,
-  presetSheetMusic,
-  discordThreadStates,
-  discordProcessedMessages,
-  discordInteractionReceipts,
-  worshipPrepNotifications,
-} from './db/schema';
+export interface Song {
+  id: string;
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
-export type Song = InferSelectModel<typeof songs>;
-export type SheetMusicFile = InferSelectModel<typeof sheetMusicFiles>;
-export type Conti = InferSelectModel<typeof contis>;
-export type ContiSong = InferSelectModel<typeof contiSongs>;
-export type SongPreset = InferSelectModel<typeof songPresets>;
-export type PresetSheetMusic = InferSelectModel<typeof presetSheetMusic>;
+export interface SheetMusicFile {
+  id: string;
+  songId: string;
+  fileUrl: string;
+  fileName: string;
+  fileType: string;
+  sortOrder: number;
+  createdAt: Date;
+}
+
+export interface SongPreset {
+  id: string;
+  songId: string;
+  name: string;
+  keys: string | null;
+  tempos: string | null;
+  sectionOrder: string | null;
+  lyrics: string | null;
+  sectionLyricsMap: string | null;
+  notes: string | null;
+  youtubeReference: string | null;
+  youtubeTitle: string | null;
+  pdfMetadata: string | null;
+  isDefault: boolean;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PresetSheetMusic {
+  id: string;
+  presetId: string;
+  sheetMusicFileId: string;
+  sortOrder: number;
+}
+
+export interface Conti {
+  id: string;
+  title: string | null;
+  date: string;
+  description: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ContiSong {
+  id: string;
+  contiId: string;
+  songId: string;
+  sortOrder: number;
+  keys: string | null;
+  tempos: string | null;
+  sectionOrder: string | null;
+  lyrics: string | null;
+  sectionLyricsMap: string | null;
+  notes: string | null;
+  sheetMusicFileIds: string | null;
+  presetId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface ContiSongOverrides {
   keys: string[];
@@ -113,12 +159,70 @@ export interface ActionResult<T = void> {
   data?: T;
 }
 
-export type ContiPdfExport = InferSelectModel<typeof contiPdfExports>;
-export type SongPageImage = InferSelectModel<typeof songPageImages>;
-export type DiscordThreadState = InferSelectModel<typeof discordThreadStates>;
-export type DiscordProcessedMessage = InferSelectModel<typeof discordProcessedMessages>;
-export type DiscordInteractionReceipt = InferSelectModel<typeof discordInteractionReceipts>;
-export type WorshipPrepNotification = InferSelectModel<typeof worshipPrepNotifications>;
+export interface ContiPdfExport {
+  id: string;
+  contiId: string;
+  pdfUrl: string | null;
+  layoutState: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SongPageImage {
+  id: string;
+  songId: string;
+  contiId: string;
+  imageUrl: string;
+  pageIndex: number;
+  sheetMusicFileId: string | null;
+  pdfPageIndex: number | null;
+  presetSnapshot: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface DiscordThreadState {
+  id: string;
+  threadId: string;
+  sundayDate: string;
+  contiId: string | null;
+  preacher: string | null;
+  leader: string | null;
+  worshipLeader: string | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface DiscordProcessedMessage {
+  id: string;
+  threadId: string;
+  messageId: string;
+  parseStatus: string;
+  rawContent: string | null;
+  processedAt: Date;
+}
+
+export interface DiscordInteractionReceipt {
+  id: string;
+  interactionId: string;
+  interactionType: number;
+  processedAt: Date;
+}
+
+export interface WorshipPrepNotification {
+  id: string;
+  sundayDate: string;
+  type: string;
+  status: string;
+  threadId: string | null;
+  messageId: string | null;
+  attempts: number;
+  lastAttemptAt: Date | null;
+  sentAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface OverlayElement {
   id: string;

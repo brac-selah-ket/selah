@@ -6,7 +6,6 @@ const dryRun = !process.argv.includes('--commit');
 const limit = readNumberArg('--limit');
 const only = readCsvArg('--only');
 
-process.env.DATABASE_PROVIDER = 'turso';
 process.env.STORAGE_PROVIDER = 'cloudflare-r2';
 
 const [

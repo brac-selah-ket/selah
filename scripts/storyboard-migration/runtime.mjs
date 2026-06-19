@@ -11,7 +11,6 @@ export function setupMigrationRuntime(scriptUrl) {
 
   return {
     repoRootUrl,
-    snapshotUrl: new URL('tmp/storyboard-migration/neon-snapshot.json', repoRootUrl),
   };
 }
 

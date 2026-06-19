@@ -99,6 +99,41 @@ export const songPageImages = sqliteTable('song_page_images', {
   updatedAt: text('updated_at').notNull(),
 });
 
+export const discordThreadStates = sqliteTable('discord_thread_states', {
+  id: text('id').primaryKey(),
+  threadId: text('thread_id').notNull(),
+  sundayDate: text('sunday_date').notNull(),
+  contiId: text('conti_id').references(() => contis.id, { onDelete: 'set null' }),
+  preacher: text('preacher'),
+  leader: text('leader'),
+  worshipLeader: text('worship_leader'),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+}, (table) => [
+  uniqueIndex('discord_thread_states_thread_id_unique').on(table.threadId),
+]);
+
+export const discordProcessedMessages = sqliteTable('discord_processed_messages', {
+  id: text('id').primaryKey(),
+  threadId: text('thread_id').notNull(),
+  messageId: text('message_id').notNull(),
+  parseStatus: text('parse_status').notNull().default('processed'),
+  rawContent: text('raw_content'),
+  processedAt: text('processed_at').notNull(),
+}, (table) => [
+  uniqueIndex('discord_processed_messages_message_id_unique').on(table.messageId),
+]);
+
+export const discordInteractionReceipts = sqliteTable('discord_interaction_receipts', {
+  id: text('id').primaryKey(),
+  interactionId: text('interaction_id').notNull(),
+  interactionType: integer('interaction_type').notNull(),
+  processedAt: text('processed_at').notNull(),
+}, (table) => [
+  uniqueIndex('discord_interaction_receipts_interaction_id_unique').on(table.interactionId),
+]);
+
 export const worshipPrepNotifications = sqliteTable('worship_prep_notifications', {
   id: text('id').primaryKey(),
   sundayDate: text('sunday_date').notNull(),

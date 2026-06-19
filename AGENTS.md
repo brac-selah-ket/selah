@@ -17,13 +17,13 @@ set -a && source .env.local && set +a && npx drizzle-kit push  # Push schema to 
 Next.js 16 App Router project using React 19, Tailwind CSS v4, and TypeScript. Korean-language worship service setlist (콘티) management tool.
 
 **Tech Stack:**
-- **DB**: Vercel Postgres (Neon) with Drizzle ORM — schema in `lib/db/schema.ts`
+- **DB**: Turso/libSQL with Drizzle ORM — schema in `lib/db/turso-schema.ts`
 - **File Storage**: Vercel Blob for sheet music images/PDFs
 - **Auth**: Shared password with HMAC-signed cookie via Next.js middleware
 - **UI**: shadcn/ui v3 (base-nova style), @base-ui/react primitives (NOT Radix — no `asChild`, use `render` prop), @hugeicons/react icons
 
 **Key Directories:**
-- `lib/db/` — Drizzle schema, client, JSON serialization helpers
+- `lib/db/` — Turso Drizzle schema/client, JSON serialization helpers
 - `lib/queries/` — Data fetching functions (songs, contis)
 - `lib/actions/` — Server actions for mutations (songs, sheet-music, contis, conti-songs)
 - `lib/auth.ts` — Web Crypto API token signing (Edge Runtime compatible)
@@ -42,7 +42,7 @@ Next.js 16 App Router project using React 19, Tailwind CSS v4, and TypeScript. K
 
 **Path aliases:** `@/*` maps to project root.
 
-**Environment Variables:** See `.env.example` for required vars (AUTH_PASSWORD, AUTH_SECRET, POSTGRES_URL, BLOB_READ_WRITE_TOKEN).
+**Environment Variables:** See `.env.example` for required vars (AUTH_PASSWORD, AUTH_SECRET, TURSO_DATABASE_URL, TURSO_AUTH_TOKEN, BLOB_READ_WRITE_TOKEN).
 
 **Adding UI components:** `pnpm dlx shadcn@latest add <component>` — respects `components.json` config.
 

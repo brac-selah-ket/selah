@@ -8,7 +8,7 @@ export function createTursoClient() {
   const authToken = process.env.TURSO_AUTH_TOKEN;
 
   if (!url || !authToken) {
-    throw new Error('TURSO_DATABASE_URL and TURSO_AUTH_TOKEN are required when DATABASE_PROVIDER=turso');
+    throw new Error('TURSO_DATABASE_URL and TURSO_AUTH_TOKEN are required');
   }
 
   return createClient({ url, authToken });

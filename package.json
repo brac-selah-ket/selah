@@ -11,9 +11,6 @@
     "test:watch": "vitest",
     "db:turso:generate": "drizzle-kit generate --config=drizzle.turso.config.ts",
     "db:turso:push": "drizzle-kit push --config=drizzle.turso.config.ts",
-    "db:export:neon": "node scripts/storyboard-migration/export-neon.mjs",
-    "db:import:turso": "node scripts/storyboard-migration/import-turso.mjs",
-    "db:verify:turso": "node scripts/storyboard-migration/verify-turso.mjs",
     "storage:migrate:r2": "node scripts/storyboard-migration/migrate-blob-assets-to-r2.mjs"
   },
   "dependencies": {
@@ -25,7 +22,6 @@
     "@hugeicons/core-free-icons": "^3.1.1",
     "@hugeicons/react": "^1.1.4",
     "@libsql/client": "^0.17.3",
-    "@neondatabase/serverless": "^1.0.2",
     "@vercel/blob": "^2.2.0",
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",

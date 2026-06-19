@@ -59,17 +59,14 @@ test('conti queries use next cache tags and hourly cache life', async () => {
 
 test('conti repositories expose single conti-song lookup for mutation invalidation', async () => {
   const types = await read('lib/repositories/storyboard/types.ts');
-  const neon = await read('lib/repositories/storyboard/neon-repository.ts');
   const turso = await read('lib/repositories/storyboard/turso-repository.ts');
 
   assert.match(
     types,
     /getContiSong\(contiSongId: string\): Promise<ContiSong \| null>/
   );
-  assert.match(neon, /async getContiSong\(contiSongId: string\)/);
   assert.match(turso, /async getContiSong\(contiSongId: string\)/);
 
-  assert.match(getRepositoryMethodBody(neon, 'getContiSong'), /where\(eq\(contiSongs\.id, contiSongId\)\)/);
   assert.match(getRepositoryMethodBody(turso, 'getContiSong'), /where\(eq\(contiSongs\.id, contiSongId\)\)/);
 });
 
