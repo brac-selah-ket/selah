@@ -316,6 +316,20 @@ test('manual worship prep automation resolves the current Discord forum thread b
   assert.match(resendBody, /const activeThread = await getCurrentWorshipThread\(\)/);
 });
 
+test('manual worship prep parse action ignores bot messages', async () => {
+  const source = await readFile(
+    new URL('../lib/actions/worship-prep.ts', import.meta.url),
+    'utf8',
+  );
+
+  const body = source.slice(
+    source.indexOf('export async function parseActiveWorshipThreadComments'),
+    source.indexOf('export async function resendWorshipRoleDropdowns'),
+  );
+
+  assert.match(body, /!message\.author\.bot/);
+});
+
 test('conti actions check worship prep readiness after create and update', async () => {
   const source = await readFile(
     new URL('../lib/actions/contis.ts', import.meta.url),
