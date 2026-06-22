@@ -1000,6 +1000,7 @@ export const neonStoryboardRepository: StoryboardRepository = {
 
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
     if (data.name !== undefined) updateData.name = data.name;
+    if (data.displayTitle !== undefined) updateData.displayTitle = data.displayTitle?.trim() || null;
     if (data.keys !== undefined) updateData.keys = JSON.stringify(data.keys);
     if (data.tempos !== undefined) updateData.tempos = JSON.stringify(data.tempos);
     if (data.sectionOrder !== undefined) updateData.sectionOrder = JSON.stringify(data.sectionOrder);

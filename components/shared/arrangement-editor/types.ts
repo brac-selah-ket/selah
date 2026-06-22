@@ -43,6 +43,8 @@ export interface ArrangementEditorProps {
   sheetMusicPreviewItem?: SheetMusicPreviewItem | null
   sheetMusicLoading?: boolean
   sheetMusicWorkspacePreview?: boolean
+  showDisplayTitleField?: boolean
+  showDefaultPresetField?: boolean
   sheetMusicManagementSlot?: ReactNode
   savingLabel?: string
   onOpenChange: (open: boolean) => void

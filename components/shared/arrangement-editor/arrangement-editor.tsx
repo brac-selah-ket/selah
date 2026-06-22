@@ -69,6 +69,8 @@ export function ArrangementEditor({
   sheetMusicPreviewItem,
   sheetMusicLoading = false,
   sheetMusicWorkspacePreview = false,
+  showDisplayTitleField = false,
+  showDefaultPresetField = true,
   presetOptions = [],
   sheetMusicManagementSlot,
   savingLabel = "저장",
@@ -399,6 +401,20 @@ export function ArrangementEditor({
                   />
                 </div>
               )}
+
+              {mode === "preset" && showDisplayTitleField && (
+                <div className="space-y-3">
+                  <label htmlFor="arrangement-display-title" className="text-base font-medium">
+                    표시 제목
+                  </label>
+                  <Input
+                    id="arrangement-display-title"
+                    value={draft.displayTitle ?? ""}
+                    onChange={(event) => updateDraft({ displayTitle: event.target.value })}
+                    placeholder="비워두면 첫 곡 제목 사용"
+                  />
+                </div>
+              )}
             </div>
 
             {mode === "conti-song" && presetOptions.length > 0 && onLoadPreset && (
@@ -457,7 +473,7 @@ export function ArrangementEditor({
               onNotesChange={(notes) => updateDraft({ notes })}
             />
 
-            {mode === "preset" && (
+            {mode === "preset" && showDefaultPresetField && (
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"

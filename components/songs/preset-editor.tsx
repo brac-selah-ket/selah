@@ -106,6 +106,8 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
       sheetMusicPreviewItem={currentPreviewItem}
       sheetMusicLoading={previewLoading}
       sheetMusicWorkspacePreview
+      showDisplayTitleField={preset?.presetType === "mashup" || Boolean(initialDraft.displayTitle)}
+      showDefaultPresetField={preset?.presetType !== "mashup"}
       sheetMusicManagementSlot={
         sheetMusic.length > 0 ? (
           <SheetMusicGallery

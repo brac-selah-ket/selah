@@ -20,18 +20,22 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { Add01Icon, Delete01Icon, PencilEdit01Icon, Tick01Icon } from "@hugeicons/core-free-icons"
 import { deleteSongPreset, setDefaultPreset } from "@/lib/actions/song-presets"
 import { cn } from "@/lib/utils"
+import { MashupPresetDialog } from "./mashup-preset-dialog"
 import { PresetEditor } from "./preset-editor"
-import type { SongPresetWithSheetMusic, SheetMusicFile } from "@/lib/types"
+import type { Song, SongPresetWithSheetMusic, SheetMusicFile } from "@/lib/types"
 
 interface PresetListProps {
   songId: string
+  songName: string
   presets: SongPresetWithSheetMusic[]
   sheetMusic: SheetMusicFile[]
+  allSongs: Song[]
 }
 
-export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
+export function PresetList({ songId, songName, presets, sheetMusic, allSongs }: PresetListProps) {
   const router = useRouter()
   const [editorOpen, setEditorOpen] = useState(false)
+  const [mashupDialogOpen, setMashupDialogOpen] = useState(false)
   const [editingPreset, setEditingPreset] = useState<SongPresetWithSheetMusic | undefined>()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deletingPresetId, setDeletingPresetId] = useState<string | null>(null)
@@ -43,8 +47,6 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
 
     const refreshedPreset = presets.find((preset) => preset.id === editingPreset.id)
     if (!refreshedPreset) {
-      setEditingPreset(undefined)
-      setEditorOpen(false)
       return
     }
 
@@ -55,6 +57,11 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
 
   const handleCreateClick = () => {
     setEditingPreset(undefined)
+    setEditorOpen(true)
+  }
+
+  const handleMashupPresetReady = (preset: SongPresetWithSheetMusic) => {
+    setEditingPreset(preset)
     setEditorOpen(true)
   }
 
@@ -108,10 +115,14 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" onClick={handleCreateClick}>
           <HugeiconsIcon icon={Add01Icon} strokeWidth={2} data-icon="inline-start" />
           프리셋 추가
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setMashupDialogOpen(true)}>
+          <HugeiconsIcon icon={Add01Icon} strokeWidth={2} data-icon="inline-start" />
+          매시업 프리셋 추가
         </Button>
       </div>
 
@@ -124,6 +135,12 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
           {presets.map((preset) => {
             const keys = parseJsonField<string[]>(preset.keys, [])
             const tempos = parseJsonField<number[]>(preset.tempos, [])
+            const isMashup = preset.presetType === "mashup"
+            const memberNames = preset.members
+              .slice()
+              .sort((left, right) => left.sortOrder - right.sortOrder)
+              .map((member) => member.songName)
+              .filter((name): name is string => Boolean(name))
 
             return (
               <div
@@ -138,6 +155,9 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
                   <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex min-w-0 items-center gap-2">
                       <h3 className="truncate font-medium">{preset.name}</h3>
+                      {isMashup && (
+                        <Badge variant="secondary">매시업</Badge>
+                      )}
                       {preset.isDefault && (
                         <Badge variant="secondary">기본</Badge>
                       )}
@@ -151,6 +171,12 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
                           : "text-base space-y-1.5",
                       )}
                     >
+                      {isMashup && memberNames.length > 0 && (
+                        <div className={compact ? "min-w-0 max-w-full truncate" : undefined}>
+                          <span className="font-medium">연결:</span>{" "}
+                          {memberNames.join(" → ")}
+                        </div>
+                      )}
                       {keys.length > 0 && (
                         <div className={compact ? "min-w-0 max-w-full truncate" : undefined}>
                           <span className="font-medium">조성:</span>{" "}
@@ -182,7 +208,7 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
                   </div>
 
                   <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                    {!preset.isDefault && (
+                    {!isMashup && !preset.isDefault && (
                       <Button
                         size="icon-sm"
                         variant="ghost"
@@ -224,6 +250,15 @@ export function PresetList({ songId, presets, sheetMusic }: PresetListProps) {
         sheetMusic={sheetMusic}
         open={editorOpen}
         onOpenChange={setEditorOpen}
+      />
+
+      <MashupPresetDialog
+        currentSongId={songId}
+        currentSongName={songName}
+        allSongs={allSongs}
+        open={mashupDialogOpen}
+        onOpenChange={setMashupDialogOpen}
+        onPresetReady={handleMashupPresetReady}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

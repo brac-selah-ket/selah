@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { getSong } from "@/lib/queries/songs"
+import { getSong, getSongs } from "@/lib/queries/songs"
 import { PageHeader } from "@/components/layout/page-header"
 import { SheetMusicGallery } from "@/components/songs/sheet-music-gallery"
 import { SongDeleteButton } from "@/components/songs/song-delete-button"
@@ -15,7 +15,7 @@ export default async function SongDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const song = await getSong(id)
+  const [song, allSongs] = await Promise.all([getSong(id), getSongs()])
 
   if (!song) {
     notFound()
@@ -57,7 +57,13 @@ export default async function SongDetailPage({
 
         <div>
           <h2 className="text-xl font-semibold mb-4">프리셋</h2>
-          <PresetList songId={song.id} presets={song.presets ?? []} sheetMusic={song.sheetMusic} />
+          <PresetList
+            songId={song.id}
+            songName={song.name}
+            presets={song.presets ?? []}
+            sheetMusic={song.sheetMusic}
+            allSongs={allSongs}
+          />
         </div>
       </div>
     </div>
