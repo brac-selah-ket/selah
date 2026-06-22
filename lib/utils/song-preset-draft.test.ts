@@ -9,6 +9,8 @@ import {
 const preset: SongPresetWithSheetMusic = {
   id: "preset-1",
   songId: "song-1",
+  presetType: "mashup",
+  displayTitle: "초대 + 부르심",
   name: "2026-03-08",
   keys: JSON.stringify(["G", "A"]),
   tempos: JSON.stringify([72, 84]),
@@ -31,6 +33,24 @@ const preset: SongPresetWithSheetMusic = {
   createdAt: new Date("2026-01-01T00:00:00Z"),
   updatedAt: new Date("2026-01-01T00:00:00Z"),
   sheetMusicFileIds: ["sheet-1"],
+  members: [
+    {
+      id: "member-1",
+      presetId: "preset-1",
+      songId: "song-1",
+      sortOrder: 0,
+      partLabel: null,
+      songName: "초대",
+    },
+    {
+      id: "member-2",
+      presetId: "preset-1",
+      songId: "song-2",
+      sortOrder: 1,
+      partLabel: null,
+      songName: "부르심",
+    },
+  ],
 }
 
 test("songPresetToDraft restores all arrangement fields", () => {
@@ -47,6 +67,7 @@ test("songPresetToDraft restores all arrangement fields", () => {
   assert.equal(draft.youtubeTitle, "Invitation")
   assert.equal(draft.isDefault, true)
   assert.equal(draft.appliedPresetId, "preset-1")
+  assert.equal(draft.displayTitle, "초대 + 부르심")
   assert.equal(draft.pdfMetadata?.files[0]?.sheetMusicFileId, "sheet-1")
 })
 
@@ -55,11 +76,13 @@ test("arrangementDraftToSongPresetData preserves edited arrangement fields", () 
   const data = arrangementDraftToSongPresetData({
     ...draft,
     name: " updated ",
+    displayTitle: " updated title ",
     notes: " soft intro ",
     youtubeReference: "https://youtu.be/W1uussHIX9o",
   })
 
   assert.equal(data.name, "updated")
+  assert.equal(data.displayTitle, "updated title")
   assert.deepEqual(data.keys, ["G", "A"])
   assert.deepEqual(data.tempos, [72, 84])
   assert.deepEqual(data.sectionOrder, ["Intro", "V", "C"])

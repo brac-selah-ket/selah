@@ -4,6 +4,7 @@ import type { PresetPdfMetadata, SheetMusicFile, SongPreset } from "@/lib/types"
 
 export interface ArrangementDraft {
   name: string
+  displayTitle: string | null
   keys: string[]
   tempos: number[]
   sectionOrder: string[]

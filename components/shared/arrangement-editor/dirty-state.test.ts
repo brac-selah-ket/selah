@@ -8,6 +8,7 @@ import {
 
 const baseDraft: ArrangementDraft = {
   name: "영접송",
+  displayTitle: "영접송 + 초대",
   keys: ["G"],
   tempos: [59],
   sectionOrder: ["Intro", "V"],
@@ -31,12 +32,22 @@ test("normalizeArrangementDraftForDirtyCheck normalizes YouTube watch URLs to vi
 test("optional values and raw YouTube video ids are treated as unchanged", () => {
   const nextDraft: ArrangementDraft = {
     ...baseDraft,
+    displayTitle: " 영접송 + 초대 ",
     notes: "   ",
     youtubeReference: "W1uussHIX9o",
     youtubeTitle: " Invitation ",
   }
 
   assert.equal(areArrangementDraftsEqual(baseDraft, nextDraft), true)
+})
+
+test("display title changes are detected", () => {
+  const nextDraft: ArrangementDraft = {
+    ...baseDraft,
+    displayTitle: "초대 + 영접송",
+  }
+
+  assert.equal(areArrangementDraftsEqual(baseDraft, nextDraft), false)
 })
 
 test("sheetMusicFileIds null and selecting all available ids are treated as unchanged", () => {

@@ -14,6 +14,7 @@ function parseJsonField<T>(field: string | null, fallback: T): T {
 export function songPresetToDraft(preset: SongPresetWithSheetMusic | undefined): ArrangementDraft {
   return {
     name: preset?.name ?? "",
+    displayTitle: preset?.displayTitle ?? null,
     keys: parseJsonField<string[]>(preset?.keys ?? null, []),
     tempos: parseJsonField<number[]>(preset?.tempos ?? null, []),
     sectionOrder: parseJsonField<string[]>(preset?.sectionOrder ?? null, []),
@@ -36,6 +37,7 @@ export function arrangementDraftToSongPresetData(draft: ArrangementDraft): SongP
 
   return {
     name: draft.name.trim(),
+    displayTitle: draft.displayTitle?.trim() || null,
     keys: draft.keys,
     tempos: draft.tempos,
     sectionOrder: draft.sectionOrder,

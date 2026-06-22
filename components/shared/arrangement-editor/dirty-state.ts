@@ -3,6 +3,7 @@ import type { ArrangementDraft } from "./types.ts"
 
 export interface NormalizedArrangementDraftForDirtyCheck {
   name: string
+  displayTitle: string | null
   keys: string[]
   tempos: number[]
   sectionOrder: string[]
@@ -104,6 +105,7 @@ export function normalizeArrangementDraftForDirtyCheck(
 ): NormalizedArrangementDraftForDirtyCheck {
   return {
     name: draft.name.trim(),
+    displayTitle: normalizeOptionalString(draft.displayTitle),
     keys: normalizeStringList(draft.keys, { filterEmpty: true }),
     tempos: normalizeNumberList(draft.tempos),
     sectionOrder: normalizeStringList(draft.sectionOrder, { filterEmpty: true }),

@@ -41,6 +41,7 @@ function parseJsonField<T>(field: string | null, fallback: T): T {
 function contiSongToDraft(contiSong: ContiSongWithSong): ArrangementDraft {
   return {
     name: contiSong.song.name,
+    displayTitle: null,
     keys: contiSong.overrides.keys,
     tempos: contiSong.overrides.tempos,
     sectionOrder: contiSong.overrides.sectionOrder,
@@ -63,6 +64,7 @@ function presetToDraft(
 ): ArrangementDraft {
   return {
     name: songName,
+    displayTitle: null,
     keys: parseJsonField<string[]>(preset.keys, []),
     tempos: parseJsonField<number[]>(preset.tempos, []),
     sectionOrder: parseJsonField<string[]>(preset.sectionOrder, []),
