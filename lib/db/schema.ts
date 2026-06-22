@@ -23,6 +23,7 @@ export const songPresets = pgTable('song_presets', {
   songId: text('song_id').notNull().references(() => songs.id, { onDelete: 'cascade' }),
   presetType: text('preset_type').$type<SongPresetType>().notNull().default('single'),
   displayTitle: text('display_title'),
+  mashupPairKey: text('mashup_pair_key'),
   name: text('name').notNull(),
   keys: text('keys'),
   tempos: text('tempos'),
@@ -37,7 +38,9 @@ export const songPresets = pgTable('song_presets', {
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at').notNull(),
   updatedAt: timestamp('updated_at').notNull(),
-});
+}, (table) => [
+  uniqueIndex('song_presets_mashup_pair_key_unique').on(table.mashupPairKey),
+]);
 
 export const songPresetSongs = pgTable('song_preset_songs', {
   id: text('id').primaryKey(),

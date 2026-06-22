@@ -32,6 +32,7 @@ function snapshot(overrides: Partial<StoryboardSnapshot> = {}): StoryboardSnapsh
         songId: 'song-1',
         presetType: 'single',
         displayTitle: null,
+        mashupPairKey: null,
         name: 'Default',
         keys: '["C"]',
         tempos: '[120]',

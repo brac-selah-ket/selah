@@ -36,6 +36,7 @@ import type {
   StoryboardRepository,
 } from './types';
 import { extractPresetPdfMetadataFromLayout } from '@/lib/utils/pdf-export-helpers';
+import { getOrderedSongPairKey } from '@/lib/utils/mashup-presets';
 import { songPresetToContiOverrides } from '@/lib/utils/preset-overrides';
 import { normalizeYouTubeReference } from '@/lib/utils/youtube';
 import { and, asc, desc, eq, ilike, inArray, max } from 'drizzle-orm';
@@ -205,6 +206,17 @@ export const neonStoryboardRepository: StoryboardRepository = {
   },
 
   async findMashupPresetBySongs([firstSongId, secondSongId]: [string, string]) {
+    const pairKey = getOrderedSongPairKey([firstSongId, secondSongId]);
+    const directRows = await db
+      .select({ id: songPresets.id })
+      .from(songPresets)
+      .where(and(eq(songPresets.presetType, "mashup"), eq(songPresets.mashupPairKey, pairKey)))
+      .orderBy(songPresets.sortOrder)
+      .limit(1);
+    if (directRows[0]) {
+      return this.getSongPresetWithSheetMusic(directRows[0].id);
+    }
+
     const candidateRows = await db
       .select({ presetId: songPresetSongs.presetId })
       .from(songPresetSongs)
@@ -798,6 +810,7 @@ export const neonStoryboardRepository: StoryboardRepository = {
       songId,
       presetType: "single",
       displayTitle: null,
+      mashupPairKey: null,
       name: data.name,
       keys: JSON.stringify(data.keys),
       tempos: JSON.stringify(data.tempos),
@@ -846,12 +859,14 @@ export const neonStoryboardRepository: StoryboardRepository = {
     }
 
     const nextSortOrder = await getNextPresetSortOrderForSong(songIds[0]);
+    const mashupPairKey = getOrderedSongPairKey(songIds);
     const now = new Date();
     const presetRecord: SongPreset = {
       id: generateId(),
       songId: songIds[0],
       presetType: "mashup",
       displayTitle: data.displayTitle?.trim() || null,
+      mashupPairKey,
       name: data.name,
       keys: JSON.stringify(data.keys),
       tempos: JSON.stringify(data.tempos),
@@ -868,27 +883,29 @@ export const neonStoryboardRepository: StoryboardRepository = {
       updatedAt: now,
     };
 
-    await db.insert(songPresets).values(presetRecord);
-    await db.insert(songPresetSongs).values(
-      songIds.map((songId, index) => ({
-        id: `${presetRecord.id}:song:${index}`,
-        presetId: presetRecord.id,
-        songId,
-        sortOrder: index,
-        partLabel: null,
-      })),
-    );
-
-    if (data.sheetMusicFileIds && data.sheetMusicFileIds.length > 0) {
-      await db.insert(presetSheetMusic).values(
-        data.sheetMusicFileIds.map((fileId, index) => ({
-          id: generateId(),
+    await db.transaction(async (tx) => {
+      await tx.insert(songPresets).values(presetRecord);
+      await tx.insert(songPresetSongs).values(
+        songIds.map((songId, index) => ({
+          id: `${presetRecord.id}:song:${index}`,
           presetId: presetRecord.id,
-          sheetMusicFileId: fileId,
+          songId,
           sortOrder: index,
+          partLabel: null,
         })),
       );
-    }
+
+      if (data.sheetMusicFileIds && data.sheetMusicFileIds.length > 0) {
+        await tx.insert(presetSheetMusic).values(
+          data.sheetMusicFileIds.map((fileId, index) => ({
+            id: generateId(),
+            presetId: presetRecord.id,
+            sheetMusicFileId: fileId,
+            sortOrder: index,
+          })),
+        );
+      }
+    });
 
     return presetRecord;
   },
@@ -994,6 +1011,9 @@ export const neonStoryboardRepository: StoryboardRepository = {
     }
 
     const songId = existing[0].songId;
+    if (data.isDefault && existing[0].presetType === "mashup") {
+      throw new Error("MASHUP_PRESET_CANNOT_BE_DEFAULT");
+    }
     if (data.isDefault) {
       await db.update(songPresets).set({ isDefault: false }).where(eq(songPresets.songId, songId));
     }
@@ -1056,8 +1076,25 @@ export const neonStoryboardRepository: StoryboardRepository = {
   },
 
   async setDefaultPreset(songId: string, presetId: string) {
-    await db.update(songPresets).set({ isDefault: false }).where(eq(songPresets.songId, songId));
-    await db.update(songPresets).set({ isDefault: true, updatedAt: new Date() }).where(eq(songPresets.id, presetId));
+    const target = await db
+      .select({ id: songPresets.id })
+      .from(songPresets)
+      .where(and(
+        eq(songPresets.id, presetId),
+        eq(songPresets.songId, songId),
+        eq(songPresets.presetType, "single"),
+      ))
+      .limit(1);
+    if (!target[0]) {
+      throw new Error("DEFAULT_PRESET_NOT_FOUND");
+    }
+
+    await db.transaction(async (tx) => {
+      await tx.update(songPresets).set({ isDefault: false }).where(eq(songPresets.songId, songId));
+      await tx.update(songPresets)
+        .set({ isDefault: true, updatedAt: new Date() })
+        .where(eq(songPresets.id, presetId));
+    });
   },
 
   async upsertContiPdfExport(contiId: string, data: { pdfUrl?: string | null; layoutState?: string | null }) {

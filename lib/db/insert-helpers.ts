@@ -85,6 +85,7 @@ export async function insertSongPreset(
     songId,
     presetType: 'single' as const,
     displayTitle: null,
+    mashupPairKey: null,
     name: data.name,
     keys: '[]',
     tempos: '[]',

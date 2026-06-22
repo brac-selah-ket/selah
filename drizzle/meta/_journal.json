@@ -71,6 +71,13 @@
       "when": 1782086717238,
       "tag": "0009_perpetual_zaladane",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1782090810648,
+      "tag": "0010_mashup_pair_key",
+      "breakpoints": true
     }
   ]
 }

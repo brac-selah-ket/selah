@@ -109,11 +109,15 @@ test('song preset mutations invalidate preset cache entries', async () => {
   );
   assert.match(
     source,
-    /updateSongPreset[\s\S]*updateSongPreset\(presetId,[\s\S]*\)[\s\S]*invalidateSongPresets\(updatedPreset\.songId\)[\s\S]*revalidatePath\(`\/songs\/\$\{updatedPreset\.songId\}`\)/
+    /function invalidatePresetSongIds\(songIds:[\s\S]*for \(const songId of new Set\(songIds\)\)[\s\S]*invalidateSongPresets\(songId\)[\s\S]*revalidatePath\(`\/songs\/\$\{songId\}`\)/
   );
   assert.match(
     source,
-    /deleteSongPreset[\s\S]*deleteSongPreset\(presetId\)[\s\S]*invalidateSongPresets\(existing\.songId\)[\s\S]*revalidatePath\(`\/songs\/\$\{existing\.songId\}`\)/
+    /updateSongPreset[\s\S]*updateSongPreset\(presetId,[\s\S]*\)[\s\S]*invalidatePresetSongIds\(\[\.\.\.beforeSongIds, \.\.\.afterSongIds\]\)/
+  );
+  assert.match(
+    source,
+    /deleteSongPreset[\s\S]*deleteSongPreset\(presetId\)[\s\S]*invalidatePresetSongIds\(songIds\.length > 0 \? songIds : \[existing\.songId\]\)/
   );
   assert.match(
     source,

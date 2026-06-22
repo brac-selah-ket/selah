@@ -41,6 +41,7 @@ export interface SnapshotSongPreset {
   songId: string;
   presetType: SongPresetType;
   displayTitle: string | null;
+  mashupPairKey: string | null;
   name: string;
   keys: string | null;
   tempos: string | null;

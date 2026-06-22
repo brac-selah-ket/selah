@@ -11,6 +11,7 @@ const preset: SongPresetWithSheetMusic = {
   songId: "song-1",
   presetType: "mashup",
   displayTitle: "초대 + 부르심",
+  mashupPairKey: "song-1→song-2",
   name: "2026-03-08",
   keys: JSON.stringify(["G", "A"]),
   tempos: JSON.stringify([72, 84]),
