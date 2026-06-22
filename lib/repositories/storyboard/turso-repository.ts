@@ -8,6 +8,7 @@ import {
   sheetMusicFiles,
   songPageImages,
   songPresets,
+  songPresetSongs,
   songs,
 } from '@/lib/db/turso-schema';
 import { dbTextToDate, dateToDbText } from '@/lib/db/time';
@@ -26,6 +27,7 @@ import type {
   Song,
   SongPageImage,
   SongPreset,
+  SongPresetMember,
   SongPresetWithSheetMusic,
   SongWithSheetMusic,
 } from '@/lib/types';
@@ -50,6 +52,32 @@ type TursoConti = typeof contis.$inferSelect;
 type TursoContiSong = typeof contiSongs.$inferSelect;
 type TursoContiPdfExport = typeof contiPdfExports.$inferSelect;
 type TursoSongPageImage = typeof songPageImages.$inferSelect;
+
+async function getPresetMemberRows(presetId: string): Promise<SongPresetMember[]> {
+  const tursoDb = getTursoDb();
+  const rows = await tursoDb
+    .select({
+      id: songPresetSongs.id,
+      presetId: songPresetSongs.presetId,
+      songId: songPresetSongs.songId,
+      sortOrder: songPresetSongs.sortOrder,
+      partLabel: songPresetSongs.partLabel,
+      songName: songs.name,
+    })
+    .from(songPresetSongs)
+    .leftJoin(songs, eq(songPresetSongs.songId, songs.id))
+    .where(eq(songPresetSongs.presetId, presetId))
+    .orderBy(songPresetSongs.sortOrder);
+
+  return rows.map((row) => ({
+    id: row.id,
+    presetId: row.presetId,
+    songId: row.songId,
+    sortOrder: row.sortOrder,
+    partLabel: row.partLabel,
+    songName: row.songName ?? undefined,
+  }));
+}
 
 function mapSong(row: TursoSong): Song {
   return {
@@ -144,6 +172,9 @@ async function insertTursoContiSong(
     notes: overrides?.notes ?? null,
     sheetMusicFileIds: serialized.sheetMusicFileIds ?? null,
     presetId: serialized.presetId ?? null,
+    mashupGroupId: null,
+    mashupPartOrder: null,
+    preMashupPresetId: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -166,6 +197,8 @@ async function insertTursoSongPreset(
   const preset = {
     id: generateId(),
     songId,
+    presetType: 'single' as const,
+    displayTitle: null,
     name: data.name,
     keys: '[]',
     tempos: '[]',
@@ -183,6 +216,13 @@ async function insertTursoSongPreset(
   };
 
   await tursoDb.insert(songPresets).values(preset);
+  await tursoDb.insert(songPresetSongs).values({
+    id: `${preset.id}:song:0`,
+    presetId: preset.id,
+    songId,
+    sortOrder: 0,
+    partLabel: null,
+  });
   return mapSongPreset(preset);
 }
 
@@ -206,8 +246,9 @@ async function getPresetOverridesForSong(presetId: string, songId: string): Prom
   const tursoDb = getTursoDb();
   const presetRows = await tursoDb
     .select()
-    .from(songPresets)
-    .where(and(eq(songPresets.id, presetId), eq(songPresets.songId, songId)))
+    .from(songPresetSongs)
+    .innerJoin(songPresets, eq(songPresetSongs.presetId, songPresets.id))
+    .where(and(eq(songPresetSongs.presetId, presetId), eq(songPresetSongs.songId, songId)))
     .limit(1);
 
   if (presetRows.length === 0) return null;
@@ -219,7 +260,7 @@ async function getPresetOverridesForSong(presetId: string, songId: string): Prom
     .orderBy(presetSheetMusic.sortOrder);
 
   return songPresetToContiOverrides(
-    mapSongPreset(presetRows[0]),
+    mapSongPreset(presetRows[0].song_presets),
     sheetMusicRows.map((row) => row.sheetMusicFileId),
   );
 }
@@ -257,12 +298,13 @@ export const tursoStoryboardRepository: StoryboardRepository = {
   async getSongPresets(songId: string) {
     const tursoDb = getTursoDb();
     const rows = await tursoDb
-      .select()
-      .from(songPresets)
-      .where(eq(songPresets.songId, songId))
+      .select({ preset: songPresets })
+      .from(songPresetSongs)
+      .innerJoin(songPresets, eq(songPresetSongs.presetId, songPresets.id))
+      .where(eq(songPresetSongs.songId, songId))
       .orderBy(songPresets.sortOrder);
 
-    return rows.map(mapSongPreset);
+    return rows.map((row) => mapSongPreset(row.preset));
   },
 
   async searchSongs(query: string) {
@@ -291,6 +333,7 @@ export const tursoStoryboardRepository: StoryboardRepository = {
         return {
           ...preset,
           sheetMusicFileIds: sheetMusicRows.map(r => r.sheetMusicFileId),
+          members: await this.getPresetMembers(preset.id),
         };
       })
     );
@@ -315,7 +358,36 @@ export const tursoStoryboardRepository: StoryboardRepository = {
     return {
       ...mapSongPreset(presetRows[0]),
       sheetMusicFileIds,
+      members: await this.getPresetMembers(presetId),
     };
+  },
+
+  async getPresetMembers(presetId: string) {
+    return getPresetMemberRows(presetId);
+  },
+
+  async findMashupPresetBySongs([firstSongId, secondSongId]: [string, string]) {
+    const tursoDb = getTursoDb();
+    const candidateRows = await tursoDb
+      .select({ presetId: songPresetSongs.presetId })
+      .from(songPresetSongs)
+      .innerJoin(songPresets, eq(songPresetSongs.presetId, songPresets.id))
+      .where(eq(songPresets.presetType, "mashup"));
+
+    const candidateIds = Array.from(new Set(candidateRows.map((row) => row.presetId)));
+    for (const presetId of candidateIds) {
+      const members = await this.getPresetMembers(presetId);
+      const ordered = members.slice().sort((left, right) => left.sortOrder - right.sortOrder);
+      if (
+        ordered.length === 2 &&
+        ordered[0].songId === firstSongId &&
+        ordered[1].songId === secondSongId
+      ) {
+        return this.getSongPresetWithSheetMusic(presetId);
+      }
+    }
+
+    return null;
   },
 
   async getPresetSheetMusicFileIds(presetId: string) {
@@ -419,6 +491,8 @@ export const tursoStoryboardRepository: StoryboardRepository = {
         preset: {
           id: songPresets.id,
           name: songPresets.name,
+          presetType: songPresets.presetType,
+          displayTitle: songPresets.displayTitle,
           youtubeReference: songPresets.youtubeReference,
           youtubeTitle: songPresets.youtubeTitle,
         },
@@ -922,6 +996,8 @@ export const tursoStoryboardRepository: StoryboardRepository = {
     const presetRecord = {
       id: generateId(),
       songId,
+      presetType: "single" as const,
+      displayTitle: null,
       name: data.name,
       keys: JSON.stringify(data.keys),
       tempos: JSON.stringify(data.tempos),
@@ -939,6 +1015,13 @@ export const tursoStoryboardRepository: StoryboardRepository = {
     };
 
     await tursoDb.insert(songPresets).values(presetRecord);
+    await tursoDb.insert(songPresetSongs).values({
+      id: `${presetRecord.id}:song:0`,
+      presetId: presetRecord.id,
+      songId,
+      sortOrder: 0,
+      partLabel: null,
+    });
 
     if (data.sheetMusicFileIds && data.sheetMusicFileIds.length > 0) {
       await tursoDb.insert(presetSheetMusic).values(
@@ -952,6 +1035,69 @@ export const tursoStoryboardRepository: StoryboardRepository = {
     }
 
     return mapSongPreset(presetRecord);
+  },
+
+  async createMashupPreset({ songIds, data }, resolvedYoutube: ResolvedYouTubeMetadata | null) {
+    if (songIds.length !== 2) {
+      throw new Error("MASHUP_REQUIRES_TWO_SONGS");
+    }
+
+    const tursoDb = getTursoDb();
+    const existing = await this.getSongPresets(songIds[0]);
+    const maxSort = existing.length > 0 ? Math.max(...existing.map(p => p.sortOrder)) : -1;
+    const now = dateToDbText(new Date());
+    const presetRecord = {
+      id: generateId(),
+      songId: songIds[0],
+      presetType: "mashup" as const,
+      displayTitle: data.displayTitle?.trim() || null,
+      name: data.name,
+      keys: JSON.stringify(data.keys),
+      tempos: JSON.stringify(data.tempos),
+      sectionOrder: JSON.stringify(data.sectionOrder),
+      lyrics: JSON.stringify(data.lyrics),
+      sectionLyricsMap: JSON.stringify(data.sectionLyricsMap),
+      notes: data.notes,
+      youtubeReference: resolvedYoutube?.videoId ?? null,
+      youtubeTitle: resolvedYoutube?.title ?? null,
+      pdfMetadata: data.pdfMetadata ? JSON.stringify(data.pdfMetadata) : null,
+      isDefault: false,
+      sortOrder: maxSort + 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await tursoDb.insert(songPresets).values(presetRecord);
+    await tursoDb.insert(songPresetSongs).values(
+      songIds.map((songId, index) => ({
+        id: `${presetRecord.id}:song:${index}`,
+        presetId: presetRecord.id,
+        songId,
+        sortOrder: index,
+        partLabel: null,
+      })),
+    );
+
+    if (data.sheetMusicFileIds && data.sheetMusicFileIds.length > 0) {
+      await tursoDb.insert(presetSheetMusic).values(
+        data.sheetMusicFileIds.map((fileId, index) => ({
+          id: generateId(),
+          presetId: presetRecord.id,
+          sheetMusicFileId: fileId,
+          sortOrder: index,
+        })),
+      );
+    }
+
+    return mapSongPreset(presetRecord);
+  },
+
+  async applyMashupToContiSongs() {
+    throw new Error("MASHUP_APPLY_NOT_IMPLEMENTED");
+  },
+
+  async splitMashup() {
+    throw new Error("MASHUP_SPLIT_NOT_IMPLEMENTED");
   },
 
   async updateSongPreset(presetId: string, data, resolvedYoutube?: ResolvedYouTubeMetadata | null) {

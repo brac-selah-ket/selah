@@ -13,6 +13,7 @@ import type {
   SongPageImage,
   SongPreset,
   SongPresetData,
+  SongPresetMember,
   SongPresetWithSheetMusic,
   SongWithSheetMusic,
 } from '@/lib/types';
@@ -201,12 +202,32 @@ export interface BatchImportSongsToContiResult {
   presetUpdated: number;
 }
 
+export interface CreateMashupPresetInput {
+  songIds: [string, string];
+  data: SongPresetData;
+}
+
+export interface ApplyMashupToContiInput {
+  contiId: string;
+  firstContiSongId: string;
+  secondContiSongId: string;
+  presetId: string;
+}
+
+export interface SplitMashupInput {
+  contiId: string;
+  mashupGroupId: string;
+  mode: 'restore' | 'clear';
+}
+
 export interface StoryboardRepository {
   getSongs(): Promise<Song[]>;
   getSong(id: string): Promise<SongWithSheetMusic | null>;
   getSongPresets(songId: string): Promise<SongPreset[]>;
   getSongPresetsWithSheetMusic(songId: string): Promise<SongPresetWithSheetMusic[]>;
   getSongPresetWithSheetMusic(presetId: string): Promise<SongPresetWithSheetMusic | null>;
+  getPresetMembers(presetId: string): Promise<SongPresetMember[]>;
+  findMashupPresetBySongs(songIds: [string, string]): Promise<SongPresetWithSheetMusic | null>;
   getPresetSheetMusicFileIds(presetId: string): Promise<string[]>;
   searchSongs(query: string): Promise<Song[]>;
   getContis(): Promise<Conti[]>;
@@ -239,6 +260,9 @@ export interface StoryboardRepository {
   syncPresetPdfMetadataFromContiLayout(contiId: string, layoutState: PdfLayoutState): Promise<{ updatedPresetCount: number }>;
   batchImportSongsToConti(contiId: string, items: BatchImportSongsToContiItem[]): Promise<BatchImportSongsToContiResult>;
   createSongPreset(songId: string, data: SongPresetData, resolvedYoutube: ResolvedYouTubeMetadata | null): Promise<SongPreset>;
+  createMashupPreset(input: CreateMashupPresetInput, resolvedYoutube: ResolvedYouTubeMetadata | null): Promise<SongPreset>;
+  applyMashupToContiSongs(input: ApplyMashupToContiInput): Promise<{ mashupGroupId: string }>;
+  splitMashup(input: SplitMashupInput): Promise<void>;
   updateSongPreset(presetId: string, data: Partial<SongPresetData>, resolvedYoutube?: ResolvedYouTubeMetadata | null): Promise<SongPreset | null>;
   deleteSongPreset(presetId: string): Promise<SongPreset | null>;
   setDefaultPreset(songId: string, presetId: string): Promise<void>;

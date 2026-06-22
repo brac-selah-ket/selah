@@ -1,7 +1,7 @@
 import type { PgDatabase } from 'drizzle-orm/pg-core'
 import type { NeonHttpQueryResultHKT } from 'drizzle-orm/neon-http'
 import type * as schema from '@/lib/db/schema'
-import { songs, contiSongs, songPresets } from '@/lib/db/schema'
+import { songs, contiSongs, songPresets, songPresetSongs } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { generateId } from '@/lib/id'
 import { stringifyContiSongOverrides } from '@/lib/db/helpers'
@@ -51,6 +51,9 @@ export async function insertContiSong(
     notes: overrides?.notes ?? null,
     sheetMusicFileIds: serialized.sheetMusicFileIds ?? null,
     presetId: serialized.presetId ?? null,
+    mashupGroupId: null,
+    mashupPartOrder: null,
+    preMashupPresetId: null,
     createdAt: now,
     updatedAt: now,
   }
@@ -74,6 +77,8 @@ export async function insertSongPreset(
   const preset = {
     id: generateId(),
     songId,
+    presetType: 'single' as const,
+    displayTitle: null,
     name: data.name,
     keys: '[]',
     tempos: '[]',
@@ -90,6 +95,13 @@ export async function insertSongPreset(
     updatedAt: now,
   }
   await tx.insert(songPresets).values(preset)
+  await tx.insert(songPresetSongs).values({
+    id: `${preset.id}:song:0`,
+    presetId: preset.id,
+    songId,
+    sortOrder: 0,
+    partLabel: null,
+  })
   return preset
 }
 
