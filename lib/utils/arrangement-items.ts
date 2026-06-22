@@ -18,6 +18,25 @@ function buildSingleItem(song: ContiSongWithSong): ArrangementItem {
   };
 }
 
+function isValidMashupGroup(
+  group: readonly ContiSongWithSong[],
+  currentSong: ContiSongWithSong,
+  orderedSongs: readonly ContiSongWithSong[],
+): group is [ContiSongWithSong, ContiSongWithSong] {
+  if (group.length !== 2) return false;
+  if (group[0].mashupPartOrder !== 0 || group[1].mashupPartOrder !== 1) return false;
+  if (!currentSong.overrides.presetId) return false;
+  if (!group.every((entry) => entry.overrides.presetId === currentSong.overrides.presetId)) {
+    return false;
+  }
+  if (group.some((entry) => entry.appliedPreset && entry.appliedPreset.presetType !== "mashup")) {
+    return false;
+  }
+
+  const firstIndex = orderedSongs.findIndex((entry) => entry.id === group[0].id);
+  return firstIndex >= 0 && orderedSongs[firstIndex + 1]?.id === group[1].id;
+}
+
 export function buildArrangementItems(songs: readonly ContiSongWithSong[]): ArrangementItem[] {
   const ordered = [...songs].sort((left, right) => left.sortOrder - right.sortOrder);
   const byGroup = new Map<string, ContiSongWithSong[]>();
@@ -38,9 +57,8 @@ export function buildArrangementItems(songs: readonly ContiSongWithSong[]): Arra
       const group = (byGroup.get(song.mashupGroupId) ?? [])
         .slice()
         .sort((left, right) => (left.mashupPartOrder ?? 0) - (right.mashupPartOrder ?? 0));
-      const isValidTwoPartGroup = group.length === 2 && group.every((entry) => entry.overrides.presetId === song.overrides.presetId);
 
-      if (isValidTwoPartGroup) {
+      if (isValidMashupGroup(group, song, ordered)) {
         for (const member of group) consumed.add(member.id);
         const primary = group[0];
         const displayTitle = getMashupDisplayTitle(
