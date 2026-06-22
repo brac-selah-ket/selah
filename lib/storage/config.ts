@@ -11,11 +11,7 @@ export interface R2Config {
 }
 
 export function getStorageProviderName(env: StorageEnv = process.env): StorageProviderName {
-  const provider = env.STORAGE_PROVIDER?.trim().toLowerCase() || 'vercel-blob';
-
-  if (provider === 'vercel-blob' || provider === 'blob') {
-    return 'vercel-blob';
-  }
+  const provider = env.STORAGE_PROVIDER?.trim().toLowerCase() || 'cloudflare-r2';
 
   if (provider === 'cloudflare-r2' || provider === 'r2') {
     return 'cloudflare-r2';
