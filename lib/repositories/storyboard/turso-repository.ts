@@ -45,6 +45,21 @@ import { songPresetToContiOverrides } from '@/lib/utils/preset-overrides';
 import { normalizeYouTubeReference } from '@/lib/utils/youtube';
 import { and, asc, desc, eq, inArray, max, sql } from 'drizzle-orm';
 
+export function getAdjacentOrderedTursoContiSongPair<T extends { id: string }>(
+  orderedRows: T[],
+  pairIds: readonly [string, string],
+): [T, T] | null {
+  const firstIndex = orderedRows.findIndex((row) => row.id === pairIds[0]);
+  const secondIndex = orderedRows.findIndex((row) => row.id === pairIds[1]);
+  if (firstIndex === -1 || secondIndex === -1) return null;
+
+  const earlierIndex = Math.min(firstIndex, secondIndex);
+  const laterIndex = Math.max(firstIndex, secondIndex);
+  if (laterIndex !== earlierIndex + 1) return null;
+
+  return [orderedRows[earlierIndex], orderedRows[laterIndex]];
+}
+
 type TursoSong = typeof songs.$inferSelect;
 type TursoSheetMusicFile = typeof sheetMusicFiles.$inferSelect;
 type TursoSongPreset = typeof songPresets.$inferSelect;
@@ -1103,15 +1118,23 @@ export const tursoStoryboardRepository: StoryboardRepository = {
 
   async applyMashupToContiSongs(input) {
     const tursoDb = getTursoDb();
-    const pair = await tursoDb
+    const contiRows = await tursoDb
       .select()
       .from(contiSongs)
-      .where(inArray(contiSongs.id, [input.firstContiSongId, input.secondContiSongId]))
-      .orderBy(asc(contiSongs.sortOrder));
+      .where(eq(contiSongs.contiId, input.contiId))
+      .orderBy(asc(contiSongs.sortOrder), asc(contiSongs.id));
+    const pair = getAdjacentOrderedTursoContiSongPair(contiRows, [
+      input.firstContiSongId,
+      input.secondContiSongId,
+    ]);
 
-    if (pair.length !== 2) throw new Error("MASHUP_PAIR_NOT_FOUND");
-    if (pair[0].contiId !== input.contiId || pair[1].contiId !== input.contiId) throw new Error("MASHUP_PAIR_NOT_FOUND");
-    if (pair[0].sortOrder + 1 !== pair[1].sortOrder) throw new Error("MASHUP_REQUIRES_ADJACENT_ROWS");
+    if (!pair) {
+      const foundCount = contiRows.filter(
+        (row) => row.id === input.firstContiSongId || row.id === input.secondContiSongId,
+      ).length;
+      if (foundCount !== 2) throw new Error("MASHUP_PAIR_NOT_FOUND");
+      throw new Error("MASHUP_REQUIRES_ADJACENT_ROWS");
+    }
     if (pair[0].mashupGroupId || pair[1].mashupGroupId) throw new Error("MASHUP_ALREADY_GROUPED");
 
     const preset = await this.getSongPresetWithSheetMusic(input.presetId);
@@ -1125,21 +1148,23 @@ export const tursoStoryboardRepository: StoryboardRepository = {
     const serialized = stringifyContiSongOverrides(overrides);
     const mashupGroupId = generateId();
 
-    await tursoDb.update(contiSongs).set({
-      ...serialized,
-      mashupGroupId,
-      mashupPartOrder: 0,
-      preMashupPresetId: pair[0].presetId,
-      updatedAt: dateToDbText(new Date()),
-    }).where(eq(contiSongs.id, pair[0].id));
+    await tursoDb.transaction(async (tx) => {
+      await tx.update(contiSongs).set({
+        ...serialized,
+        mashupGroupId,
+        mashupPartOrder: 0,
+        preMashupPresetId: pair[0].presetId,
+        updatedAt: dateToDbText(new Date()),
+      }).where(eq(contiSongs.id, pair[0].id));
 
-    await tursoDb.update(contiSongs).set({
-      ...serialized,
-      mashupGroupId,
-      mashupPartOrder: 1,
-      preMashupPresetId: pair[1].presetId,
-      updatedAt: dateToDbText(new Date()),
-    }).where(eq(contiSongs.id, pair[1].id));
+      await tx.update(contiSongs).set({
+        ...serialized,
+        mashupGroupId,
+        mashupPartOrder: 1,
+        preMashupPresetId: pair[1].presetId,
+        updatedAt: dateToDbText(new Date()),
+      }).where(eq(contiSongs.id, pair[1].id));
+    });
 
     return { mashupGroupId };
   },
@@ -1154,6 +1179,7 @@ export const tursoStoryboardRepository: StoryboardRepository = {
 
     if (rows.length !== 2) throw new Error("MASHUP_GROUP_NOT_FOUND");
 
+    const updates: Array<{ rowId: string; overrides: ReturnType<typeof stringifyContiSongOverrides> }> = [];
     for (const row of rows) {
       const restoredOverrides =
         input.mode === "restore" && row.preMashupPresetId
@@ -1173,14 +1199,20 @@ export const tursoStoryboardRepository: StoryboardRepository = {
               presetId: null,
             });
 
-      await tursoDb.update(contiSongs).set({
-        ...overrides,
-        mashupGroupId: null,
-        mashupPartOrder: null,
-        preMashupPresetId: null,
-        updatedAt: dateToDbText(new Date()),
-      }).where(eq(contiSongs.id, row.id));
+      updates.push({ rowId: row.id, overrides });
     }
+
+    await tursoDb.transaction(async (tx) => {
+      for (const update of updates) {
+        await tx.update(contiSongs).set({
+          ...update.overrides,
+          mashupGroupId: null,
+          mashupPartOrder: null,
+          preMashupPresetId: null,
+          updatedAt: dateToDbText(new Date()),
+        }).where(eq(contiSongs.id, update.rowId));
+      }
+    });
   },
 
   async updateSongPreset(presetId: string, data, resolvedYoutube?: ResolvedYouTubeMetadata | null) {
