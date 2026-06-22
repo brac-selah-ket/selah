@@ -5,6 +5,7 @@ import {
   buildBlankMashupPresetData,
   getMashupDisplayTitle,
   getOrderedSongPairKey,
+  resolveMashupPresetForImport,
 } from "./mashup-presets.ts";
 
 test("ordered song pair keys preserve front and back song order", () => {
@@ -37,4 +38,27 @@ test("blank mashup preset data uses ordered song names and shared empty arrangem
   assert.deepEqual(data.sectionLyricsMap, {});
   assert.deepEqual(data.sheetMusicFileIds, []);
   assert.equal(data.pdfMetadata, null);
+});
+
+test("youtube import mashup preset resolution reuses an existing ordered preset before creating", async () => {
+  let createCalled = false;
+
+  const presetId = await resolveMashupPresetForImport({
+    providedPresetId: null,
+    createNewPreset: true,
+    songIds: ["song-a", "song-b"],
+    songNames: ["초대", "부르심"],
+    presetName: "새 매시업",
+    findPreset: async (songIds) => {
+      assert.deepEqual(songIds, ["song-a", "song-b"]);
+      return { id: "existing-preset" };
+    },
+    createPreset: async () => {
+      createCalled = true;
+      return { id: "created-preset" };
+    },
+  });
+
+  assert.equal(presetId, "existing-preset");
+  assert.equal(createCalled, false);
 });

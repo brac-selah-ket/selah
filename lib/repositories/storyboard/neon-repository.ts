@@ -37,7 +37,7 @@ import type {
 } from './types';
 import { extractPresetPdfMetadataFromLayout } from '@/lib/utils/pdf-export-helpers';
 import { buildArrangementItems } from '@/lib/utils/arrangement-items';
-import { buildBlankMashupPresetData, getOrderedSongPairKey } from '@/lib/utils/mashup-presets';
+import { getOrderedSongPairKey, resolveMashupPresetForImport } from '@/lib/utils/mashup-presets';
 import { songPresetToContiOverrides } from '@/lib/utils/preset-overrides';
 import { normalizeYouTubeReference } from '@/lib/utils/youtube';
 import { and, asc, desc, eq, ilike, inArray, max } from 'drizzle-orm';
@@ -819,23 +819,18 @@ export const neonStoryboardRepository: StoryboardRepository = {
       const second = importedRows[index + 1];
       if (!first?.contiSongId || !second?.contiSongId || first.songId === second.songId) continue;
 
-      let presetId = mashupLink.presetId;
-      if (!presetId && mashupLink.createNewPreset !== false) {
-        const blankPresetData = buildBlankMashupPresetData([first.songName, second.songName]);
-        const createdPreset = await this.createMashupPreset(
-          {
-            songIds: [first.songId, second.songId],
-            data: {
-              ...blankPresetData,
-              name: mashupLink.presetName.trim() || blankPresetData.name,
-            },
-          },
-          null,
-        );
-        presetId = createdPreset.id;
-      }
+      try {
+        const presetId = await resolveMashupPresetForImport({
+          providedPresetId: mashupLink.presetId,
+          createNewPreset: mashupLink.createNewPreset,
+          songIds: [first.songId, second.songId],
+          songNames: [first.songName, second.songName],
+          presetName: mashupLink.presetName,
+          findPreset: (songIds) => this.findMashupPresetBySongs(songIds),
+          createPreset: (input) => this.createMashupPreset(input, null),
+        });
+        if (!presetId) continue;
 
-      if (presetId) {
         await this.applyMashupToContiSongs({
           contiId,
           firstContiSongId: first.contiSongId,
@@ -843,6 +838,13 @@ export const neonStoryboardRepository: StoryboardRepository = {
           presetId,
         });
         mashupsApplied++;
+      } catch (error) {
+        console.warn("[batchImportSongsToConti:mashup]", {
+          contiId,
+          firstContiSongId: first.contiSongId,
+          secondContiSongId: second.contiSongId,
+          message: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 

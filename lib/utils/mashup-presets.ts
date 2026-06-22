@@ -1,5 +1,17 @@
 import type { SongPresetData } from "@/lib/types";
 
+type PresetIdResult = { id: string };
+
+export interface ResolveMashupPresetForImportInput {
+  providedPresetId: string | null | undefined;
+  createNewPreset: boolean;
+  songIds: readonly [string, string];
+  songNames: readonly [string, string];
+  presetName: string;
+  findPreset: (songIds: [string, string]) => Promise<PresetIdResult | null>;
+  createPreset: (input: { songIds: [string, string]; data: SongPresetData }) => Promise<PresetIdResult>;
+}
+
 export function assertOrderedMashupPair(songIds: readonly string[]) {
   if (songIds.length !== 2) {
     throw new Error("매시업 프리셋은 정확히 두 곡이 필요합니다");
@@ -37,4 +49,38 @@ export function buildBlankMashupPresetData(songNames: readonly [string, string] 
     sheetMusicFileIds: [],
     pdfMetadata: null,
   };
+}
+
+export async function resolveMashupPresetForImport({
+  providedPresetId,
+  createNewPreset,
+  songIds,
+  songNames,
+  presetName,
+  findPreset,
+  createPreset,
+}: ResolveMashupPresetForImportInput): Promise<string | null> {
+  if (providedPresetId) return providedPresetId;
+
+  const orderedSongIds: [string, string] = [songIds[0], songIds[1]];
+  const existingPreset = await findPreset(orderedSongIds);
+  if (existingPreset) return existingPreset.id;
+
+  if (createNewPreset === false) return null;
+
+  const blankPresetData = buildBlankMashupPresetData(songNames);
+  try {
+    const createdPreset = await createPreset({
+      songIds: orderedSongIds,
+      data: {
+        ...blankPresetData,
+        name: presetName.trim() || blankPresetData.name,
+      },
+    });
+    return createdPreset.id;
+  } catch (error) {
+    const racedPreset = await findPreset(orderedSongIds);
+    if (racedPreset) return racedPreset.id;
+    throw error;
+  }
 }
