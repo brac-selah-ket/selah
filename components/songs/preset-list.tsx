@@ -47,6 +47,8 @@ export function PresetList({ songId, songName, presets, sheetMusic, allSongs }: 
 
     const refreshedPreset = presets.find((preset) => preset.id === editingPreset.id)
     if (!refreshedPreset) {
+      setEditingPreset(undefined)
+      setEditorOpen(false)
       return
     }
 
