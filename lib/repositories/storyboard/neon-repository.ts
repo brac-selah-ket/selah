@@ -930,8 +930,26 @@ export const neonStoryboardRepository: StoryboardRepository = {
     if (rows.length !== 2) throw new Error("MASHUP_GROUP_NOT_FOUND");
 
     for (const row of rows) {
+      const restoredOverrides =
+        input.mode === "restore" && row.preMashupPresetId
+          ? await getPresetOverridesForSong(row.preMashupPresetId, row.songId)
+          : null;
+      const overrides =
+        input.mode === "restore" && restoredOverrides
+          ? stringifyContiSongOverrides(restoredOverrides)
+          : stringifyContiSongOverrides({
+              keys: [],
+              tempos: [],
+              sectionOrder: [],
+              lyrics: [],
+              sectionLyricsMap: {},
+              notes: null,
+              sheetMusicFileIds: null,
+              presetId: null,
+            });
+
       await db.update(contiSongs).set({
-        presetId: input.mode === "restore" ? row.preMashupPresetId : null,
+        ...overrides,
         mashupGroupId: null,
         mashupPartOrder: null,
         preMashupPresetId: null,
