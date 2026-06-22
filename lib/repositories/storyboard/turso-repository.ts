@@ -1101,12 +1101,68 @@ export const tursoStoryboardRepository: StoryboardRepository = {
     return mapSongPreset(presetRecord);
   },
 
-  async applyMashupToContiSongs() {
-    throw new Error("MASHUP_APPLY_NOT_IMPLEMENTED");
+  async applyMashupToContiSongs(input) {
+    const tursoDb = getTursoDb();
+    const pair = await tursoDb
+      .select()
+      .from(contiSongs)
+      .where(inArray(contiSongs.id, [input.firstContiSongId, input.secondContiSongId]))
+      .orderBy(asc(contiSongs.sortOrder));
+
+    if (pair.length !== 2) throw new Error("MASHUP_PAIR_NOT_FOUND");
+    if (pair[0].contiId !== input.contiId || pair[1].contiId !== input.contiId) throw new Error("MASHUP_PAIR_NOT_FOUND");
+    if (pair[0].sortOrder + 1 !== pair[1].sortOrder) throw new Error("MASHUP_REQUIRES_ADJACENT_ROWS");
+    if (pair[0].mashupGroupId || pair[1].mashupGroupId) throw new Error("MASHUP_ALREADY_GROUPED");
+
+    const preset = await this.getSongPresetWithSheetMusic(input.presetId);
+    if (!preset || preset.presetType !== "mashup") throw new Error("MASHUP_PRESET_NOT_FOUND");
+    const members = preset.members.slice().sort((left, right) => left.sortOrder - right.sortOrder);
+    if (members.length !== 2 || members[0].songId !== pair[0].songId || members[1].songId !== pair[1].songId) {
+      throw new Error("MASHUP_PRESET_SONGS_MISMATCH");
+    }
+
+    const overrides = songPresetToContiOverrides(preset, preset.sheetMusicFileIds);
+    const serialized = stringifyContiSongOverrides(overrides);
+    const mashupGroupId = generateId();
+
+    await tursoDb.update(contiSongs).set({
+      ...serialized,
+      mashupGroupId,
+      mashupPartOrder: 0,
+      preMashupPresetId: pair[0].presetId,
+      updatedAt: dateToDbText(new Date()),
+    }).where(eq(contiSongs.id, pair[0].id));
+
+    await tursoDb.update(contiSongs).set({
+      ...serialized,
+      mashupGroupId,
+      mashupPartOrder: 1,
+      preMashupPresetId: pair[1].presetId,
+      updatedAt: dateToDbText(new Date()),
+    }).where(eq(contiSongs.id, pair[1].id));
+
+    return { mashupGroupId };
   },
 
-  async splitMashup() {
-    throw new Error("MASHUP_SPLIT_NOT_IMPLEMENTED");
+  async splitMashup(input) {
+    const tursoDb = getTursoDb();
+    const rows = await tursoDb
+      .select()
+      .from(contiSongs)
+      .where(and(eq(contiSongs.contiId, input.contiId), eq(contiSongs.mashupGroupId, input.mashupGroupId)))
+      .orderBy(asc(contiSongs.mashupPartOrder));
+
+    if (rows.length !== 2) throw new Error("MASHUP_GROUP_NOT_FOUND");
+
+    for (const row of rows) {
+      await tursoDb.update(contiSongs).set({
+        presetId: input.mode === "restore" ? row.preMashupPresetId : null,
+        mashupGroupId: null,
+        mashupPartOrder: null,
+        preMashupPresetId: null,
+        updatedAt: dateToDbText(new Date()),
+      }).where(eq(contiSongs.id, row.id));
+    }
   },
 
   async updateSongPreset(presetId: string, data, resolvedYoutube?: ResolvedYouTubeMetadata | null) {
