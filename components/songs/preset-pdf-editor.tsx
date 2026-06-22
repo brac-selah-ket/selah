@@ -69,6 +69,9 @@ export function PresetPdfEditor({
           notes: null,
           sheetMusicFileIds: null,
           presetId: "preset-editor",
+          mashupGroupId: null,
+          mashupPartOrder: null,
+          preMashupPresetId: null,
           createdAt: now,
           updatedAt: now,
           song: {
