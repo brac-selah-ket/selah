@@ -31,6 +31,7 @@ export async function exportContiToPptx(options: {
   outputFileName?: string;
   contiId: string;
   outputFolderId?: string;
+  separateMashups?: boolean;
 }): Promise<ActionResult<PptxExportResult>> {
   try {
     const allowedFile = await ensurePptxFileAllowed(options.fileId);
@@ -43,7 +44,9 @@ export async function exportContiToPptx(options: {
       return { success: false, error: '선택한 콘티를 찾을 수 없습니다' };
     }
 
-    const songs = buildPptxSongData(conti.songs, SECTION_PREFIX);
+    const songs = buildPptxSongData(conti.songs, SECTION_PREFIX, {
+      separateMashups: options.separateMashups ?? false,
+    });
     if (songs.length === 0) {
       return { success: false, error: '내보낼 찬양 곡이 없습니다' };
     }

@@ -1,10 +1,19 @@
 import type { ScriptureSlidePage } from '@/lib/scripture/types';
 import type {
+  ArrangementItem,
   ContiSongWithSong,
   PptxDriveFile,
   PptxExportScriptureData,
   PptxExportSongData,
 } from '@/lib/types';
+import { buildArrangementItems } from '@/lib/utils/arrangement-items';
+
+type PptxSongSource = Pick<
+  ArrangementItem,
+  'sectionOrder' | 'lyrics' | 'sectionLyricsMap'
+> & {
+  title: string;
+};
 
 /**
  * Build PPTX export song data from conti songs.
@@ -14,18 +23,33 @@ import type {
  */
 export function buildPptxSongData(
   songs: ContiSongWithSong[],
-  prefix: string
+  prefix: string,
+  options: { separateMashups?: boolean } = {},
 ): PptxExportSongData[] {
-  return songs
-    .filter((cs) => cs.overrides.sectionOrder.length > 0)
+  const sources: PptxSongSource[] = options.separateMashups
+    ? songs.map((song) => ({
+        title: song.song.name,
+        sectionOrder: song.overrides.sectionOrder,
+        lyrics: song.overrides.lyrics,
+        sectionLyricsMap: song.overrides.sectionLyricsMap,
+      }))
+    : buildArrangementItems(songs).map((item) => ({
+        title: item.displayTitle,
+        sectionOrder: item.sectionOrder,
+        lyrics: item.lyrics,
+        sectionLyricsMap: item.sectionLyricsMap,
+      }));
+
+  return sources
+    .filter((source) => source.sectionOrder.length > 0)
     .slice(0, 4)
-    .map((cs, idx) => ({
-      title: cs.song.name,
+    .map((source, idx) => ({
+      title: source.title,
       section_name: `${prefix} ${idx + 1}`,
-      section_order: cs.overrides.sectionOrder,
-      lyrics: cs.overrides.lyrics,
+      section_order: source.sectionOrder,
+      lyrics: source.lyrics,
       section_lyrics_map: Object.fromEntries(
-        Object.entries(cs.overrides.sectionLyricsMap).map(
+        Object.entries(source.sectionLyricsMap).map(
           ([k, v]) => [String(k), v]
         )
       ),
