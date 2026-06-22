@@ -1,4 +1,5 @@
 import { pgTable, text, integer, timestamp, boolean, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import type { SongPresetType } from '@/lib/song-preset-types';
 
 export const songs = pgTable('songs', {
   id: text('id').primaryKey(),
@@ -20,7 +21,7 @@ export const sheetMusicFiles = pgTable('sheet_music_files', {
 export const songPresets = pgTable('song_presets', {
   id: text('id').primaryKey(),
   songId: text('song_id').notNull().references(() => songs.id, { onDelete: 'cascade' }),
-  presetType: text('preset_type').notNull().default('single'),
+  presetType: text('preset_type').$type<SongPresetType>().notNull().default('single'),
   displayTitle: text('display_title'),
   name: text('name').notNull(),
   keys: text('keys'),

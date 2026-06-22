@@ -16,6 +16,7 @@ import type {
   SongPresetWithSheetMusic,
   SongWithSheetMusic,
 } from '@/lib/types';
+import type { SongPresetType } from '@/lib/song-preset-types';
 
 export interface SnapshotSong {
   id: string;
@@ -37,7 +38,7 @@ export interface SnapshotSheetMusicFile {
 export interface SnapshotSongPreset {
   id: string;
   songId: string;
-  presetType: string;
+  presetType: SongPresetType;
   displayTitle: string | null;
   name: string;
   keys: string | null;

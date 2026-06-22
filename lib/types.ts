@@ -14,6 +14,8 @@ import type {
   discordInteractionReceipts,
   worshipPrepNotifications,
 } from './db/schema';
+export type { SongPresetType } from './song-preset-types';
+import type { SongPresetType } from './song-preset-types';
 
 export type Song = InferSelectModel<typeof songs>;
 export type SheetMusicFile = InferSelectModel<typeof sheetMusicFiles>;
@@ -55,8 +57,6 @@ export interface PresetPdfMetadata {
   files: PresetPdfFileMetadata[];
 }
 
-export type SongPresetType = 'single' | 'mashup';
-
 export interface SongPresetMember {
   id: string;
   presetId: string;
@@ -95,12 +95,15 @@ export interface SongPresetWithSheetMusic extends SongPreset {
 export interface ContiSongWithSong extends ContiSong {
   song: Song;
   overrides: ContiSongOverrides;
-  appliedPreset?: Pick<SongPreset, 'id' | 'name' | 'youtubeReference' | 'youtubeTitle'> | null;
+  appliedPreset?: Pick<
+    SongPreset,
+    'id' | 'name' | 'presetType' | 'displayTitle' | 'youtubeReference' | 'youtubeTitle'
+  > | null;
 }
 
 export interface ArrangementItem {
   key: string;
-  type: 'single' | 'mashup';
+  type: SongPresetType;
   displayTitle: string;
   displaySongNames: string[];
   songs: ContiSongWithSong[];

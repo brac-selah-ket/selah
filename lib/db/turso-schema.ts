@@ -1,4 +1,5 @@
 import { integer, sqliteTable, text, uniqueIndex, index } from 'drizzle-orm/sqlite-core';
+import type { SongPresetType } from '@/lib/song-preset-types';
 
 export const songs = sqliteTable('songs', {
   id: text('id').primaryKey(),
@@ -20,7 +21,7 @@ export const sheetMusicFiles = sqliteTable('sheet_music_files', {
 export const songPresets = sqliteTable('song_presets', {
   id: text('id').primaryKey(),
   songId: text('song_id').notNull().references(() => songs.id, { onDelete: 'cascade' }),
-  presetType: text('preset_type').notNull().default('single'),
+  presetType: text('preset_type').$type<SongPresetType>().notNull().default('single'),
   displayTitle: text('display_title'),
   name: text('name').notNull(),
   keys: text('keys'),

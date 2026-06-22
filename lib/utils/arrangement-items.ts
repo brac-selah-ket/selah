@@ -43,11 +43,8 @@ export function buildArrangementItems(songs: readonly ContiSongWithSong[]): Arra
       if (isValidTwoPartGroup) {
         for (const member of group) consumed.add(member.id);
         const primary = group[0];
-        const appliedPreset = primary.appliedPreset as
-          | (NonNullable<typeof primary.appliedPreset> & { displayTitle?: string | null })
-          | null;
         const displayTitle = getMashupDisplayTitle(
-          appliedPreset?.displayTitle,
+          primary.appliedPreset?.displayTitle,
           group.map((entry) => entry.song.name),
         );
         items.push({
