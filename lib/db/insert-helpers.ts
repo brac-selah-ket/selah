@@ -12,6 +12,16 @@ import type { ContiSongOverrides } from '@/lib/types'
 // so this is the correct shared base class.
 export type TxOrDb = PgDatabase<NeonHttpQueryResultHKT, typeof schema>
 
+async function getNextPresetSortOrderForSong(tx: TxOrDb, songId: string): Promise<number> {
+  const existing = await tx
+    .select({ sortOrder: songPresets.sortOrder })
+    .from(songPresetSongs)
+    .innerJoin(songPresets, eq(songPresetSongs.presetId, songPresets.id))
+    .where(eq(songPresetSongs.songId, songId))
+
+  return existing.length > 0 ? Math.max(...existing.map((row) => row.sortOrder)) + 1 : 0
+}
+
 /** Insert a song within a transaction (or standalone). No revalidation. */
 export async function insertSong(tx: TxOrDb, name: string) {
   const now = new Date()
@@ -68,11 +78,7 @@ export async function insertSongPreset(
   data: { name: string; youtubeReference?: string | null; youtubeTitle?: string | null }
 ) {
   const now = new Date()
-  const existing = await tx
-    .select({ sortOrder: songPresets.sortOrder })
-    .from(songPresets)
-    .where(eq(songPresets.songId, songId))
-  const maxSort = existing.length > 0 ? Math.max(...existing.map(p => p.sortOrder)) : -1
+  const nextSortOrder = await getNextPresetSortOrderForSong(tx, songId)
 
   const preset = {
     id: generateId(),
@@ -90,7 +96,7 @@ export async function insertSongPreset(
     youtubeTitle: data.youtubeTitle ?? null,
     pdfMetadata: null,
     isDefault: false,
-    sortOrder: maxSort + 1,
+    sortOrder: nextSortOrder,
     createdAt: now,
     updatedAt: now,
   }

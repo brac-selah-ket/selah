@@ -65,6 +65,16 @@ async function getPresetMemberRows(presetId: string): Promise<SongPresetMember[]
   }));
 }
 
+async function getNextPresetSortOrderForSong(songId: string): Promise<number> {
+  const rows = await db
+    .select({ sortOrder: songPresets.sortOrder })
+    .from(songPresetSongs)
+    .innerJoin(songPresets, eq(songPresetSongs.presetId, songPresets.id))
+    .where(eq(songPresetSongs.songId, songId));
+
+  return rows.length > 0 ? Math.max(...rows.map((row) => row.sortOrder)) + 1 : 0;
+}
+
 async function getPresetOverridesForSong(presetId: string, songId: string): Promise<ContiSongOverrides | null> {
   const presetRows = await db
     .select()
@@ -184,7 +194,8 @@ export const neonStoryboardRepository: StoryboardRepository = {
       .select({ presetId: songPresetSongs.presetId })
       .from(songPresetSongs)
       .innerJoin(songPresets, eq(songPresetSongs.presetId, songPresets.id))
-      .where(eq(songPresets.presetType, "mashup"));
+      .where(eq(songPresets.presetType, "mashup"))
+      .orderBy(songPresets.sortOrder);
 
     const candidateIds = Array.from(new Set(candidateRows.map((row) => row.presetId)));
     for (const presetId of candidateIds) {
@@ -765,8 +776,7 @@ export const neonStoryboardRepository: StoryboardRepository = {
       await db.update(songPresets).set({ isDefault: false }).where(eq(songPresets.songId, songId));
     }
 
-    const existing = await this.getSongPresets(songId);
-    const maxSort = existing.length > 0 ? Math.max(...existing.map(p => p.sortOrder)) : -1;
+    const nextSortOrder = await getNextPresetSortOrderForSong(songId);
     const now = new Date();
     const presetRecord: SongPreset = {
       id: generateId(),
@@ -784,7 +794,7 @@ export const neonStoryboardRepository: StoryboardRepository = {
       youtubeTitle: resolvedYoutube?.title ?? null,
       pdfMetadata: data.pdfMetadata ? JSON.stringify(data.pdfMetadata) : null,
       isDefault: data.isDefault,
-      sortOrder: maxSort + 1,
+      sortOrder: nextSortOrder,
       createdAt: now,
       updatedAt: now,
     };
@@ -816,9 +826,11 @@ export const neonStoryboardRepository: StoryboardRepository = {
     if (songIds.length !== 2) {
       throw new Error("MASHUP_REQUIRES_TWO_SONGS");
     }
+    if (songIds[0] === songIds[1]) {
+      throw new Error("MASHUP_REQUIRES_DISTINCT_SONGS");
+    }
 
-    const existing = await this.getSongPresets(songIds[0]);
-    const maxSort = existing.length > 0 ? Math.max(...existing.map(p => p.sortOrder)) : -1;
+    const nextSortOrder = await getNextPresetSortOrderForSong(songIds[0]);
     const now = new Date();
     const presetRecord: SongPreset = {
       id: generateId(),
@@ -836,7 +848,7 @@ export const neonStoryboardRepository: StoryboardRepository = {
       youtubeTitle: resolvedYoutube?.title ?? null,
       pdfMetadata: data.pdfMetadata ? JSON.stringify(data.pdfMetadata) : null,
       isDefault: false,
-      sortOrder: maxSort + 1,
+      sortOrder: nextSortOrder,
       createdAt: now,
       updatedAt: now,
     };

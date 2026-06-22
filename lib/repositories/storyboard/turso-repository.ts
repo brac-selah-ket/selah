@@ -79,6 +79,17 @@ async function getPresetMemberRows(presetId: string): Promise<SongPresetMember[]
   }));
 }
 
+async function getNextPresetSortOrderForSong(songId: string): Promise<number> {
+  const tursoDb = getTursoDb();
+  const rows = await tursoDb
+    .select({ sortOrder: songPresets.sortOrder })
+    .from(songPresetSongs)
+    .innerJoin(songPresets, eq(songPresetSongs.presetId, songPresets.id))
+    .where(eq(songPresetSongs.songId, songId));
+
+  return rows.length > 0 ? Math.max(...rows.map((row) => row.sortOrder)) + 1 : 0;
+}
+
 function mapSong(row: TursoSong): Song {
   return {
     ...row,
@@ -188,11 +199,7 @@ async function insertTursoSongPreset(
   data: { name: string; youtubeReference?: string | null; youtubeTitle?: string | null },
 ): Promise<SongPreset> {
   const tursoDb = getTursoDb();
-  const existing = await tursoDb
-    .select({ sortOrder: songPresets.sortOrder })
-    .from(songPresets)
-    .where(eq(songPresets.songId, songId));
-  const maxSort = existing.length > 0 ? Math.max(...existing.map(p => p.sortOrder)) : -1;
+  const nextSortOrder = await getNextPresetSortOrderForSong(songId);
   const now = dateToDbText(new Date());
   const preset = {
     id: generateId(),
@@ -210,7 +217,7 @@ async function insertTursoSongPreset(
     youtubeTitle: data.youtubeTitle ?? null,
     pdfMetadata: null,
     isDefault: false,
-    sortOrder: maxSort + 1,
+    sortOrder: nextSortOrder,
     createdAt: now,
     updatedAt: now,
   };
@@ -372,7 +379,8 @@ export const tursoStoryboardRepository: StoryboardRepository = {
       .select({ presetId: songPresetSongs.presetId })
       .from(songPresetSongs)
       .innerJoin(songPresets, eq(songPresetSongs.presetId, songPresets.id))
-      .where(eq(songPresets.presetType, "mashup"));
+      .where(eq(songPresets.presetType, "mashup"))
+      .orderBy(songPresets.sortOrder);
 
     const candidateIds = Array.from(new Set(candidateRows.map((row) => row.presetId)));
     for (const presetId of candidateIds) {
@@ -990,8 +998,7 @@ export const tursoStoryboardRepository: StoryboardRepository = {
       await tursoDb.update(songPresets).set({ isDefault: false }).where(eq(songPresets.songId, songId));
     }
 
-    const existing = await this.getSongPresets(songId);
-    const maxSort = existing.length > 0 ? Math.max(...existing.map(p => p.sortOrder)) : -1;
+    const nextSortOrder = await getNextPresetSortOrderForSong(songId);
     const now = dateToDbText(new Date());
     const presetRecord = {
       id: generateId(),
@@ -1009,7 +1016,7 @@ export const tursoStoryboardRepository: StoryboardRepository = {
       youtubeTitle: resolvedYoutube?.title ?? null,
       pdfMetadata: data.pdfMetadata ? JSON.stringify(data.pdfMetadata) : null,
       isDefault: data.isDefault,
-      sortOrder: maxSort + 1,
+      sortOrder: nextSortOrder,
       createdAt: now,
       updatedAt: now,
     };
@@ -1041,10 +1048,12 @@ export const tursoStoryboardRepository: StoryboardRepository = {
     if (songIds.length !== 2) {
       throw new Error("MASHUP_REQUIRES_TWO_SONGS");
     }
+    if (songIds[0] === songIds[1]) {
+      throw new Error("MASHUP_REQUIRES_DISTINCT_SONGS");
+    }
 
     const tursoDb = getTursoDb();
-    const existing = await this.getSongPresets(songIds[0]);
-    const maxSort = existing.length > 0 ? Math.max(...existing.map(p => p.sortOrder)) : -1;
+    const nextSortOrder = await getNextPresetSortOrderForSong(songIds[0]);
     const now = dateToDbText(new Date());
     const presetRecord = {
       id: generateId(),
@@ -1062,7 +1071,7 @@ export const tursoStoryboardRepository: StoryboardRepository = {
       youtubeTitle: resolvedYoutube?.title ?? null,
       pdfMetadata: data.pdfMetadata ? JSON.stringify(data.pdfMetadata) : null,
       isDefault: false,
-      sortOrder: maxSort + 1,
+      sortOrder: nextSortOrder,
       createdAt: now,
       updatedAt: now,
     };
