@@ -17,6 +17,6 @@ CREATE UNIQUE INDEX `song_preset_songs_order_unique` ON `song_preset_songs` (`pr
 CREATE INDEX `song_preset_songs_song_idx` ON `song_preset_songs` (`song_id`);--> statement-breakpoint
 ALTER TABLE `conti_songs` ADD `mashup_group_id` text;--> statement-breakpoint
 ALTER TABLE `conti_songs` ADD `mashup_part_order` integer;--> statement-breakpoint
-ALTER TABLE `conti_songs` ADD `pre_mashup_preset_id` text REFERENCES song_presets(id);--> statement-breakpoint
+ALTER TABLE `conti_songs` ADD `pre_mashup_preset_id` text REFERENCES song_presets(id) ON DELETE SET NULL;--> statement-breakpoint
 ALTER TABLE `song_presets` ADD `preset_type` text DEFAULT 'single' NOT NULL;--> statement-breakpoint
 ALTER TABLE `song_presets` ADD `display_title` text;
