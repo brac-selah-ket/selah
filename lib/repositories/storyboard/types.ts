@@ -37,6 +37,8 @@ export interface SnapshotSheetMusicFile {
 export interface SnapshotSongPreset {
   id: string;
   songId: string;
+  presetType: string;
+  displayTitle: string | null;
   name: string;
   keys: string | null;
   tempos: string | null;
@@ -51,6 +53,14 @@ export interface SnapshotSongPreset {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SnapshotSongPresetSong {
+  id: string;
+  presetId: string;
+  songId: string;
+  sortOrder: number;
+  partLabel: string | null;
 }
 
 export interface SnapshotPresetSheetMusic {
@@ -82,6 +92,9 @@ export interface SnapshotContiSong {
   notes: string | null;
   sheetMusicFileIds: string | null;
   presetId: string | null;
+  mashupGroupId: string | null;
+  mashupPartOrder: number | null;
+  preMashupPresetId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -112,6 +125,7 @@ export interface StoryboardSnapshot {
   songs: SnapshotSong[];
   sheetMusicFiles: SnapshotSheetMusicFile[];
   songPresets: SnapshotSongPreset[];
+  songPresetSongs: SnapshotSongPresetSong[];
   presetSheetMusic: SnapshotPresetSheetMusic[];
   contis: SnapshotConti[];
   contiSongs: SnapshotContiSong[];

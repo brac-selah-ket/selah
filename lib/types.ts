@@ -8,6 +8,7 @@ import type {
   contiPdfExports,
   songPageImages,
   presetSheetMusic,
+  songPresetSongs,
   discordThreadStates,
   discordProcessedMessages,
   discordInteractionReceipts,
@@ -20,6 +21,7 @@ export type Conti = InferSelectModel<typeof contis>;
 export type ContiSong = InferSelectModel<typeof contiSongs>;
 export type SongPreset = InferSelectModel<typeof songPresets>;
 export type PresetSheetMusic = InferSelectModel<typeof presetSheetMusic>;
+export type SongPresetSong = InferSelectModel<typeof songPresetSongs>;
 
 export interface ContiSongOverrides {
   keys: string[];
@@ -53,8 +55,20 @@ export interface PresetPdfMetadata {
   files: PresetPdfFileMetadata[];
 }
 
+export type SongPresetType = 'single' | 'mashup';
+
+export interface SongPresetMember {
+  id: string;
+  presetId: string;
+  songId: string;
+  sortOrder: number;
+  partLabel: string | null;
+  songName?: string;
+}
+
 export interface SongPresetData {
   name: string;
+  displayTitle?: string | null;
   keys: string[];
   tempos: number[];
   sectionOrder: string[];
@@ -75,12 +89,28 @@ export interface SongWithSheetMusic extends Song {
 
 export interface SongPresetWithSheetMusic extends SongPreset {
   sheetMusicFileIds: string[];
+  members: SongPresetMember[];
 }
 
 export interface ContiSongWithSong extends ContiSong {
   song: Song;
   overrides: ContiSongOverrides;
   appliedPreset?: Pick<SongPreset, 'id' | 'name' | 'youtubeReference' | 'youtubeTitle'> | null;
+}
+
+export interface ArrangementItem {
+  key: string;
+  type: 'single' | 'mashup';
+  displayTitle: string;
+  displaySongNames: string[];
+  songs: ContiSongWithSong[];
+  primarySong: ContiSongWithSong;
+  presetId: string | null;
+  sectionOrder: string[];
+  lyrics: string[];
+  sectionLyricsMap: Record<number, number[]>;
+  tempos: number[];
+  keys: string[];
 }
 
 export interface ContiWithSongs extends Conti {

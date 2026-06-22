@@ -64,6 +64,13 @@
       "when": 1780752746192,
       "tag": "0008_pretty_blur",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1782086717238,
+      "tag": "0009_perpetual_zaladane",
+      "breakpoints": true
     }
   ]
 }

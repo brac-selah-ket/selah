@@ -30,6 +30,8 @@ function snapshot(overrides: Partial<StoryboardSnapshot> = {}): StoryboardSnapsh
       {
         id: 'preset-1',
         songId: 'song-1',
+        presetType: 'single',
+        displayTitle: null,
         name: 'Default',
         keys: '["C"]',
         tempos: '[120]',
@@ -44,6 +46,15 @@ function snapshot(overrides: Partial<StoryboardSnapshot> = {}): StoryboardSnapsh
         sortOrder: 0,
         createdAt: now,
         updatedAt: now,
+      },
+    ],
+    songPresetSongs: [
+      {
+        id: 'preset-song-1',
+        presetId: 'preset-1',
+        songId: 'song-1',
+        sortOrder: 0,
+        partLabel: null,
       },
     ],
     presetSheetMusic: [
@@ -78,6 +89,9 @@ function snapshot(overrides: Partial<StoryboardSnapshot> = {}): StoryboardSnapsh
         notes: null,
         sheetMusicFileIds: '["sheet-1"]',
         presetId: 'preset-1',
+        mashupGroupId: null,
+        mashupPartOrder: null,
+        preMashupPresetId: null,
         createdAt: now,
         updatedAt: now,
       },
@@ -209,6 +223,44 @@ describe('verifyStoryboardSnapshots', () => {
       nonStringArrayResult.errors.join('\n'),
       /contiSongs conti-song-1 has invalid sheetMusicFileIds/,
     );
+  });
+
+  it('fails when songPresetSongs reference a missing preset or song', async () => {
+    const base = snapshot({
+      songPresetSongs: [
+        {
+          id: 'preset-song-1',
+          presetId: 'missing-preset',
+          songId: 'missing-song',
+          sortOrder: 0,
+          partLabel: null,
+        },
+      ],
+    });
+
+    const result = await verifyStoryboardSnapshots(snapshot(), base);
+
+    assert.equal(result.ok, false);
+    assert.match(result.errors.join('\n'), /songPresetSongs preset-song-1 references missing song preset missing-preset/);
+    assert.match(result.errors.join('\n'), /songPresetSongs preset-song-1 references missing song missing-song/);
+  });
+
+  it('fails when contiSongs preMashupPresetId references a missing preset', async () => {
+    const turso = snapshot({
+      contiSongs: [
+        {
+          ...snapshot().contiSongs[0],
+          mashupGroupId: 'group-1',
+          mashupPartOrder: 0,
+          preMashupPresetId: 'missing-preset',
+        },
+      ],
+    });
+
+    const result = await verifyStoryboardSnapshots(snapshot(), turso);
+
+    assert.equal(result.ok, false);
+    assert.match(result.errors.join('\n'), /contiSongs conti-song-1 references missing pre-mashup song preset missing-preset/);
   });
 
   it('detects missing, extra, and mismatched Turso rows by id', async () => {

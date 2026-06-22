@@ -8,6 +8,7 @@ import {
   presetSheetMusic,
   sheetMusicFiles,
   songPageImages,
+  songPresetSongs,
   songPresets,
   songs,
 } from '@/lib/db/schema';
@@ -20,6 +21,7 @@ export async function readNeonSnapshot(): Promise<StoryboardSnapshot> {
     songRows,
     sheetMusicFileRows,
     songPresetRows,
+    songPresetSongRows,
     presetSheetMusicRows,
     contiRows,
     contiSongRows,
@@ -29,6 +31,7 @@ export async function readNeonSnapshot(): Promise<StoryboardSnapshot> {
     db.select().from(songs).orderBy(asc(songs.id)),
     db.select().from(sheetMusicFiles).orderBy(asc(sheetMusicFiles.id)),
     db.select().from(songPresets).orderBy(asc(songPresets.id)),
+    db.select().from(songPresetSongs).orderBy(asc(songPresetSongs.id)),
     db.select().from(presetSheetMusic).orderBy(asc(presetSheetMusic.id)),
     db.select().from(contis).orderBy(asc(contis.id)),
     db.select().from(contiSongs).orderBy(asc(contiSongs.id)),
@@ -51,6 +54,7 @@ export async function readNeonSnapshot(): Promise<StoryboardSnapshot> {
       createdAt: dateToDbText(preset.createdAt),
       updatedAt: dateToDbText(preset.updatedAt),
     })),
+    songPresetSongs: songPresetSongRows,
     presetSheetMusic: presetSheetMusicRows,
     contis: contiRows.map((conti) => ({
       ...conti,

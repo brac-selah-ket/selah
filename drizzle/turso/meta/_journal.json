@@ -15,6 +15,13 @@
       "when": 1780752749790,
       "tag": "0001_powerful_deathstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1782086713773,
+      "tag": "0002_grey_fenris",
+      "breakpoints": true
     }
   ]
 }

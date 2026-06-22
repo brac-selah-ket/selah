@@ -6,6 +6,7 @@ import {
   presetSheetMusic,
   sheetMusicFiles,
   songPageImages,
+  songPresetSongs,
   songPresets,
   songs,
 } from '@/lib/db/turso-schema';
@@ -20,6 +21,7 @@ export async function importSnapshotToTurso(snapshot: StoryboardSnapshot): Promi
     await tx.delete(contiPdfExports);
     await tx.delete(presetSheetMusic);
     await tx.delete(contiSongs);
+    await tx.delete(songPresetSongs);
     await tx.delete(songPresets);
     await tx.delete(sheetMusicFiles);
     await tx.delete(contis);
@@ -39,6 +41,10 @@ export async function importSnapshotToTurso(snapshot: StoryboardSnapshot): Promi
 
     if (snapshot.songPresets.length > 0) {
       await tx.insert(songPresets).values(snapshot.songPresets);
+    }
+
+    if (snapshot.songPresetSongs.length > 0) {
+      await tx.insert(songPresetSongs).values(snapshot.songPresetSongs);
     }
 
     if (snapshot.contiSongs.length > 0) {

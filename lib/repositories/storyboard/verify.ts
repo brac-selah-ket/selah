@@ -9,6 +9,7 @@ const snapshotCollections = [
   'songs',
   'sheetMusicFiles',
   'songPresets',
+  'songPresetSongs',
   'presetSheetMusic',
   'contis',
   'contiSongs',
@@ -112,6 +113,18 @@ function verifyTursoRelationships(turso: StoryboardSnapshot, errors: string[]) {
     verifyReference(errors, 'songPresets', preset.id, 'song', preset.songId, songIds);
   }
 
+  for (const presetSong of turso.songPresetSongs) {
+    verifyReference(
+      errors,
+      'songPresetSongs',
+      presetSong.id,
+      'song preset',
+      presetSong.presetId,
+      songPresetIds,
+    );
+    verifyReference(errors, 'songPresetSongs', presetSong.id, 'song', presetSong.songId, songIds);
+  }
+
   for (const presetFile of turso.presetSheetMusic) {
     verifyReference(
       errors,
@@ -142,6 +155,17 @@ function verifyTursoRelationships(turso: StoryboardSnapshot, errors: string[]) {
         contiSong.id,
         'song preset',
         contiSong.presetId,
+        songPresetIds,
+      );
+    }
+
+    if (contiSong.preMashupPresetId !== null) {
+      verifyReference(
+        errors,
+        'contiSongs',
+        contiSong.id,
+        'pre-mashup song preset',
+        contiSong.preMashupPresetId,
         songPresetIds,
       );
     }
