@@ -31,6 +31,8 @@ export function useEditorPages(
     async (savedLayouts: PageLayout[] | null): Promise<EditorPage[]> => {
       const editorPages: EditorPage[] = [];
       const arrangementItems = buildArrangementItems(conti.songs);
+      const isLegacyLayout = (layout: PageLayout) =>
+        layout.arrangementItemKey === undefined || layout.arrangementItemKey === null;
 
       const findSavedLayout = (
         arrangementItemKey: string,
@@ -50,11 +52,13 @@ export function useEditorPages(
         return savedLayouts?.find(
           (l) =>
             l.songIndex === legacySongIndex &&
+            isLegacyLayout(l) &&
             l.sheetMusicFileId === sheetMusicFileId &&
             (l.pdfPageIndex ?? null) === pdfPageIndex,
         ) ?? savedLayouts?.find(
           (l) =>
             l.songIndex === displayIndex &&
+            isLegacyLayout(l) &&
             l.sheetMusicFileId === sheetMusicFileId &&
             (l.pdfPageIndex ?? null) === pdfPageIndex,
         );
@@ -68,11 +72,13 @@ export function useEditorPages(
         savedLayouts?.find(
           (l) =>
             l.songIndex === legacySongIndex &&
+            isLegacyLayout(l) &&
             l.sheetMusicFileId === sheetMusicFileId &&
             l.pageIndex === editorPages.length,
         ) ?? savedLayouts?.find(
           (l) =>
             l.songIndex === displayIndex &&
+            isLegacyLayout(l) &&
             l.sheetMusicFileId === sheetMusicFileId &&
             l.pageIndex === editorPages.length,
         );

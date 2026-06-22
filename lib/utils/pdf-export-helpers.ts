@@ -85,6 +85,8 @@ export function extractPresetPdfMetadataFromLayout(
   songIndex: number,
   arrangementItemKey?: string | null,
 ): PresetPdfMetadata | null {
+  const isLegacyLayout = (layout: PageLayout) =>
+    layout.arrangementItemKey === undefined || layout.arrangementItemKey === null;
   const keyLayouts = arrangementItemKey
     ? pageLayouts.filter(
         (layout) =>
@@ -96,7 +98,10 @@ export function extractPresetPdfMetadataFromLayout(
     keyLayouts.length > 0
       ? keyLayouts
       : pageLayouts.filter(
-          (layout) => layout.songIndex === songIndex && layout.sheetMusicFileId,
+          (layout) =>
+            layout.songIndex === songIndex &&
+            layout.sheetMusicFileId &&
+            (!arrangementItemKey || isLegacyLayout(layout)),
         );
 
   if (songLayouts.length === 0) {

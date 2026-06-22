@@ -664,7 +664,22 @@ export const neonStoryboardRepository: StoryboardRepository = {
       if (layoutStateText) {
         try {
           const parsed = JSON.parse(layoutStateText) as PdfLayoutState;
-          pdfMetadata = extractPresetPdfMetadataFromLayout(parsed.pages, songIndex);
+          const conti = await this.getConti(cs.contiId);
+          const arrangementItems = conti ? buildArrangementItems(conti.songs) : [];
+          const itemIndex = arrangementItems.findIndex((item) =>
+            item.songs.some((song) => song.id === contiSongId),
+          );
+
+          if (itemIndex >= 0) {
+            const item = arrangementItems[itemIndex];
+            pdfMetadata = extractPresetPdfMetadataFromLayout(
+              parsed.pages,
+              itemIndex,
+              item.key,
+            );
+          } else {
+            pdfMetadata = extractPresetPdfMetadataFromLayout(parsed.pages, songIndex);
+          }
         } catch {
           pdfMetadata = null;
         }
