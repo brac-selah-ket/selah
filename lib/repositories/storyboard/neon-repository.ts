@@ -36,7 +36,7 @@ import type {
   StoryboardRepository,
 } from './types';
 import { extractPresetPdfMetadataFromLayout } from '@/lib/utils/pdf-export-helpers';
-import { getOrderedSongPairKey } from '@/lib/utils/mashup-presets';
+import { buildBlankMashupPresetData, getOrderedSongPairKey } from '@/lib/utils/mashup-presets';
 import { songPresetToContiOverrides } from '@/lib/utils/preset-overrides';
 import { normalizeYouTubeReference } from '@/lib/utils/youtube';
 import { and, asc, desc, eq, ilike, inArray, max } from 'drizzle-orm';
@@ -710,6 +710,7 @@ export const neonStoryboardRepository: StoryboardRepository = {
   ): Promise<BatchImportSongsToContiResult> {
     let created = 0;
     let presetUpdated = 0;
+    let mashupsApplied = 0;
 
     const maxResult = await db
       .select({ maxOrder: max(contiSongs.sortOrder) })
@@ -718,17 +719,21 @@ export const neonStoryboardRepository: StoryboardRepository = {
 
     let nextSortOrder = (maxResult[0]?.maxOrder ?? -1) + 1;
     const newSongMap = new Map<string, string>();
+    const importedRows: Array<{ contiSongId: string | null; songId: string; songName: string }> = [];
 
     for (const item of items) {
       let resolvedSongId: string;
+      let resolvedSongName: string;
       let appliedPresetId = item.presetId ?? null;
       let appliedPresetOverrides: ContiSongOverrides | null = null;
 
       if (item.songId) {
         resolvedSongId = item.songId;
+        resolvedSongName = item.songName?.trim() || item.newSongName?.trim() || item.title || item.songId;
       } else {
         const trimmedName = item.newSongName!.trim();
         const normalizedKey = trimmedName.toLowerCase();
+        resolvedSongName = trimmedName;
 
         if (newSongMap.has(normalizedKey)) {
           resolvedSongId = newSongMap.get(normalizedKey)!;
@@ -783,19 +788,61 @@ export const neonStoryboardRepository: StoryboardRepository = {
             .set({ ...stringifyContiSongOverrides(appliedPresetOverrides), updatedAt: new Date() })
             .where(and(eq(contiSongs.contiId, contiId), eq(contiSongs.songId, resolvedSongId)));
         }
+        const existingRows = await db
+          .select({ id: contiSongs.id })
+          .from(contiSongs)
+          .where(and(eq(contiSongs.contiId, contiId), eq(contiSongs.songId, resolvedSongId)))
+          .limit(1);
+        importedRows.push({ contiSongId: existingRows[0]?.id ?? null, songId: resolvedSongId, songName: resolvedSongName });
         presetUpdated++;
       } else {
-        await insertContiSong(
+        const contiSong = await insertContiSong(
           db,
           contiId,
           resolvedSongId,
           nextSortOrder++,
           appliedPresetOverrides ?? undefined,
         );
+        importedRows.push({ contiSongId: contiSong.id, songId: resolvedSongId, songName: resolvedSongName });
       }
     }
 
-    return { added: items.length - presetUpdated, created, presetUpdated };
+    for (let index = 0; index < items.length - 1; index++) {
+      const mashupLink = items[index].mashupWithNext;
+      if (!mashupLink) continue;
+
+      const first = importedRows[index];
+      const second = importedRows[index + 1];
+      if (!first?.contiSongId || !second?.contiSongId || first.songId === second.songId) continue;
+
+      let presetId = mashupLink.presetId;
+      if (!presetId && mashupLink.createNewPreset !== false) {
+        const blankPresetData = buildBlankMashupPresetData([first.songName, second.songName]);
+        const createdPreset = await this.createMashupPreset(
+          {
+            songIds: [first.songId, second.songId],
+            data: {
+              ...blankPresetData,
+              name: mashupLink.presetName.trim() || blankPresetData.name,
+            },
+          },
+          null,
+        );
+        presetId = createdPreset.id;
+      }
+
+      if (presetId) {
+        await this.applyMashupToContiSongs({
+          contiId,
+          firstContiSongId: first.contiSongId,
+          secondContiSongId: second.contiSongId,
+          presetId,
+        });
+        mashupsApplied++;
+      }
+    }
+
+    return { added: items.length - presetUpdated, created, presetUpdated, mashupsApplied };
   },
 
   async createSongPreset(songId: string, data, resolvedYoutube: ResolvedYouTubeMetadata | null) {

@@ -2,6 +2,12 @@ import type { Song, SongPreset } from "@/lib/types"
 
 export type YouTubeImportSongMatch = Pick<Song, "id" | "name">
 
+export interface YouTubeImportMashupLink {
+  presetId: string | null
+  createNewPreset: boolean
+  presetName: string
+}
+
 export interface YouTubeImportReviewItem {
   id: string
   originalTitle: string
@@ -16,10 +22,12 @@ export interface YouTubeImportReviewItem {
   presets: SongPreset[] | null
   existingYoutubeRef: string | null
   replaceExistingYoutube: boolean
+  mashupWithNext: YouTubeImportMashupLink | null
 }
 
 export interface BatchImportPayloadItem {
   songId: string | null
+  songName: string | null
   newSongName: string | null
   videoId: string
   title: string
@@ -28,6 +36,7 @@ export interface BatchImportPayloadItem {
   presetName: string
   alreadyInConti: boolean
   replaceExistingYoutube: boolean
+  mashupWithNext: YouTubeImportMashupLink | null
 }
 
 export function buildBatchImportItems(
@@ -35,9 +44,20 @@ export function buildBatchImportItems(
   defaultPresetName: string,
 ): BatchImportPayloadItem[] {
   return items
-    .filter((item) => !item.excluded)
-    .map((item) => ({
+    .map((item, index) => ({
+      item,
+      mashupWithNext:
+        item.mashupWithNext &&
+          !item.excluded &&
+          items[index + 1] &&
+          !items[index + 1].excluded
+          ? item.mashupWithNext
+          : null,
+    }))
+    .filter(({ item }) => !item.excluded)
+    .map(({ item, mashupWithNext }) => ({
       songId: item.matchedSong?.id ?? null,
+      songName: item.matchedSong?.name ?? null,
       newSongName: item.matchedSong ? null : item.editedName.trim(),
       videoId: item.videoId,
       title: item.originalTitle,
@@ -46,5 +66,6 @@ export function buildBatchImportItems(
       presetName: item.presetName || defaultPresetName,
       alreadyInConti: item.isAlreadyInConti,
       replaceExistingYoutube: item.existingYoutubeRef ? item.replaceExistingYoutube : true,
+      mashupWithNext,
     }))
 }

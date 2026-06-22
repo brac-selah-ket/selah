@@ -187,6 +187,7 @@ export interface ContiSongPresetSource {
 
 export interface BatchImportSongsToContiItem {
   songId: string | null;
+  songName?: string | null;
   newSongName: string | null;
   videoId?: string | null;
   title?: string | null;
@@ -195,12 +196,18 @@ export interface BatchImportSongsToContiItem {
   presetName?: string | null;
   alreadyInConti?: boolean;
   replaceExistingYoutube?: boolean;
+  mashupWithNext?: {
+    presetId: string | null;
+    createNewPreset: boolean;
+    presetName: string;
+  } | null;
 }
 
 export interface BatchImportSongsToContiResult {
   added: number;
   created: number;
   presetUpdated: number;
+  mashupsApplied: number;
 }
 
 export interface CreateMashupPresetInput {

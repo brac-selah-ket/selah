@@ -226,6 +226,7 @@ export async function splitMashup(input: z.input<typeof splitMashupSchema>): Pro
 
 const batchImportItemSchema = z.object({
   songId: z.string().nullable(),
+  songName: z.string().nullable().optional().default(null),
   newSongName: z.string().nullable(),
   videoId: z.string().nullable().optional().default(null),
   title: z.string().nullable().optional().default(null),
@@ -234,6 +235,15 @@ const batchImportItemSchema = z.object({
   presetName: z.string().nullable().optional().default(null),
   alreadyInConti: z.boolean().optional().default(false),
   replaceExistingYoutube: z.boolean().optional().default(true),
+  mashupWithNext: z
+    .object({
+      presetId: z.string().nullable().optional().default(null),
+      createNewPreset: z.boolean().optional().default(true),
+      presetName: z.string().optional().default(''),
+    })
+    .nullable()
+    .optional()
+    .default(null),
 })
 
 const batchImportSchema = z.object({
@@ -245,6 +255,7 @@ export async function batchImportSongsToConti(
   contiId: string,
   items: Array<{
     songId: string | null
+    songName?: string | null
     newSongName: string | null
     videoId?: string | null
     title?: string | null
@@ -253,8 +264,13 @@ export async function batchImportSongsToConti(
     presetName?: string | null
     alreadyInConti?: boolean
     replaceExistingYoutube?: boolean
+    mashupWithNext?: {
+      presetId: string | null
+      createNewPreset: boolean
+      presetName: string
+    } | null
   }>
-): Promise<ActionResult<{ added: number; created: number; presetUpdated: number }>> {
+): Promise<ActionResult<{ added: number; created: number; presetUpdated: number; mashupsApplied: number }>> {
   try {
     const validation = batchImportSchema.safeParse({ contiId, items })
     if (!validation.success) {
