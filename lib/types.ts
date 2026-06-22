@@ -90,6 +90,7 @@ export interface SongWithSheetMusic extends Song {
 export interface SongPresetWithSheetMusic extends SongPreset {
   sheetMusicFileIds: string[];
   members: SongPresetMember[];
+  availableSheetMusic?: SheetMusicFile[];
 }
 
 export interface ContiSongWithSong extends ContiSong {
@@ -130,9 +131,13 @@ export interface ContiSongSummary {
   sectionOrder: string[]
   presetId: string | null
   presetName: string | null
+  presetType: SongPresetType | null
+  presetDisplayTitle: string | null
   youtubeReference: string | null
   youtubeTitle: string | null
   hasSheetMusicSelection: boolean
+  mashupGroupId: string | null
+  mashupPartOrder: number | null
 }
 
 export interface ContiWithSongSummaries extends Conti {

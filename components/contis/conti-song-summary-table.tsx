@@ -19,23 +19,14 @@ import {
 } from "@hugeicons/core-free-icons"
 import { splitMashup } from "@/lib/actions/conti-songs"
 import { buildArrangementItems } from "@/lib/utils/arrangement-items"
+import {
+  buildContiSongSummaryItems,
+  type ContiSongSummaryItem,
+} from "@/lib/utils/conti-song-summary-items"
 import type { ArrangementItem, ContiSongSummary, ContiSongWithSong } from "@/lib/types"
 
 type SummaryRow = ContiSongSummary | ContiSongWithSong
-type RenderItem =
-  | {
-      key: string
-      type: "summary"
-      displayTitle: string
-      displaySongNames: string[]
-      songs: [ContiSongSummary]
-      primarySong: ContiSongSummary
-      presetId: string | null
-      sectionOrder: string[]
-      tempos: number[]
-      keys: string[]
-    }
-  | ArrangementItem
+type RenderItem = ContiSongSummaryItem | ArrangementItem
 
 interface ContiSongSummaryTableProps {
   songs: SummaryRow[]
@@ -52,33 +43,26 @@ function isContiSongWithSong(song: SummaryRow): song is ContiSongWithSong {
   return "song" in song
 }
 
-function buildSummaryItem(song: ContiSongSummary): RenderItem {
-  return {
-    key: `summary:${song.id}`,
-    type: "summary",
-    displayTitle: song.songName,
-    displaySongNames: [song.songName],
-    songs: [song],
-    primarySong: song,
-    presetId: song.presetId,
-    sectionOrder: song.sectionOrder,
-    tempos: song.tempos,
-    keys: song.keys,
-  }
+function isContiSongSummary(song: SummaryRow): song is ContiSongSummary {
+  return !isContiSongWithSong(song)
+}
+
+function isSummaryItem(item: RenderItem): item is ContiSongSummaryItem {
+  return !("song" in item.primarySong)
 }
 
 function getItemPresetName(item: RenderItem): string | null {
-  if (item.type === "summary") return item.primarySong.presetName
+  if (isSummaryItem(item)) return item.presetName
   return item.primarySong.appliedPreset?.name ?? (item.presetId ? "프리셋 적용" : null)
 }
 
 function getItemYoutubeReference(item: RenderItem): string | null {
-  if (item.type === "summary") return item.primarySong.youtubeReference
+  if (isSummaryItem(item)) return item.primarySong.youtubeReference
   return item.primarySong.appliedPreset?.youtubeReference ?? null
 }
 
 function getItemYoutubeTitle(item: RenderItem): string | null {
-  if (item.type === "summary") return item.primarySong.youtubeTitle
+  if (isSummaryItem(item)) return item.primarySong.youtubeTitle
   return item.primarySong.appliedPreset?.youtubeTitle ?? null
 }
 
@@ -95,14 +79,14 @@ function getItemKeyTempoSummary(item: RenderItem): string {
 }
 
 function getPrimaryContiSong(item: RenderItem): ContiSongWithSong | null {
-  return item.type === "summary" ? null : item.primarySong
+  return isSummaryItem(item) ? null : item.primarySong
 }
 
 function isSingleContiSongItem(item: RenderItem): item is ArrangementItem & { type: "single" } {
-  return item.type === "single"
+  return item.type === "single" && !isSummaryItem(item)
 }
 
-function isMashupItem(item: RenderItem): item is ArrangementItem & { type: "mashup" } {
+function isMashupItem(item: RenderItem): item is RenderItem & { type: "mashup" } {
   return item.type === "mashup"
 }
 
@@ -150,8 +134,9 @@ export function ContiSongSummaryTable({
   const [connectPair, setConnectPair] = useState<[ContiSongWithSong, ContiSongWithSong] | null>(null)
   const items = useMemo<RenderItem[]>(() => {
     if (songs.every(isContiSongWithSong)) return buildArrangementItems(songs)
+    if (songs.every(isContiSongSummary)) return buildContiSongSummaryItems(songs)
     return songs.map((song) => (
-      isContiSongWithSong(song) ? buildArrangementItems([song])[0] : buildSummaryItem(song)
+      isContiSongWithSong(song) ? buildArrangementItems([song])[0] : buildContiSongSummaryItems([song])[0]
     ))
   }, [songs])
   const rawIndexById = useMemo(() => {
@@ -277,7 +262,7 @@ export function ContiSongSummaryTable({
                       disabled={isSplitting}
                       onClick={(event) => {
                         stopRowClick(event)
-                        splitItem(item)
+                        if (!isSummaryItem(item)) splitItem(item)
                       }}
                     >
                       <HugeiconsIcon icon={SplitIcon} strokeWidth={2} className="size-3.5" />
@@ -444,7 +429,7 @@ export function ContiSongSummaryTable({
                       disabled={isSplitting}
                       onClick={(event) => {
                         stopRowClick(event)
-                        splitItem(item)
+                        if (!isSummaryItem(item)) splitItem(item)
                       }}
                     >
                       <HugeiconsIcon icon={SplitIcon} strokeWidth={2} className="size-3.5" />

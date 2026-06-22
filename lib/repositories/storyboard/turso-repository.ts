@@ -290,6 +290,47 @@ async function getPresetOverridesForSong(presetId: string, songId: string): Prom
   );
 }
 
+async function getPresetEditorSheetMusicRows(
+  members: readonly SongPresetMember[],
+  selectedSheetMusicFileIds: readonly string[],
+): Promise<SheetMusicFile[]> {
+  const tursoDb = getTursoDb();
+  const filesById = new Map<string, SheetMusicFile>();
+  const memberSongIds = Array.from(new Set(
+    members
+      .slice()
+      .sort((left, right) => left.sortOrder - right.sortOrder)
+      .map((member) => member.songId),
+  ));
+
+  for (const songId of memberSongIds) {
+    const rows = await tursoDb
+      .select()
+      .from(sheetMusicFiles)
+      .where(eq(sheetMusicFiles.songId, songId))
+      .orderBy(sheetMusicFiles.sortOrder);
+    for (const row of rows.map(mapSheetMusicFile)) {
+      filesById.set(row.id, row);
+    }
+  }
+
+  if (selectedSheetMusicFileIds.length > 0) {
+    const selectedRows = await tursoDb
+      .select()
+      .from(sheetMusicFiles)
+      .where(inArray(sheetMusicFiles.id, [...selectedSheetMusicFileIds]));
+    const selectedById = new Map(selectedRows.map((row) => [row.id, mapSheetMusicFile(row)]));
+    for (const id of selectedSheetMusicFileIds) {
+      const row = selectedById.get(id);
+      if (row && !filesById.has(row.id)) {
+        filesById.set(row.id, row);
+      }
+    }
+  }
+
+  return Array.from(filesById.values());
+}
+
 export const tursoStoryboardRepository: StoryboardRepository = {
   async getSongs() {
     const tursoDb = getTursoDb();
@@ -354,11 +395,16 @@ export const tursoStoryboardRepository: StoryboardRepository = {
           .from(presetSheetMusic)
           .where(eq(presetSheetMusic.presetId, preset.id))
           .orderBy(presetSheetMusic.sortOrder);
+        const sheetMusicFileIds = sheetMusicRows.map(r => r.sheetMusicFileId);
+        const members = await this.getPresetMembers(preset.id);
 
         return {
           ...preset,
-          sheetMusicFileIds: sheetMusicRows.map(r => r.sheetMusicFileId),
-          members: await this.getPresetMembers(preset.id),
+          sheetMusicFileIds,
+          members,
+          availableSheetMusic: preset.presetType === "mashup"
+            ? await getPresetEditorSheetMusicRows(members, sheetMusicFileIds)
+            : undefined,
         };
       })
     );
@@ -379,11 +425,15 @@ export const tursoStoryboardRepository: StoryboardRepository = {
     }
 
     const sheetMusicFileIds = await this.getPresetSheetMusicFileIds(presetId);
+    const members = await this.getPresetMembers(presetId);
 
     return {
       ...mapSongPreset(presetRows[0]),
       sheetMusicFileIds,
-      members: await this.getPresetMembers(presetId),
+      members,
+      availableSheetMusic: presetRows[0].presetType === "mashup"
+        ? await getPresetEditorSheetMusicRows(members, sheetMusicFileIds)
+        : undefined,
     };
   },
 
@@ -456,6 +506,8 @@ export const tursoStoryboardRepository: StoryboardRepository = {
         contiSong: contiSongs,
         songName: songs.name,
         presetName: songPresets.name,
+        presetType: songPresets.presetType,
+        presetDisplayTitle: songPresets.displayTitle,
         youtubeReference: songPresets.youtubeReference,
         youtubeTitle: songPresets.youtubeTitle,
       })
@@ -490,9 +542,13 @@ export const tursoStoryboardRepository: StoryboardRepository = {
         sectionOrder: parsed.sectionOrder,
         presetId: parsed.presetId,
         presetName: row.presetName ?? null,
+        presetType: row.presetType ?? null,
+        presetDisplayTitle: row.presetDisplayTitle ?? null,
         youtubeReference: row.youtubeReference ?? null,
         youtubeTitle: row.youtubeTitle ?? null,
         hasSheetMusicSelection: parsed.sheetMusicFileIds !== null && parsed.sheetMusicFileIds.length > 0,
+        mashupGroupId: row.contiSong.mashupGroupId,
+        mashupPartOrder: row.contiSong.mashupPartOrder,
       });
       byContiId.set(row.contiSong.contiId, summaries);
     }

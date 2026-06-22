@@ -10,6 +10,7 @@ import {
   arrangementDraftToSongPresetData,
   songPresetToDraft,
 } from "@/lib/utils/song-preset-draft"
+import { buildPresetEditorSheetMusic } from "@/lib/utils/preset-editor-sheet-music"
 import type {
   SheetMusicFile,
   SongPresetWithSheetMusic,
@@ -26,6 +27,7 @@ interface PresetEditorProps {
 export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }: PresetEditorProps) {
   const router = useRouter()
   const initialDraft = songPresetToDraft(preset)
+  const editorSheetMusic = buildPresetEditorSheetMusic(preset, sheetMusic)
   const [sheetMusicLoading, setSheetMusicLoading] = useState(false)
   const [sheetMusicPreviewPrepared, setSheetMusicPreviewPrepared] = useState(false)
   const [sheetMusicPreviewItem, setSheetMusicPreviewItem] = useState<SheetMusicPreviewItem | null>(null)
@@ -102,7 +104,7 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
       songName={preset?.name ?? "새 프리셋"}
       open={open}
       initialDraft={initialDraft}
-      availableSheetMusic={sheetMusic}
+      availableSheetMusic={editorSheetMusic}
       sheetMusicPreviewItem={currentPreviewItem}
       sheetMusicLoading={previewLoading}
       sheetMusicWorkspacePreview

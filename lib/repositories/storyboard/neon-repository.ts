@@ -21,6 +21,7 @@ import type {
   ContiWithSongsAndSheetMusic,
   PdfLayoutState,
   PresetPdfMetadata,
+  SheetMusicFile,
   SongPreset,
   SongPresetMember,
   SongPresetWithSheetMusic,
@@ -114,6 +115,46 @@ async function getPresetOverridesForSong(presetId: string, songId: string): Prom
   );
 }
 
+async function getPresetEditorSheetMusicRows(
+  members: readonly SongPresetMember[],
+  selectedSheetMusicFileIds: readonly string[],
+): Promise<SheetMusicFile[]> {
+  const filesById = new Map<string, SheetMusicFile>();
+  const memberSongIds = Array.from(new Set(
+    members
+      .slice()
+      .sort((left, right) => left.sortOrder - right.sortOrder)
+      .map((member) => member.songId),
+  ));
+
+  for (const songId of memberSongIds) {
+    const rows = await db
+      .select()
+      .from(sheetMusicFiles)
+      .where(eq(sheetMusicFiles.songId, songId))
+      .orderBy(sheetMusicFiles.sortOrder);
+    for (const row of rows) {
+      filesById.set(row.id, row);
+    }
+  }
+
+  if (selectedSheetMusicFileIds.length > 0) {
+    const selectedRows = await db
+      .select()
+      .from(sheetMusicFiles)
+      .where(inArray(sheetMusicFiles.id, [...selectedSheetMusicFileIds]));
+    const selectedById = new Map(selectedRows.map((row) => [row.id, row]));
+    for (const id of selectedSheetMusicFileIds) {
+      const row = selectedById.get(id);
+      if (row && !filesById.has(row.id)) {
+        filesById.set(row.id, row);
+      }
+    }
+  }
+
+  return Array.from(filesById.values());
+}
+
 export const neonStoryboardRepository: StoryboardRepository = {
   async getSongs() {
     return await db.select().from(songs).orderBy(desc(songs.createdAt));
@@ -170,11 +211,16 @@ export const neonStoryboardRepository: StoryboardRepository = {
           .from(presetSheetMusic)
           .where(eq(presetSheetMusic.presetId, preset.id))
           .orderBy(presetSheetMusic.sortOrder);
+        const sheetMusicFileIds = sheetMusicRows.map(r => r.sheetMusicFileId);
+        const members = await this.getPresetMembers(preset.id);
 
         return {
           ...preset,
-          sheetMusicFileIds: sheetMusicRows.map(r => r.sheetMusicFileId),
-          members: await this.getPresetMembers(preset.id),
+          sheetMusicFileIds,
+          members,
+          availableSheetMusic: preset.presetType === "mashup"
+            ? await getPresetEditorSheetMusicRows(members, sheetMusicFileIds)
+            : undefined,
         };
       })
     );
@@ -194,11 +240,15 @@ export const neonStoryboardRepository: StoryboardRepository = {
     }
 
     const sheetMusicFileIds = await this.getPresetSheetMusicFileIds(presetId);
+    const members = await this.getPresetMembers(presetId);
 
     return {
       ...presetRows[0],
       sheetMusicFileIds,
-      members: await this.getPresetMembers(presetId),
+      members,
+      availableSheetMusic: presetRows[0].presetType === "mashup"
+        ? await getPresetEditorSheetMusicRows(members, sheetMusicFileIds)
+        : undefined,
     };
   },
 
@@ -266,6 +316,8 @@ export const neonStoryboardRepository: StoryboardRepository = {
         contiSong: contiSongs,
         songName: songs.name,
         presetName: songPresets.name,
+        presetType: songPresets.presetType,
+        presetDisplayTitle: songPresets.displayTitle,
         youtubeReference: songPresets.youtubeReference,
         youtubeTitle: songPresets.youtubeTitle,
       })
@@ -300,9 +352,13 @@ export const neonStoryboardRepository: StoryboardRepository = {
         sectionOrder: parsed.sectionOrder,
         presetId: parsed.presetId,
         presetName: row.presetName ?? null,
+        presetType: row.presetType ?? null,
+        presetDisplayTitle: row.presetDisplayTitle ?? null,
         youtubeReference: row.youtubeReference ?? null,
         youtubeTitle: row.youtubeTitle ?? null,
         hasSheetMusicSelection: parsed.sheetMusicFileIds !== null && parsed.sheetMusicFileIds.length > 0,
+        mashupGroupId: row.contiSong.mashupGroupId,
+        mashupPartOrder: row.contiSong.mashupPartOrder,
       });
       byContiId.set(row.contiSong.contiId, summaries);
     }
