@@ -41,6 +41,7 @@ import type {
   StoryboardRepository,
 } from './types';
 import { extractPresetPdfMetadataFromLayout } from '@/lib/utils/pdf-export-helpers';
+import { buildArrangementItems } from '@/lib/utils/arrangement-items';
 import { buildBlankMashupPresetData, getOrderedSongPairKey } from '@/lib/utils/mashup-presets';
 import { songPresetToContiOverrides } from '@/lib/utils/preset-overrides';
 import { normalizeYouTubeReference } from '@/lib/utils/youtube';
@@ -900,19 +901,21 @@ export const tursoStoryboardRepository: StoryboardRepository = {
 
   async syncPresetPdfMetadataFromContiLayout(contiId: string, layoutState: PdfLayoutState) {
     const tursoDb = getTursoDb();
-    const orderedSongs = await tursoDb
-      .select({ id: contiSongs.id, presetId: contiSongs.presetId })
-      .from(contiSongs)
-      .where(eq(contiSongs.contiId, contiId))
-      .orderBy(asc(contiSongs.sortOrder));
+    const conti = await this.getConti(contiId);
+    if (!conti) {
+      return { updatedPresetCount: 0 };
+    }
 
     let updatedPresetCount = 0;
+    const updatedPresetIds = new Set<string>();
+    const arrangementItems = buildArrangementItems(conti.songs);
 
-    for (let songIndex = 0; songIndex < orderedSongs.length; songIndex++) {
-      const presetId = orderedSongs[songIndex].presetId;
-      if (!presetId) continue;
+    for (let itemIndex = 0; itemIndex < arrangementItems.length; itemIndex++) {
+      const item = arrangementItems[itemIndex];
+      const presetId = item.presetId;
+      if (!presetId || updatedPresetIds.has(presetId)) continue;
 
-      const metadata = extractPresetPdfMetadataFromLayout(layoutState.pages, songIndex);
+      const metadata = extractPresetPdfMetadataFromLayout(layoutState.pages, itemIndex, item.key);
       await tursoDb
         .update(songPresets)
         .set({
@@ -920,6 +923,7 @@ export const tursoStoryboardRepository: StoryboardRepository = {
           updatedAt: dateToDbText(new Date()),
         })
         .where(eq(songPresets.id, presetId));
+      updatedPresetIds.add(presetId);
       updatedPresetCount += 1;
     }
 

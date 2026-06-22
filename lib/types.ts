@@ -166,6 +166,7 @@ export interface OverlayElement {
 export interface PageLayout {
   pageIndex: number;
   songIndex: number;
+  arrangementItemKey?: string | null;
   sheetMusicFileId: string | null;
   pdfPageIndex?: number | null;
   overlays: OverlayElement[];

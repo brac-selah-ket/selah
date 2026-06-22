@@ -5,6 +5,7 @@ import html2canvas from "html2canvas";
 import { getSheetMusicAssetUrl } from "@/lib/sheet-music-assets";
 import { generatePdfFilename } from "@/lib/utils/pdf-export-helpers";
 import { renderPdfPageToDataUrl } from "@/lib/utils/pdfjs";
+import { buildArrangementItems } from "@/lib/utils/arrangement-items";
 import {
   exportContiPdf,
 } from "@/lib/actions/conti-pdf-exports";
@@ -41,9 +42,15 @@ export function usePdfExport(
       const canvasWidth = containerRef.current?.clientWidth ?? 768;
       const canvasHeight =
         containerRef.current?.clientHeight ?? Math.round(768 * 1.414);
+      const arrangementItems = buildArrangementItems(conti.songs);
+      const getArrangementItemForPage = (page: EditorPage) =>
+        arrangementItems.find((item) => item.key === page.arrangementItemKey) ??
+        arrangementItems[page.displayIndex] ??
+        arrangementItems[page.songIndex] ??
+        null;
 
       // Generate meaningful filename
-      const songNames = conti.songs.map((cs) => cs.song.name);
+      const songNames = arrangementItems.map((item) => item.displayTitle);
       const pdfFilename = generatePdfFilename(
         conti.title,
         conti.date,
@@ -89,6 +96,7 @@ export function usePdfExport(
         document.body.appendChild(renderDiv);
 
         let page = pages[i];
+        const arrangementItem = getArrangementItemForPage(page);
 
         // If this is a PDF page that hasn't been rendered yet, render it now
         if (
@@ -213,7 +221,7 @@ export function usePdfExport(
           });
         } else {
           // Metadata-only page or unrendered PDF page
-          const songName = conti.songs[page.songIndex]?.song.name ?? "";
+          const songName = arrangementItem?.displayTitle ?? "";
           const placeholder = document.createElement("div");
           placeholder.style.position = "absolute";
           placeholder.style.inset = "0";
@@ -272,21 +280,20 @@ export function usePdfExport(
         const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
 
         // Collect page data for per-song image storage
-        const contiSong = conti.songs[page.songIndex];
-        if (contiSong) {
+        if (arrangementItem) {
           pageUploads.push({
             dataUrl,
-            songId: contiSong.songId,
+            songId: arrangementItem.primarySong.songId,
             pageIndex: i,
             sheetMusicFileId: page.sheetMusicFileId,
             pdfPageIndex: page.pdfPageIndex ?? null,
             presetSnapshot: JSON.stringify({
-              keys: contiSong.overrides.keys,
-              tempos: contiSong.overrides.tempos,
-              sectionOrder: contiSong.overrides.sectionOrder,
-              lyrics: contiSong.overrides.lyrics,
-              sectionLyricsMap: contiSong.overrides.sectionLyricsMap,
-              notes: contiSong.overrides.notes ?? null,
+              keys: arrangementItem.keys,
+              tempos: arrangementItem.tempos,
+              sectionOrder: arrangementItem.sectionOrder,
+              lyrics: arrangementItem.lyrics,
+              sectionLyricsMap: arrangementItem.sectionLyricsMap,
+              notes: arrangementItem.primarySong.overrides.notes ?? null,
             }),
           });
         }

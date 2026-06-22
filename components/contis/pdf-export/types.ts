@@ -6,6 +6,9 @@ import type {
 
 export interface EditorPage {
   songIndex: number;
+  arrangementItemKey: string;
+  displayIndex: number;
+  primaryContiSongId: string;
   sheetMusicFileId: string | null;
   /** For image files: the file URL. For PDF pages: a rendered data URL. For metadata-only: null. */
   imageUrl: string | null;

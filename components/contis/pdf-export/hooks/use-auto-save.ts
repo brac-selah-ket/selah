@@ -22,7 +22,8 @@ export function useAutoSave(
     return {
       pages: pages.map((p, i) => ({
         pageIndex: i,
-        songIndex: p.songIndex,
+        songIndex: p.displayIndex,
+        arrangementItemKey: p.arrangementItemKey,
         sheetMusicFileId: p.sheetMusicFileId,
         pdfPageIndex: p.pdfPageIndex,
         overlays: p.overlays,
