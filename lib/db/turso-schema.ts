@@ -4,6 +4,7 @@ import type { SongPresetType } from '@/lib/song-preset-types';
 export const songs = sqliteTable('songs', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
+  lyrics: text('lyrics'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });

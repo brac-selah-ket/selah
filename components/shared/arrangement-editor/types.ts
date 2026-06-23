@@ -31,6 +31,10 @@ export interface ArrangementEditorSaveResult {
   error?: string
 }
 
+export interface ArrangementEditorSaveOptions {
+  lyricsSaveScope?: "song" | "preset"
+}
+
 export interface ArrangementEditorProps {
   mode: ArrangementEditorMode
   title: string
@@ -45,10 +49,15 @@ export interface ArrangementEditorProps {
   sheetMusicWorkspacePreview?: boolean
   showDisplayTitleField?: boolean
   showDefaultPresetField?: boolean
+  presetType?: SongPreset["presetType"] | null
+  hasExistingPreset?: boolean
   sheetMusicManagementSlot?: ReactNode
   savingLabel?: string
   onOpenChange: (open: boolean) => void
-  onSave: (draft: ArrangementDraft) => Promise<ArrangementEditorSaveResult>
+  onSave: (
+    draft: ArrangementDraft,
+    options?: ArrangementEditorSaveOptions,
+  ) => Promise<ArrangementEditorSaveResult>
   onLoadPreset?: (preset: ArrangementEditorPresetOption) => Promise<ArrangementDraft>
   onSaveAsPreset?: (
     draft: ArrangementDraft,

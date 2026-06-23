@@ -35,7 +35,7 @@ test("preset editor forwards preview loading state to the arrangement editor", a
   assert.match(source, /const currentPreviewItem = sheetMusicPreviewPrepared \? sheetMusicPreviewItem : null/)
   assert.match(
     source,
-    /const previewLoading =\s*sheetMusicLoading \|\|\s*\(\s*open &&\s*sheetMusic\.length > 0 &&\s*!currentPreviewItem &&\s*!sheetMusicPreviewPrepared\s*\)/,
+    /const previewLoading =\s*sheetMusicLoading \|\|\s*\(\s*open &&\s*editorSheetMusic\.length > 0 &&\s*!currentPreviewItem &&\s*!sheetMusicPreviewPrepared\s*\)/,
   )
   assert.match(source, /if \(!openRef\.current\) \{\s*return\s*\}/)
   assert.match(
@@ -46,6 +46,7 @@ test("preset editor forwards preview loading state to the arrangement editor", a
   assert.match(source, /sheetMusicLoading=\{previewLoading\}/)
   assert.match(source, /onOpenChange=\{handleEditorOpenChange\}/)
   assert.match(source, /onPreviewChange=\{handleSheetMusicPreviewChange\}/)
+  assert.match(source, /<SheetMusicGallery\s+files=\{editorSheetMusic\}/)
   assert.doesNotMatch(source, /onPreviewChange=\{setSheetMusicPreviewItem\}/)
   assert.match(source, /onPreviewLoadingChange=\{handlePreviewLoadingChange\}/)
 })

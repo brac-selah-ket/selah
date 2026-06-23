@@ -17,7 +17,7 @@ import type {
 export type { SongPresetType } from './song-preset-types';
 import type { SongPresetType } from './song-preset-types';
 
-export type Song = InferSelectModel<typeof songs>;
+export type Song = InferSelectModel<typeof songs> & { lyrics?: string | null };
 export type SheetMusicFile = InferSelectModel<typeof sheetMusicFiles>;
 export type Conti = InferSelectModel<typeof contis>;
 export type ContiSong = InferSelectModel<typeof contiSongs>;
@@ -91,6 +91,8 @@ export interface SongPresetWithSheetMusic extends SongPreset {
   sheetMusicFileIds: string[];
   members: SongPresetMember[];
   availableSheetMusic?: SheetMusicFile[];
+  songLyrics?: string[];
+  fallbackLyrics?: string[];
 }
 
 export interface ContiSongWithSong extends ContiSong {

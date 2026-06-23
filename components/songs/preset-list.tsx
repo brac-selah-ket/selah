@@ -27,12 +27,13 @@ import type { Song, SongPresetWithSheetMusic, SheetMusicFile } from "@/lib/types
 interface PresetListProps {
   songId: string
   songName: string
+  songLyrics: string[]
   presets: SongPresetWithSheetMusic[]
   sheetMusic: SheetMusicFile[]
   allSongs: Song[]
 }
 
-export function PresetList({ songId, songName, presets, sheetMusic, allSongs }: PresetListProps) {
+export function PresetList({ songId, songName, songLyrics, presets, sheetMusic, allSongs }: PresetListProps) {
   const router = useRouter()
   const [editorOpen, setEditorOpen] = useState(false)
   const [mashupDialogOpen, setMashupDialogOpen] = useState(false)
@@ -248,6 +249,7 @@ export function PresetList({ songId, songName, presets, sheetMusic, allSongs }: 
 
       <PresetEditor
         songId={songId}
+        songLyrics={songLyrics}
         preset={editingPreset}
         sheetMusic={sheetMusic}
         open={editorOpen}

@@ -38,6 +38,7 @@ import type {
 } from './types';
 import { extractPresetPdfMetadataFromLayout } from '@/lib/utils/pdf-export-helpers';
 import { buildArrangementItems } from '@/lib/utils/arrangement-items';
+import { buildMashupFallbackLyrics } from '@/lib/utils/mashup-lyrics';
 import { getOrderedSongPairKey, resolveMashupPresetForImport } from '@/lib/utils/mashup-presets';
 import { songPresetToContiOverrides } from '@/lib/utils/preset-overrides';
 import { normalizeYouTubeReference } from '@/lib/utils/youtube';
@@ -83,6 +84,15 @@ async function getPresetMemberRows(presetId: string): Promise<SongPresetMember[]
   }));
 }
 
+function getOrderedMemberSongIds(members: readonly SongPresetMember[]): string[] {
+  return Array.from(new Set(
+    members
+      .slice()
+      .sort((left, right) => left.sortOrder - right.sortOrder)
+      .map((member) => member.songId),
+  ));
+}
+
 async function getNextPresetSortOrderForSong(songId: string): Promise<number> {
   const rows = await db
     .select({ sortOrder: songPresets.sortOrder })
@@ -120,12 +130,7 @@ async function getPresetEditorSheetMusicRows(
   selectedSheetMusicFileIds: readonly string[],
 ): Promise<SheetMusicFile[]> {
   const filesById = new Map<string, SheetMusicFile>();
-  const memberSongIds = Array.from(new Set(
-    members
-      .slice()
-      .sort((left, right) => left.sortOrder - right.sortOrder)
-      .map((member) => member.songId),
-  ));
+  const memberSongIds = getOrderedMemberSongIds(members);
 
   for (const songId of memberSongIds) {
     const rows = await db
@@ -153,6 +158,29 @@ async function getPresetEditorSheetMusicRows(
   }
 
   return Array.from(filesById.values());
+}
+
+async function getMashupFallbackLyrics(members: readonly SongPresetMember[]): Promise<string[]> {
+  const memberSongIds = getOrderedMemberSongIds(members);
+  if (memberSongIds.length === 0) return [];
+
+  const rows = await db
+    .select({
+      songId: songPresetSongs.songId,
+      presetType: songPresets.presetType,
+      isDefault: songPresets.isDefault,
+      sortOrder: songPresets.sortOrder,
+      lyrics: songPresets.lyrics,
+    })
+    .from(songPresetSongs)
+    .innerJoin(songPresets, eq(songPresetSongs.presetId, songPresets.id))
+    .where(and(
+      inArray(songPresetSongs.songId, memberSongIds),
+      eq(songPresets.presetType, "single"),
+    ))
+    .orderBy(songPresetSongs.songId, songPresets.sortOrder);
+
+  return buildMashupFallbackLyrics(memberSongIds, rows);
 }
 
 export const neonStoryboardRepository: StoryboardRepository = {
@@ -213,14 +241,22 @@ export const neonStoryboardRepository: StoryboardRepository = {
           .orderBy(presetSheetMusic.sortOrder);
         const sheetMusicFileIds = sheetMusicRows.map(r => r.sheetMusicFileId);
         const members = await this.getPresetMembers(preset.id);
+        let availableSheetMusic: SheetMusicFile[] | undefined;
+        let fallbackLyrics: string[] | undefined;
+
+        if (preset.presetType === "mashup") {
+          [availableSheetMusic, fallbackLyrics] = await Promise.all([
+            getPresetEditorSheetMusicRows(members, sheetMusicFileIds),
+            getMashupFallbackLyrics(members),
+          ]);
+        }
 
         return {
           ...preset,
           sheetMusicFileIds,
           members,
-          availableSheetMusic: preset.presetType === "mashup"
-            ? await getPresetEditorSheetMusicRows(members, sheetMusicFileIds)
-            : undefined,
+          availableSheetMusic,
+          fallbackLyrics,
         };
       })
     );
@@ -241,14 +277,22 @@ export const neonStoryboardRepository: StoryboardRepository = {
 
     const sheetMusicFileIds = await this.getPresetSheetMusicFileIds(presetId);
     const members = await this.getPresetMembers(presetId);
+    let availableSheetMusic: SheetMusicFile[] | undefined;
+    let fallbackLyrics: string[] | undefined;
+
+    if (presetRows[0].presetType === "mashup") {
+      [availableSheetMusic, fallbackLyrics] = await Promise.all([
+        getPresetEditorSheetMusicRows(members, sheetMusicFileIds),
+        getMashupFallbackLyrics(members),
+      ]);
+    }
 
     return {
       ...presetRows[0],
       sheetMusicFileIds,
       members,
-      availableSheetMusic: presetRows[0].presetType === "mashup"
-        ? await getPresetEditorSheetMusicRows(members, sheetMusicFileIds)
-        : undefined,
+      availableSheetMusic,
+      fallbackLyrics,
     };
   },
 
@@ -559,10 +603,10 @@ export const neonStoryboardRepository: StoryboardRepository = {
     return await insertSong(db, name);
   },
 
-  async updateSong(id: string, data: { name: string }) {
+  async updateSong(id: string, data: { name?: string }) {
     await db
       .update(songs)
-      .set({ name: data.name, updatedAt: new Date() })
+      .set({ ...(data.name !== undefined && { name: data.name }), updatedAt: new Date() })
       .where(eq(songs.id, id));
 
     const result = await db.select().from(songs).where(eq(songs.id, id)).limit(1);

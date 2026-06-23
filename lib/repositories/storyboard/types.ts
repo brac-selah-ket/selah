@@ -22,6 +22,7 @@ import type { SongPresetType } from '@/lib/song-preset-types';
 export interface SnapshotSong {
   id: string;
   name: string;
+  lyrics?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -252,7 +253,7 @@ export interface StoryboardRepository {
   getPageImagesForSong(songId: string): Promise<SongPageImage[]>;
 
   createSong(name: string): Promise<Song>;
-  updateSong(id: string, data: { name: string }): Promise<Song | null>;
+  updateSong(id: string, data: { name?: string; lyrics?: string[] }): Promise<Song | null>;
   deleteSong(id: string): Promise<{ blockedByConti: boolean }>;
   createConti(data: ContiInput): Promise<Conti>;
   updateConti(id: string, data: ContiInput): Promise<Conti | null>;
@@ -271,7 +272,12 @@ export interface StoryboardRepository {
   createMashupPreset(input: CreateMashupPresetInput, resolvedYoutube: ResolvedYouTubeMetadata | null): Promise<SongPreset>;
   applyMashupToContiSongs(input: ApplyMashupToContiInput): Promise<{ mashupGroupId: string }>;
   splitMashup(input: SplitMashupInput): Promise<void>;
-  updateSongPreset(presetId: string, data: Partial<SongPresetData>, resolvedYoutube?: ResolvedYouTubeMetadata | null): Promise<SongPreset | null>;
+  updateSongPreset(
+    presetId: string,
+    data: Partial<SongPresetData>,
+    resolvedYoutube?: ResolvedYouTubeMetadata | null,
+    options?: { lyricsSaveScope?: 'song' | 'preset' },
+  ): Promise<SongPreset | null>;
   deleteSongPreset(presetId: string): Promise<SongPreset | null>;
   setDefaultPreset(songId: string, presetId: string): Promise<void>;
   upsertContiPdfExport(contiId: string, data: { pdfUrl?: string | null; layoutState?: string | null }): Promise<ContiPdfExport>;

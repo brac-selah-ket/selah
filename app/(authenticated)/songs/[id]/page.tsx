@@ -9,6 +9,17 @@ import { Button } from "@/components/ui/button"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { PencilEdit01Icon } from "@hugeicons/core-free-icons"
 
+function parseLyricsField(field: string | null | undefined): string[] {
+  if (!field) return []
+
+  try {
+    const parsed = JSON.parse(field) as unknown
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : []
+  } catch {
+    return []
+  }
+}
+
 export default async function SongDetailPage({
   params,
 }: {
@@ -20,6 +31,8 @@ export default async function SongDetailPage({
   if (!song) {
     notFound()
   }
+
+  const songLyrics = parseLyricsField(song.lyrics)
 
   return (
     <div>
@@ -60,6 +73,7 @@ export default async function SongDetailPage({
           <PresetList
             songId={song.id}
             songName={song.name}
+            songLyrics={songLyrics}
             presets={song.presets ?? []}
             sheetMusic={song.sheetMusic}
             allSongs={allSongs}

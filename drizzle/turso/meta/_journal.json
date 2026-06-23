@@ -29,6 +29,13 @@
       "when": 1782090817274,
       "tag": "0003_mashup_pair_key",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1782190800000,
+      "tag": "0004_song_lyrics",
+      "breakpoints": true
     }
   ]
 }

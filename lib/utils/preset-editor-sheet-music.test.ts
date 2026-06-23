@@ -43,7 +43,7 @@ function preset(data: Partial<SongPresetWithSheetMusic>): SongPresetWithSheetMus
   };
 }
 
-test("mashup preset editor keeps member sheet music available on either song page", () => {
+test("mashup preset editor orders sheet music by mashup member order on either song page", () => {
   const currentSongSheetMusic = [
     sheetMusic("b-1", "song-b", 0),
     sheetMusic("b-2", "song-b", 1),
@@ -58,7 +58,7 @@ test("mashup preset editor keeps member sheet music available on either song pag
 
   const files = buildPresetEditorSheetMusic(mashupPreset, currentSongSheetMusic);
 
-  assert.deepEqual(files.map((file) => file.id), ["b-1", "b-2", "a-1"]);
+  assert.deepEqual(files.map((file) => file.id), ["a-1", "b-1", "b-2"]);
 });
 
 test("single preset editor only uses current song sheet music", () => {

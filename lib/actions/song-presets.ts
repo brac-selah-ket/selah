@@ -31,6 +31,10 @@ const createMashupPresetSchema = z.object({
   data: presetSchema,
 });
 
+const lyricsSaveScopeSchema = z.object({
+  lyricsSaveScope: z.enum(['song', 'preset']).optional(),
+}).optional();
+
 async function getPresetSongIds(presetId: string, fallbackSongId?: string): Promise<string[]> {
   const members = await getStoryboardRepository().getPresetMembers(presetId);
   const memberSongIds = members.map((member) => member.songId);
@@ -125,8 +129,17 @@ export async function createMashupPreset(
   }
 }
 
-export async function updateSongPreset(presetId: string, data: Partial<SongPresetData>): Promise<ActionResult<SongPreset>> {
+export async function updateSongPreset(
+  presetId: string,
+  data: Partial<SongPresetData>,
+  options?: { lyricsSaveScope?: 'song' | 'preset' },
+): Promise<ActionResult<SongPreset>> {
   try {
+    const optionValidation = lyricsSaveScopeSchema.safeParse(options);
+    if (!optionValidation.success) {
+      return { success: false, error: optionValidation.error.issues[0].message };
+    }
+
     const existingPreset = await getStoryboardRepository().getSongPresetWithSheetMusic(presetId);
     if (!existingPreset) {
       return { success: false, error: '프리셋을 찾을 수 없습니다' };
@@ -147,7 +160,12 @@ export async function updateSongPreset(presetId: string, data: Partial<SongPrese
         ? await resolveYouTubeReferenceMetadata(data.youtubeReference, data.youtubeTitle)
         : undefined;
 
-    const updatedPreset = await getStoryboardRepository().updateSongPreset(presetId, data, resolvedYoutube);
+    const updatedPreset = await getStoryboardRepository().updateSongPreset(
+      presetId,
+      data,
+      resolvedYoutube,
+      optionValidation.data,
+    );
     if (!updatedPreset) {
       return { success: false, error: '프리셋을 찾을 수 없습니다' };
     }

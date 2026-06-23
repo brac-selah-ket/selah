@@ -9,11 +9,11 @@ export function buildPresetEditorSheetMusic(
   }
 
   const filesById = new Map<string, SheetMusicFile>();
-  for (const file of currentSongSheetMusic) {
+  for (const file of preset.availableSheetMusic ?? []) {
     filesById.set(file.id, file);
   }
 
-  for (const file of preset.availableSheetMusic ?? []) {
+  for (const file of currentSongSheetMusic) {
     if (!filesById.has(file.id)) {
       filesById.set(file.id, file);
     }

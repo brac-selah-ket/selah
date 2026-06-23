@@ -13,20 +13,36 @@ import {
 import { buildPresetEditorSheetMusic } from "@/lib/utils/preset-editor-sheet-music"
 import type {
   SheetMusicFile,
+  SongPresetData,
   SongPresetWithSheetMusic,
 } from "@/lib/types"
+import type { ArrangementEditorSaveOptions } from "@/components/shared/arrangement-editor/types"
 
 interface PresetEditorProps {
   songId: string
+  songLyrics: string[]
   preset?: SongPresetWithSheetMusic
   sheetMusic: SheetMusicFile[]
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }: PresetEditorProps) {
+function areLyricsEqual(left: readonly string[], right: readonly string[]) {
+  if (left.length !== right.length) return false
+  return left.every((item, index) => item === right[index])
+}
+
+function omitLyrics(data: SongPresetData): Partial<SongPresetData> {
+  const next: Partial<SongPresetData> = { ...data }
+  delete next.lyrics
+  return next
+}
+
+export function PresetEditor({ songId, songLyrics, preset, sheetMusic, open, onOpenChange }: PresetEditorProps) {
   const router = useRouter()
-  const initialDraft = songPresetToDraft(preset)
+  const initialDraft = preset
+    ? songPresetToDraft(preset)
+    : { ...songPresetToDraft(undefined), lyrics: songLyrics }
   const editorSheetMusic = buildPresetEditorSheetMusic(preset, sheetMusic)
   const [sheetMusicLoading, setSheetMusicLoading] = useState(false)
   const [sheetMusicPreviewPrepared, setSheetMusicPreviewPrepared] = useState(false)
@@ -58,7 +74,7 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
   const currentPreviewItem = sheetMusicPreviewPrepared ? sheetMusicPreviewItem : null
   const previewLoading =
     sheetMusicLoading ||
-    (open && sheetMusic.length > 0 && !currentPreviewItem && !sheetMusicPreviewPrepared)
+    (open && editorSheetMusic.length > 0 && !currentPreviewItem && !sheetMusicPreviewPrepared)
 
   function resetSheetMusicPreviewState() {
     setSheetMusicLoading(false)
@@ -110,10 +126,12 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
       sheetMusicWorkspacePreview
       showDisplayTitleField={preset?.presetType === "mashup" || Boolean(initialDraft.displayTitle)}
       showDefaultPresetField={preset?.presetType !== "mashup"}
+      presetType={preset?.presetType ?? null}
+      hasExistingPreset={Boolean(preset)}
       sheetMusicManagementSlot={
-        sheetMusic.length > 0 ? (
+        editorSheetMusic.length > 0 ? (
           <SheetMusicGallery
-            files={sheetMusic}
+            files={editorSheetMusic}
             previewMode="controlled"
             onPreviewChange={handleSheetMusicPreviewChange}
             onPreviewLoadingChange={handlePreviewLoadingChange}
@@ -122,10 +140,16 @@ export function PresetEditor({ songId, preset, sheetMusic, open, onOpenChange }:
       }
       savingLabel="저장"
       onOpenChange={handleEditorOpenChange}
-      onSave={async (draft) => {
+      onSave={async (draft, options?: ArrangementEditorSaveOptions) => {
         const data = arrangementDraftToSongPresetData(draft)
+        const payload =
+          preset?.presetType === "single" &&
+          !options?.lyricsSaveScope &&
+          areLyricsEqual(initialDraft.lyrics, draft.lyrics)
+            ? omitLyrics(data)
+            : data
         const result = preset
-          ? await updateSongPreset(preset.id, data)
+          ? await updateSongPreset(preset.id, payload, options)
           : await createSongPreset(songId, data)
 
         if (result.success) {

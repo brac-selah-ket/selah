@@ -1,5 +1,10 @@
 import { getTursoDb } from '@/lib/db/turso';
-import { parseContiSongOverrides, parsePresetPdfMetadata, stringifyContiSongOverrides } from '@/lib/db/helpers';
+import {
+  parseContiSongOverrides,
+  parseJsonColumn,
+  parsePresetPdfMetadata,
+  stringifyContiSongOverrides,
+} from '@/lib/db/helpers';
 import {
   contiPdfExports,
   contis,
@@ -130,6 +135,15 @@ function mapSongPreset(row: TursoSongPreset): SongPreset {
   };
 }
 
+function getOrderedMemberSongIds(members: readonly SongPresetMember[]): string[] {
+  return Array.from(new Set(
+    members
+      .slice()
+      .sort((left, right) => left.sortOrder - right.sortOrder)
+      .map((member) => member.songId),
+  ));
+}
+
 function mapConti(row: TursoConti): Conti {
   return {
     ...row,
@@ -168,6 +182,7 @@ async function insertTursoSong(name: string): Promise<Song> {
   const song = {
     id: generateId(),
     name,
+    lyrics: '[]',
     createdAt: now,
     updatedAt: now,
   };
@@ -296,12 +311,7 @@ async function getPresetEditorSheetMusicRows(
 ): Promise<SheetMusicFile[]> {
   const tursoDb = getTursoDb();
   const filesById = new Map<string, SheetMusicFile>();
-  const memberSongIds = Array.from(new Set(
-    members
-      .slice()
-      .sort((left, right) => left.sortOrder - right.sortOrder)
-      .map((member) => member.songId),
-  ));
+  const memberSongIds = getOrderedMemberSongIds(members);
 
   for (const songId of memberSongIds) {
     const rows = await tursoDb
@@ -329,6 +339,43 @@ async function getPresetEditorSheetMusicRows(
   }
 
   return Array.from(filesById.values());
+}
+
+function parseLyricsField(field: string | null): string[] {
+  const parsed = parseJsonColumn<unknown>(field, []);
+  return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+}
+
+async function getSongLyrics(songId: string): Promise<string[]> {
+  const tursoDb = getTursoDb();
+  const rows = await tursoDb
+    .select({ lyrics: songs.lyrics })
+    .from(songs)
+    .where(eq(songs.id, songId))
+    .limit(1);
+
+  return parseLyricsField(rows[0]?.lyrics ?? null);
+}
+
+async function getSongLyricsInOrder(songIds: readonly string[]): Promise<string[]> {
+  const tursoDb = getTursoDb();
+  if (songIds.length === 0) return [];
+
+  const rows = await tursoDb
+    .select({
+      id: songs.id,
+      lyrics: songs.lyrics,
+    })
+    .from(songs)
+    .where(inArray(songs.id, [...songIds]));
+  const lyricsBySongId = new Map(rows.map((row) => [row.id, parseLyricsField(row.lyrics)]));
+
+  return songIds.flatMap((songId) => lyricsBySongId.get(songId) ?? []);
+}
+
+async function getMashupFallbackLyrics(members: readonly SongPresetMember[]): Promise<string[]> {
+  const memberSongIds = getOrderedMemberSongIds(members);
+  return getSongLyricsInOrder(memberSongIds);
 }
 
 export const tursoStoryboardRepository: StoryboardRepository = {
@@ -397,14 +444,26 @@ export const tursoStoryboardRepository: StoryboardRepository = {
           .orderBy(presetSheetMusic.sortOrder);
         const sheetMusicFileIds = sheetMusicRows.map(r => r.sheetMusicFileId);
         const members = await this.getPresetMembers(preset.id);
+        let availableSheetMusic: SheetMusicFile[] | undefined;
+        let songLyrics: string[] | undefined;
+        let fallbackLyrics: string[] | undefined;
+
+        if (preset.presetType === "mashup") {
+          [availableSheetMusic, fallbackLyrics] = await Promise.all([
+            getPresetEditorSheetMusicRows(members, sheetMusicFileIds),
+            getMashupFallbackLyrics(members),
+          ]);
+        } else {
+          songLyrics = await getSongLyrics(preset.songId);
+        }
 
         return {
           ...preset,
           sheetMusicFileIds,
           members,
-          availableSheetMusic: preset.presetType === "mashup"
-            ? await getPresetEditorSheetMusicRows(members, sheetMusicFileIds)
-            : undefined,
+          availableSheetMusic,
+          songLyrics,
+          fallbackLyrics,
         };
       })
     );
@@ -426,14 +485,26 @@ export const tursoStoryboardRepository: StoryboardRepository = {
 
     const sheetMusicFileIds = await this.getPresetSheetMusicFileIds(presetId);
     const members = await this.getPresetMembers(presetId);
+    let availableSheetMusic: SheetMusicFile[] | undefined;
+    let songLyrics: string[] | undefined;
+    let fallbackLyrics: string[] | undefined;
+
+    if (presetRows[0].presetType === "mashup") {
+      [availableSheetMusic, fallbackLyrics] = await Promise.all([
+        getPresetEditorSheetMusicRows(members, sheetMusicFileIds),
+        getMashupFallbackLyrics(members),
+      ]);
+    } else {
+      songLyrics = await getSongLyrics(presetRows[0].songId);
+    }
 
     return {
       ...mapSongPreset(presetRows[0]),
       sheetMusicFileIds,
       members,
-      availableSheetMusic: presetRows[0].presetType === "mashup"
-        ? await getPresetEditorSheetMusicRows(members, sheetMusicFileIds)
-        : undefined,
+      availableSheetMusic,
+      songLyrics,
+      fallbackLyrics,
     };
   },
 
@@ -768,11 +839,15 @@ export const tursoStoryboardRepository: StoryboardRepository = {
     return await insertTursoSong(name);
   },
 
-  async updateSong(id: string, data: { name: string }) {
+  async updateSong(id: string, data: { name?: string; lyrics?: string[] }) {
     const tursoDb = getTursoDb();
+    const updateData: Record<string, unknown> = { updatedAt: dateToDbText(new Date()) };
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.lyrics !== undefined) updateData.lyrics = JSON.stringify(data.lyrics);
+
     await tursoDb
       .update(songs)
-      .set({ name: data.name, updatedAt: dateToDbText(new Date()) })
+      .set(updateData)
       .where(eq(songs.id, id));
 
     const result = await tursoDb.select().from(songs).where(eq(songs.id, id)).limit(1);
@@ -1162,7 +1237,7 @@ export const tursoStoryboardRepository: StoryboardRepository = {
       keys: JSON.stringify(data.keys),
       tempos: JSON.stringify(data.tempos),
       sectionOrder: JSON.stringify(data.sectionOrder),
-      lyrics: JSON.stringify(data.lyrics),
+      lyrics: JSON.stringify([]),
       sectionLyricsMap: JSON.stringify(data.sectionLyricsMap),
       notes: data.notes,
       youtubeReference: resolvedYoutube?.videoId ?? null,
@@ -1174,25 +1249,33 @@ export const tursoStoryboardRepository: StoryboardRepository = {
       updatedAt: now,
     };
 
-    await tursoDb.insert(songPresets).values(presetRecord);
-    await tursoDb.insert(songPresetSongs).values({
-      id: `${presetRecord.id}:song:0`,
-      presetId: presetRecord.id,
-      songId,
-      sortOrder: 0,
-      partLabel: null,
-    });
+    await tursoDb.transaction(async (tx) => {
+      await tx.insert(songPresets).values(presetRecord);
+      await tx.insert(songPresetSongs).values({
+        id: `${presetRecord.id}:song:0`,
+        presetId: presetRecord.id,
+        songId,
+        sortOrder: 0,
+        partLabel: null,
+      });
 
-    if (data.sheetMusicFileIds && data.sheetMusicFileIds.length > 0) {
-      await tursoDb.insert(presetSheetMusic).values(
-        data.sheetMusicFileIds.map((fileId, index) => ({
-          id: generateId(),
-          presetId: presetRecord.id,
-          sheetMusicFileId: fileId,
-          sortOrder: index,
-        })),
-      );
-    }
+      if (data.lyrics.length > 0) {
+        await tx.update(songs)
+          .set({ lyrics: JSON.stringify(data.lyrics), updatedAt: now })
+          .where(eq(songs.id, songId));
+      }
+
+      if (data.sheetMusicFileIds && data.sheetMusicFileIds.length > 0) {
+        await tx.insert(presetSheetMusic).values(
+          data.sheetMusicFileIds.map((fileId, index) => ({
+            id: generateId(),
+            presetId: presetRecord.id,
+            sheetMusicFileId: fileId,
+            sortOrder: index,
+          })),
+        );
+      }
+    });
 
     return mapSongPreset(presetRecord);
   },
@@ -1208,6 +1291,7 @@ export const tursoStoryboardRepository: StoryboardRepository = {
     const tursoDb = getTursoDb();
     const nextSortOrder = await getNextPresetSortOrderForSong(songIds[0]);
     const mashupPairKey = getOrderedSongPairKey(songIds);
+    const presetLyrics = data.lyrics.length > 0 ? data.lyrics : await getSongLyricsInOrder(songIds);
     const now = dateToDbText(new Date());
     const presetRecord = {
       id: generateId(),
@@ -1219,7 +1303,7 @@ export const tursoStoryboardRepository: StoryboardRepository = {
       keys: JSON.stringify(data.keys),
       tempos: JSON.stringify(data.tempos),
       sectionOrder: JSON.stringify(data.sectionOrder),
-      lyrics: JSON.stringify(data.lyrics),
+      lyrics: JSON.stringify(presetLyrics),
       sectionLyricsMap: JSON.stringify(data.sectionLyricsMap),
       notes: data.notes,
       youtubeReference: resolvedYoutube?.videoId ?? null,
@@ -1357,7 +1441,12 @@ export const tursoStoryboardRepository: StoryboardRepository = {
     });
   },
 
-  async updateSongPreset(presetId: string, data, resolvedYoutube?: ResolvedYouTubeMetadata | null) {
+  async updateSongPreset(
+    presetId: string,
+    data,
+    resolvedYoutube?: ResolvedYouTubeMetadata | null,
+    options?: { lyricsSaveScope?: 'song' | 'preset' },
+  ) {
     const tursoDb = getTursoDb();
     const existing = await tursoDb.select().from(songPresets).where(eq(songPresets.id, presetId)).limit(1);
     if (existing.length === 0) {
@@ -1365,6 +1454,11 @@ export const tursoStoryboardRepository: StoryboardRepository = {
     }
 
     const songId = existing[0].songId;
+    const routeSingleLyricsToSong =
+      existing[0].presetType === "single" &&
+      data.lyrics !== undefined &&
+      options?.lyricsSaveScope !== "preset";
+
     if (data.isDefault && existing[0].presetType === "mashup") {
       throw new Error("MASHUP_PRESET_CANNOT_BE_DEFAULT");
     }
@@ -1378,7 +1472,9 @@ export const tursoStoryboardRepository: StoryboardRepository = {
     if (data.keys !== undefined) updateData.keys = JSON.stringify(data.keys);
     if (data.tempos !== undefined) updateData.tempos = JSON.stringify(data.tempos);
     if (data.sectionOrder !== undefined) updateData.sectionOrder = JSON.stringify(data.sectionOrder);
-    if (data.lyrics !== undefined) updateData.lyrics = JSON.stringify(data.lyrics);
+    if (data.lyrics !== undefined) {
+      updateData.lyrics = routeSingleLyricsToSong ? JSON.stringify([]) : JSON.stringify(data.lyrics);
+    }
     if (data.sectionLyricsMap !== undefined) updateData.sectionLyricsMap = JSON.stringify(data.sectionLyricsMap);
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.isDefault !== undefined) updateData.isDefault = data.isDefault;
@@ -1399,21 +1495,29 @@ export const tursoStoryboardRepository: StoryboardRepository = {
     }
     if (data.pdfMetadata !== undefined) updateData.pdfMetadata = data.pdfMetadata ? JSON.stringify(data.pdfMetadata) : null;
 
-    await tursoDb.update(songPresets).set(updateData).where(eq(songPresets.id, presetId));
-
-    if (data.sheetMusicFileIds !== undefined) {
-      await tursoDb.delete(presetSheetMusic).where(eq(presetSheetMusic.presetId, presetId));
-      if (data.sheetMusicFileIds.length > 0) {
-        await tursoDb.insert(presetSheetMusic).values(
-          data.sheetMusicFileIds.map((fileId, index) => ({
-            id: generateId(),
-            presetId,
-            sheetMusicFileId: fileId,
-            sortOrder: index,
-          })),
-        );
+    await tursoDb.transaction(async (tx) => {
+      if (routeSingleLyricsToSong) {
+        await tx.update(songs)
+          .set({ lyrics: JSON.stringify(data.lyrics), updatedAt: dateToDbText(new Date()) })
+          .where(eq(songs.id, songId));
       }
-    }
+
+      await tx.update(songPresets).set(updateData).where(eq(songPresets.id, presetId));
+
+      if (data.sheetMusicFileIds !== undefined) {
+        await tx.delete(presetSheetMusic).where(eq(presetSheetMusic.presetId, presetId));
+        if (data.sheetMusicFileIds.length > 0) {
+          await tx.insert(presetSheetMusic).values(
+            data.sheetMusicFileIds.map((fileId, index) => ({
+              id: generateId(),
+              presetId,
+              sheetMusicFileId: fileId,
+              sortOrder: index,
+            })),
+          );
+        }
+      }
+    });
 
     const result = await tursoDb.select().from(songPresets).where(eq(songPresets.id, presetId)).limit(1);
     return result[0] ? mapSongPreset(result[0]) : null;
