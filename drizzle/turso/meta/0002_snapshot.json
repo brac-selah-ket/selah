@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "fa10939a-b5fa-43a4-83f2-66052916db63",
+  "id": "93b005bb-e2fb-46dd-a682-0a624c88099f",
   "prevId": "b469b8da-e857-455c-b6db-4b2c8e5c4b57",
   "tables": {
     "conti_pdf_exports": {
@@ -165,27 +165,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "mashup_group_id": {
-          "name": "mashup_group_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "mashup_part_order": {
-          "name": "mashup_part_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "pre_mashup_preset_id": {
-          "name": "pre_mashup_preset_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "text",
@@ -244,19 +223,6 @@
           "tableTo": "song_presets",
           "columnsFrom": [
             "preset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "conti_songs_pre_mashup_preset_id_song_presets_id_fk": {
-          "name": "conti_songs_pre_mashup_preset_id_song_presets_id_fk",
-          "tableFrom": "conti_songs",
-          "tableTo": "song_presets",
-          "columnsFrom": [
-            "pre_mashup_preset_id"
           ],
           "columnsTo": [
             "id"
@@ -325,6 +291,216 @@
         }
       },
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "discord_interaction_receipts": {
+      "name": "discord_interaction_receipts",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "interaction_id": {
+          "name": "interaction_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "interaction_type": {
+          "name": "interaction_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "processed_at": {
+          "name": "processed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "discord_interaction_receipts_interaction_id_unique": {
+          "name": "discord_interaction_receipts_interaction_id_unique",
+          "columns": [
+            "interaction_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "discord_processed_messages": {
+      "name": "discord_processed_messages",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "thread_id": {
+          "name": "thread_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "message_id": {
+          "name": "message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parse_status": {
+          "name": "parse_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'processed'"
+        },
+        "raw_content": {
+          "name": "raw_content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "processed_at": {
+          "name": "processed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "discord_processed_messages_message_id_unique": {
+          "name": "discord_processed_messages_message_id_unique",
+          "columns": [
+            "message_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "discord_thread_states": {
+      "name": "discord_thread_states",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "thread_id": {
+          "name": "thread_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sunday_date": {
+          "name": "sunday_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "conti_id": {
+          "name": "conti_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "preacher": {
+          "name": "preacher",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "leader": {
+          "name": "leader",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "worship_leader": {
+          "name": "worship_leader",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "discord_thread_states_thread_id_unique": {
+          "name": "discord_thread_states_thread_id_unique",
+          "columns": [
+            "thread_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "discord_thread_states_conti_id_contis_id_fk": {
+          "name": "discord_thread_states_conti_id_contis_id_fk",
+          "tableFrom": "discord_thread_states",
+          "tableTo": "contis",
+          "columnsFrom": [
+            "conti_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -598,102 +774,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "song_preset_songs": {
-      "name": "song_preset_songs",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "preset_id": {
-          "name": "preset_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "song_id": {
-          "name": "song_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "part_label": {
-          "name": "part_label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "song_preset_songs_unique": {
-          "name": "song_preset_songs_unique",
-          "columns": [
-            "preset_id",
-            "song_id"
-          ],
-          "isUnique": true
-        },
-        "song_preset_songs_order_unique": {
-          "name": "song_preset_songs_order_unique",
-          "columns": [
-            "preset_id",
-            "sort_order"
-          ],
-          "isUnique": true
-        },
-        "song_preset_songs_song_idx": {
-          "name": "song_preset_songs_song_idx",
-          "columns": [
-            "song_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "song_preset_songs_preset_id_song_presets_id_fk": {
-          "name": "song_preset_songs_preset_id_song_presets_id_fk",
-          "tableFrom": "song_preset_songs",
-          "tableTo": "song_presets",
-          "columnsFrom": [
-            "preset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "song_preset_songs_song_id_songs_id_fk": {
-          "name": "song_preset_songs_song_id_songs_id_fk",
-          "tableFrom": "song_preset_songs",
-          "tableTo": "songs",
-          "columnsFrom": [
-            "song_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "song_presets": {
       "name": "song_presets",
       "columns": {
@@ -709,21 +789,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
-        },
-        "preset_type": {
-          "name": "preset_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'single'"
-        },
-        "display_title": {
-          "name": "display_title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
           "autoincrement": false
         },
         "name": {

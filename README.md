@@ -20,8 +20,8 @@
 - TypeScript
 - Tailwind CSS v4
 - Drizzle ORM
-- Neon / Turso
-- Vercel Blob / Cloudflare R2
+- Turso / libSQL
+- Cloudflare R2
 - Vercel Cron
 
 ## 시작하기
@@ -45,8 +45,9 @@ cp .env.example .env.local
 
 - `AUTH_PASSWORD`, `AUTH_SECRET`: 공유 비밀번호 로그인
 - `APP_BASE_URL`: 배포된 앱의 canonical URL
-- `DATABASE_PROVIDER`: `neon` 또는 `turso`
-- `STORAGE_PROVIDER`: `vercel-blob` 또는 `cloudflare-r2`
+- `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`: Turso/libSQL 데이터베이스
+- `STORAGE_PROVIDER`: 파일 스토리지 provider. 기본값은 `cloudflare-r2`
+- `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_BASE_URL`: Cloudflare R2 파일 스토리지
 - `GOOGLE_SERVICE_ACCOUNT_JSON`, `GOOGLE_SHEET_ID`, `GOOGLE_DRIVE_TEMPLATE_FOLDER_ID`: Google Sheets/Drive/PPTX 연동
 - `DISCORD_BOT_TOKEN`, `DISCORD_CHANNEL_ID`, `DISCORD_GUILD_ID`, `DISCORD_PUBLIC_KEY`: Discord 연동
 - `CRON_SECRET`: Vercel Cron 인증

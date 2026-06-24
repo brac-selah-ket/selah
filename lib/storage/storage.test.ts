@@ -8,10 +8,10 @@ import {
   requireR2Config,
 } from './config.ts';
 
-test('storage provider defaults to Vercel Blob', () => {
-  assert.equal(getStorageProviderName({}), 'vercel-blob');
-  assert.equal(getStorageProviderName({ STORAGE_PROVIDER: '' }), 'vercel-blob');
-  assert.equal(getStorageProviderName({ STORAGE_PROVIDER: '   ' }), 'vercel-blob');
+test('storage provider defaults to Cloudflare R2', () => {
+  assert.equal(getStorageProviderName({}), 'cloudflare-r2');
+  assert.equal(getStorageProviderName({ STORAGE_PROVIDER: '' }), 'cloudflare-r2');
+  assert.equal(getStorageProviderName({ STORAGE_PROVIDER: '   ' }), 'cloudflare-r2');
 });
 
 test('storage provider accepts Cloudflare R2 aliases', () => {
@@ -22,6 +22,10 @@ test('storage provider accepts Cloudflare R2 aliases', () => {
 test('storage provider rejects unknown values', () => {
   assert.throws(
     () => getStorageProviderName({ STORAGE_PROVIDER: 's3' }),
+    /Unsupported STORAGE_PROVIDER/,
+  );
+  assert.throws(
+    () => getStorageProviderName({ STORAGE_PROVIDER: 'vercel-blob' }),
     /Unsupported STORAGE_PROVIDER/,
   );
 });
@@ -47,4 +51,12 @@ test('Cloudflare R2 put protects existing objects unless overwrite is explicit',
   const source = await readFile(new URL('./cloudflare-r2.ts', import.meta.url), 'utf8');
 
   assert.match(source, /IfNoneMatch: options\?\.allowOverwrite \? undefined : '\*'/);
+});
+
+test('Vercel Blob provider is no longer part of the storage implementation', async () => {
+  const indexSource = await readFile(new URL('./index.ts', import.meta.url), 'utf8');
+  const packageJson = JSON.parse(await readFile(new URL('../../package.json', import.meta.url), 'utf8'));
+
+  assert.doesNotMatch(indexSource, /vercel-blob|@vercel\/blob/);
+  assert.equal(packageJson.dependencies['@vercel/blob'], undefined);
 });

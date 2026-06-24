@@ -4,6 +4,14 @@ import assert from 'node:assert/strict';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
+function getFunctionBody(source, name) {
+  const match = source.match(
+    new RegExp(`export\\s+(?:async\\s+)?function\\s+${name}\\s*\\([^)]*\\)\\s*(?::[^\\n]+)?\\s*\\{([\\s\\S]*?)\\n\\}`)
+  );
+  assert.ok(match, `${name} should be exported`);
+  return match[1];
+}
+
 test('next config enables cache components', async () => {
   const source = await read('next.config.ts');
   assert.match(source, /cacheComponents:\s*true/);
@@ -37,11 +45,13 @@ test('cache tag helpers define stable storyboard tags', async () => {
     'contis',
     'conti:',
     'conti-by-date:',
+    'conti-pdf-export:',
     'worship-prep:',
     'worship-prep-list',
   ]) {
     assert.match(source, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
+  assert.match(source, /contiPdfExport:\s*\(contiId: string\)\s*=>\s*`conti-pdf-export:\$\{contiId\}`/);
 });
 
 test('invalidation helpers use immediate action and route invalidation APIs', async () => {
@@ -53,4 +63,10 @@ test('invalidation helpers use immediate action and route invalidation APIs', as
   assert.match(source, /invalidateSong/);
   assert.match(source, /invalidateConti/);
   assert.match(source, /invalidateWorshipPrepDate/);
+
+  const pdfExportBody = getFunctionBody(source, 'invalidateContiPdfExport');
+  assert.match(pdfExportBody, /cacheTags\.contiPdfExport\(contiId\)/);
+  assert.doesNotMatch(pdfExportBody, /cacheTags\.contis\(\)/);
+  assert.doesNotMatch(pdfExportBody, /cacheTags\.conti\(contiId\)/);
+  assert.doesNotMatch(pdfExportBody, /\binvalidateConti\(/);
 });

@@ -40,6 +40,6 @@ export async function getContiForExport(id: string) {
 export async function getContiPdfExport(contiId: string) {
   'use cache';
   cacheLife('hours');
-  cacheTag(cacheTags.conti(contiId));
+  cacheTag(cacheTags.contiPdfExport(contiId));
   return getStoryboardRepository().getContiPdfExport(contiId);
 }

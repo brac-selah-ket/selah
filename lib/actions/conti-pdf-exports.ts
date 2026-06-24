@@ -1,9 +1,8 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import type { ActionResult, ContiPdfExport } from '@/lib/types';
+import { invalidateContiPdfExport } from '@/lib/cache/invalidation';
 import { getStoryboardRepository } from '@/lib/repositories/storyboard';
-import { invalidateConti } from '@/lib/cache/invalidation';
 import { deleteObject, putObject } from '@/lib/storage';
 
 export async function saveContiPdfLayout(
@@ -14,7 +13,7 @@ export async function saveContiPdfLayout(
     const pdfExport = await getStoryboardRepository().upsertContiPdfExport(contiId, {
       layoutState,
     });
-    invalidateConti(contiId);
+    invalidateContiPdfExport(contiId);
 
     return {
       success: true,
@@ -60,8 +59,7 @@ export async function exportContiPdf(
 
     await repository.upsertContiPdfExport(contiId, { pdfUrl: object.url });
 
-    invalidateConti(contiId);
-    revalidatePath('/contis');
+    invalidateContiPdfExport(contiId);
 
     return {
       success: true,
@@ -98,8 +96,7 @@ export async function deleteContiPdfExport(
     }
 
     await repository.deleteContiPdfExport(exportId);
-    invalidateConti(existing.contiId);
-    revalidatePath('/contis');
+    invalidateContiPdfExport(existing.contiId);
 
     return { success: true };
   } catch (error) {

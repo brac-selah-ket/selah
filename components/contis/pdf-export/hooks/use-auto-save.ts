@@ -14,8 +14,14 @@ export function useAutoSave(
     "saved",
   );
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const performSaveRef = useRef<() => Promise<void>>(() => Promise.resolve());
-  const lastSaveRef = useRef<number>(0);
+  const buildLayoutStateRef = useRef<() => PdfLayoutState>(() => ({
+    pages: [],
+    canvasWidth: 800,
+    canvasHeight: 1131,
+  }));
+  const saveLatestRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  const activeSavePromiseRef = useRef<Promise<boolean> | null>(null);
+  const pendingSaveRef = useRef(false);
   const [presetSyncing, setPresetSyncing] = useState(false);
 
   const buildLayoutState = useCallback((): PdfLayoutState => {
@@ -44,60 +50,93 @@ export function useAutoSave(
     };
   }, [pages, containerRef]);
 
+  useEffect(() => {
+    buildLayoutStateRef.current = buildLayoutState;
+  }, [buildLayoutState]);
+
   const persistLayout = useCallback(
     async (layoutState: PdfLayoutState): Promise<boolean> => {
       setSaveStatus("saving");
-      const result = await saveContiPdfLayout(
-        contiId,
-        JSON.stringify(layoutState),
-      );
-      if (result.success) {
-        setSaveStatus("saved");
-        lastSaveRef.current = Date.now();
-        return true;
-      }
+      try {
+        const result = await saveContiPdfLayout(
+          contiId,
+          JSON.stringify(layoutState),
+        );
+        if (result.success) {
+          setSaveStatus("saved");
+          return true;
+        }
 
-      setSaveStatus("unsaved");
-      toast.error(result.error ?? "저장 중 오류가 발생했습니다");
-      return false;
+        setSaveStatus("unsaved");
+        toast.error(result.error ?? "저장 중 오류가 발생했습니다");
+        return false;
+      } catch {
+        setSaveStatus("unsaved");
+        toast.error("저장 중 오류가 발생했습니다");
+        return false;
+      }
     },
     [contiId],
   );
 
-  // MUST be useCallback with [pages, contiId] to ensure latest state
-  const performSave = useCallback(async () => {
-    const layoutState = buildLayoutState();
-    await persistLayout(layoutState);
-  }, [buildLayoutState, persistLayout]);
+  const saveLatest = useCallback((): Promise<boolean> => {
+    if (activeSavePromiseRef.current) {
+      pendingSaveRef.current = true;
+      setSaveStatus("unsaved");
+      return activeSavePromiseRef.current;
+    }
 
-  // CRITICAL: Sync ref so triggerAutoSave always calls latest performSave
+    const savePromise = (async () => {
+      let allSaved = true;
+      try {
+        do {
+          pendingSaveRef.current = false;
+          const saved = await persistLayout(buildLayoutStateRef.current());
+          allSaved = allSaved && saved;
+          if (!saved) {
+            pendingSaveRef.current = false;
+          }
+        } while (pendingSaveRef.current);
+
+        return allSaved;
+      } finally {
+        activeSavePromiseRef.current = null;
+      }
+    })();
+
+    activeSavePromiseRef.current = savePromise;
+    return savePromise;
+  }, [persistLayout]);
+
   useEffect(() => {
-    performSaveRef.current = performSave;
-  }, [performSave]);
+    saveLatestRef.current = async () => {
+      await saveLatest();
+    };
+  }, [saveLatest]);
+
+  const performSave = useCallback(async () => {
+    await saveLatest();
+  }, [saveLatest]);
 
   const triggerAutoSave = useCallback(() => {
     setSaveStatus("unsaved");
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
     }
-    // Force save if 30s elapsed since last save (continuous editing)
-    if (Date.now() - lastSaveRef.current > 30000) {
-      performSaveRef.current();
-      return;
-    }
+
     saveTimerRef.current = setTimeout(() => {
-      performSaveRef.current();
+      saveTimerRef.current = null;
+      void saveLatestRef.current();
     }, 3000);
   }, []);
 
-  // Manual save handler
   async function handleManualSave() {
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
     }
-    const layoutState = buildLayoutState();
-    const saved = await persistLayout(layoutState);
+
+    const saved = await saveLatest();
     if (!saved) return;
 
     toast.success("레이아웃이 저장되었습니다");
@@ -131,7 +170,6 @@ export function useAutoSave(
     }
   }
 
-  // Cleanup save timer on unmount
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) {
@@ -140,7 +178,6 @@ export function useAutoSave(
     };
   }, []);
 
-  // Warn before leaving with unsaved changes
   useEffect(() => {
     function handleBeforeUnload(e: BeforeUnloadEvent) {
       if (saveStatus === "unsaved") {

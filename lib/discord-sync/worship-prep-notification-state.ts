@@ -1,11 +1,9 @@
 import { and, eq, isNull, lte, or } from 'drizzle-orm';
-import { db as neonDb } from '@/lib/db';
+
 import { getTursoDb } from '@/lib/db/turso';
 import { dateToDbText, dbTextToDate } from '@/lib/db/time';
+import { worshipPrepNotifications } from '@/lib/db/turso-schema';
 import { generateId } from '@/lib/id';
-import { getStoryboardDatabaseProviderName } from '@/lib/repositories/storyboard/provider';
-import { worshipPrepNotifications as neonNotifications } from '@/lib/db/schema';
-import { worshipPrepNotifications as tursoNotifications } from '@/lib/db/turso-schema';
 
 export const WORSHIP_PREP_READY_NOTIFICATION_TYPE = 'ppt_ready';
 export const NOTIFICATION_PENDING_STALE_MS = 10 * 60 * 1000;
@@ -57,6 +55,8 @@ export interface WorshipPrepNotificationStateStore {
   markFailed(claim: WorshipPrepNotificationClaimReference, now: Date): Promise<void>;
 }
 
+type TursoNotification = typeof worshipPrepNotifications.$inferSelect;
+
 export function getNotificationClaimSkipReason(
   record: WorshipPrepNotificationRecord | null,
   now: Date,
@@ -84,14 +84,7 @@ function getStaleCutoff(now: Date): Date {
   return new Date(now.getTime() - NOTIFICATION_PENDING_STALE_MS);
 }
 
-function mapNeonRecord(row: typeof neonNotifications.$inferSelect): WorshipPrepNotificationRecord {
-  return {
-    ...row,
-    status: row.status as WorshipPrepNotificationStatus,
-  };
-}
-
-function mapTursoRecord(row: typeof tursoNotifications.$inferSelect): WorshipPrepNotificationRecord {
+function mapTursoRecord(row: TursoNotification): WorshipPrepNotificationRecord {
   return {
     ...row,
     status: row.status as WorshipPrepNotificationStatus,
@@ -101,6 +94,97 @@ function mapTursoRecord(row: typeof tursoNotifications.$inferSelect): WorshipPre
     updatedAt: dbTextToDate(row.updatedAt),
   };
 }
+
+function serializeNotificationRecord(record: WorshipPrepNotificationRecord): TursoNotification {
+  return {
+    ...record,
+    lastAttemptAt: record.lastAttemptAt ? dateToDbText(record.lastAttemptAt) : null,
+    sentAt: record.sentAt ? dateToDbText(record.sentAt) : null,
+    createdAt: dateToDbText(record.createdAt),
+    updatedAt: dateToDbText(record.updatedAt),
+  };
+}
+
+const tursoNotificationStore: WorshipPrepNotificationStateStore = {
+  async get(sundayDate, type) {
+    const rows = await getTursoDb()
+      .select()
+      .from(worshipPrepNotifications)
+      .where(and(eq(worshipPrepNotifications.sundayDate, sundayDate), eq(worshipPrepNotifications.type, type)))
+      .limit(1);
+
+    return rows[0] ? mapTursoRecord(rows[0]) : null;
+  },
+
+  async insertPending(record) {
+    const inserted = await getTursoDb()
+      .insert(worshipPrepNotifications)
+      .values(serializeNotificationRecord(record))
+      .onConflictDoNothing({
+        target: [worshipPrepNotifications.sundayDate, worshipPrepNotifications.type],
+      })
+      .returning();
+
+    return inserted[0] ? mapTursoRecord(inserted[0]) : null;
+  },
+
+  async claimExisting(existing, input) {
+    const updated = await getTursoDb()
+      .update(worshipPrepNotifications)
+      .set({
+        status: 'pending',
+        threadId: input.threadId,
+        attempts: input.attempts,
+        lastAttemptAt: dateToDbText(input.now),
+        updatedAt: dateToDbText(input.now),
+      })
+      .where(and(
+        eq(worshipPrepNotifications.id, existing.id),
+        or(
+          eq(worshipPrepNotifications.status, 'failed'),
+          and(
+            eq(worshipPrepNotifications.status, 'pending'),
+            or(
+              isNull(worshipPrepNotifications.lastAttemptAt),
+              lte(worshipPrepNotifications.lastAttemptAt, dateToDbText(input.staleCutoff)),
+            ),
+          ),
+        ),
+      ))
+      .returning();
+
+    return updated[0] ? mapTursoRecord(updated[0]) : null;
+  },
+
+  async markSent(claim, messageId, now) {
+    await getTursoDb()
+      .update(worshipPrepNotifications)
+      .set({
+        status: 'sent',
+        messageId,
+        sentAt: dateToDbText(now),
+        updatedAt: dateToDbText(now),
+      })
+      .where(and(
+        eq(worshipPrepNotifications.id, claim.id),
+        eq(worshipPrepNotifications.status, 'pending'),
+        eq(worshipPrepNotifications.attempts, claim.attempts),
+        eq(worshipPrepNotifications.lastAttemptAt, dateToDbText(claim.lastAttemptAt)),
+      ));
+  },
+
+  async markFailed(claim, now) {
+    await getTursoDb()
+      .update(worshipPrepNotifications)
+      .set({ status: 'failed', updatedAt: dateToDbText(now) })
+      .where(and(
+        eq(worshipPrepNotifications.id, claim.id),
+        eq(worshipPrepNotifications.status, 'pending'),
+        eq(worshipPrepNotifications.attempts, claim.attempts),
+        eq(worshipPrepNotifications.lastAttemptAt, dateToDbText(claim.lastAttemptAt)),
+      ));
+  },
+};
 
 export async function claimWorshipPrepNotificationWithStore(
   store: WorshipPrepNotificationStateStore,
@@ -184,25 +268,7 @@ export async function getWorshipPrepNotification(
   sundayDate: string,
   type = WORSHIP_PREP_READY_NOTIFICATION_TYPE,
 ): Promise<WorshipPrepNotificationRecord | null> {
-  const provider = getStoryboardDatabaseProviderName();
-
-  if (provider === 'turso') {
-    const rows = await getTursoDb()
-      .select()
-      .from(tursoNotifications)
-      .where(and(eq(tursoNotifications.sundayDate, sundayDate), eq(tursoNotifications.type, type)))
-      .limit(1);
-
-    return rows[0] ? mapTursoRecord(rows[0]) : null;
-  }
-
-  const rows = await neonDb
-    .select()
-    .from(neonNotifications)
-    .where(and(eq(neonNotifications.sundayDate, sundayDate), eq(neonNotifications.type, type)))
-    .limit(1);
-
-  return rows[0] ? mapNeonRecord(rows[0]) : null;
+  return tursoNotificationStore.get(sundayDate, type);
 }
 
 export async function claimWorshipPrepNotification(
@@ -211,149 +277,7 @@ export async function claimWorshipPrepNotification(
   type = WORSHIP_PREP_READY_NOTIFICATION_TYPE,
   now = new Date(),
 ): Promise<NotificationClaimResult> {
-  const existing = await getWorshipPrepNotification(sundayDate, type);
-  const skipReason = getNotificationClaimSkipReason(existing, now);
-
-  if (skipReason) {
-    return { claimed: false, record: existing, reason: skipReason };
-  }
-
-  const provider = getStoryboardDatabaseProviderName();
-
-  if (!existing) {
-    const id = generateId();
-
-    if (provider === 'turso') {
-      const row = {
-        id,
-        sundayDate,
-        type,
-        status: 'pending',
-        threadId,
-        messageId: null,
-        attempts: 1,
-        lastAttemptAt: dateToDbText(now),
-        sentAt: null,
-        createdAt: dateToDbText(now),
-        updatedAt: dateToDbText(now),
-      };
-      const inserted = await getTursoDb()
-        .insert(tursoNotifications)
-        .values(row)
-        .onConflictDoNothing({ target: [tursoNotifications.sundayDate, tursoNotifications.type] })
-        .returning();
-
-      if (inserted.length > 0) {
-        return { claimed: true, record: mapTursoRecord(inserted[0]), reason: 'claimed' };
-      }
-
-      const raced = await getWorshipPrepNotification(sundayDate, type);
-      return {
-        claimed: false,
-        record: raced,
-        reason: getNotificationClaimSkipReason(raced, now) ?? 'lost-race',
-      };
-    }
-
-    const row = {
-      id,
-      sundayDate,
-      type,
-      status: 'pending',
-      threadId,
-      messageId: null,
-      attempts: 1,
-      lastAttemptAt: now,
-      sentAt: null,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const inserted = await neonDb
-      .insert(neonNotifications)
-      .values(row)
-      .onConflictDoNothing({ target: [neonNotifications.sundayDate, neonNotifications.type] })
-      .returning();
-
-    if (inserted.length > 0) {
-      return { claimed: true, record: mapNeonRecord(inserted[0]), reason: 'claimed' };
-    }
-
-    const raced = await getWorshipPrepNotification(sundayDate, type);
-    return {
-      claimed: false,
-      record: raced,
-      reason: getNotificationClaimSkipReason(raced, now) ?? 'lost-race',
-    };
-  }
-
-  const nextAttempts = existing.attempts + 1;
-  const cutoff = getStaleCutoff(now);
-
-  if (provider === 'turso') {
-    const updated = await getTursoDb()
-      .update(tursoNotifications)
-      .set({
-        status: 'pending',
-        threadId,
-        attempts: nextAttempts,
-        lastAttemptAt: dateToDbText(now),
-        updatedAt: dateToDbText(now),
-      })
-      .where(and(
-        eq(tursoNotifications.id, existing.id),
-        or(
-          eq(tursoNotifications.status, 'failed'),
-          and(
-            eq(tursoNotifications.status, 'pending'),
-            or(isNull(tursoNotifications.lastAttemptAt), lte(tursoNotifications.lastAttemptAt, dateToDbText(cutoff))),
-          ),
-        ),
-      ))
-      .returning();
-
-    if (updated.length > 0) {
-      return { claimed: true, record: mapTursoRecord(updated[0]), reason: 'claimed' };
-    }
-
-    const raced = await getWorshipPrepNotification(sundayDate, type);
-    return {
-      claimed: false,
-      record: raced,
-      reason: getNotificationClaimSkipReason(raced, now) ?? 'lost-race',
-    };
-  }
-
-  const updated = await neonDb
-    .update(neonNotifications)
-    .set({
-      status: 'pending',
-      threadId,
-      attempts: nextAttempts,
-      lastAttemptAt: now,
-      updatedAt: now,
-    })
-    .where(and(
-      eq(neonNotifications.id, existing.id),
-      or(
-        eq(neonNotifications.status, 'failed'),
-        and(
-          eq(neonNotifications.status, 'pending'),
-          or(isNull(neonNotifications.lastAttemptAt), lte(neonNotifications.lastAttemptAt, cutoff)),
-        ),
-      ),
-    ))
-    .returning();
-
-  if (updated.length > 0) {
-    return { claimed: true, record: mapNeonRecord(updated[0]), reason: 'claimed' };
-  }
-
-  const raced = await getWorshipPrepNotification(sundayDate, type);
-  return {
-    claimed: false,
-    record: raced,
-    reason: getNotificationClaimSkipReason(raced, now) ?? 'lost-race',
-  };
+  return claimWorshipPrepNotificationWithStore(tursoNotificationStore, sundayDate, threadId, type, now);
 }
 
 export async function markWorshipPrepNotificationSent(
@@ -361,65 +285,12 @@ export async function markWorshipPrepNotificationSent(
   messageId: string,
   now = new Date(),
 ): Promise<void> {
-  const provider = getStoryboardDatabaseProviderName();
-
-  if (provider === 'turso') {
-    await getTursoDb()
-      .update(tursoNotifications)
-      .set({
-        status: 'sent',
-        messageId,
-        sentAt: dateToDbText(now),
-        updatedAt: dateToDbText(now),
-      })
-      .where(and(
-        eq(tursoNotifications.id, claim.id),
-        eq(tursoNotifications.status, 'pending'),
-        eq(tursoNotifications.attempts, claim.attempts),
-        eq(tursoNotifications.lastAttemptAt, dateToDbText(claim.lastAttemptAt)),
-      ));
-    return;
-  }
-
-  await neonDb
-    .update(neonNotifications)
-    .set({
-      status: 'sent',
-      messageId,
-      sentAt: now,
-      updatedAt: now,
-    })
-    .where(and(
-      eq(neonNotifications.id, claim.id),
-      eq(neonNotifications.status, 'pending'),
-      eq(neonNotifications.attempts, claim.attempts),
-      eq(neonNotifications.lastAttemptAt, claim.lastAttemptAt),
-    ));
+  await markWorshipPrepNotificationSentWithStore(tursoNotificationStore, claim, messageId, now);
 }
 
-export async function markWorshipPrepNotificationFailed(claim: WorshipPrepNotificationClaimReference, now = new Date()): Promise<void> {
-  const provider = getStoryboardDatabaseProviderName();
-
-  if (provider === 'turso') {
-    await getTursoDb()
-      .update(tursoNotifications)
-      .set({ status: 'failed', updatedAt: dateToDbText(now) })
-      .where(and(
-        eq(tursoNotifications.id, claim.id),
-        eq(tursoNotifications.status, 'pending'),
-        eq(tursoNotifications.attempts, claim.attempts),
-        eq(tursoNotifications.lastAttemptAt, dateToDbText(claim.lastAttemptAt)),
-      ));
-    return;
-  }
-
-  await neonDb
-    .update(neonNotifications)
-    .set({ status: 'failed', updatedAt: now })
-    .where(and(
-      eq(neonNotifications.id, claim.id),
-      eq(neonNotifications.status, 'pending'),
-      eq(neonNotifications.attempts, claim.attempts),
-      eq(neonNotifications.lastAttemptAt, claim.lastAttemptAt),
-    ));
+export async function markWorshipPrepNotificationFailed(
+  claim: WorshipPrepNotificationClaimReference,
+  now = new Date(),
+): Promise<void> {
+  await markWorshipPrepNotificationFailedWithStore(tursoNotificationStore, claim, now);
 }

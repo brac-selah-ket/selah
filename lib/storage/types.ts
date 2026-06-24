@@ -1,4 +1,4 @@
-export type StorageProviderName = 'vercel-blob' | 'cloudflare-r2';
+export type StorageProviderName = 'cloudflare-r2';
 
 export interface PutObjectOptions {
   contentType?: string;

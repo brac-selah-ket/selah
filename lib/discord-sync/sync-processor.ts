@@ -1,15 +1,11 @@
-import { and, asc, eq, ilike, max } from 'drizzle-orm';
-import { db } from '@/lib/db';
-import { contiSongs, songs } from '@/lib/db/schema';
-import { insertContiSong, insertSong } from '@/lib/db/insert-helpers';
 import { mergeParsedWorshipData, parseDiscordMessages } from '@/lib/discord-parser';
 import type { DiscordMessage } from '@/lib/discord-sync/discord-client';
 import {
   attachContiToActiveThread,
   getProcessedMessageIds,
   markMessageProcessed,
-  upsertContiByDate,
 } from '@/lib/discord-sync/state-store';
+import { getStoryboardRepository } from '@/lib/repositories/storyboard';
 
 function toISODateFromYYMMDD(value: string): string {
   const year = `20${value.slice(0, 2)}`;
@@ -23,23 +19,42 @@ function buildContiDescription(sourceThreadId: string): string {
 }
 
 async function findOrCreateSongId(songName: string): Promise<string> {
+  const repository = getStoryboardRepository();
   const normalizedName = songName.trim();
   if (!normalizedName) {
     throw new Error('Song name is empty');
   }
 
-  const existing = await db
-    .select({ id: songs.id })
-    .from(songs)
-    .where(ilike(songs.name, normalizedName))
-    .orderBy(asc(songs.createdAt))
-    .limit(1);
+  const existing = (await repository.searchSongs(normalizedName)).find(
+    (song) => song.name.toLowerCase() === normalizedName.toLowerCase(),
+  );
 
-  if (existing.length > 0) {
-    return existing[0].id;
+  if (existing) {
+    return existing.id;
   }
 
-  const created = await insertSong(db, normalizedName);
+  const created = await repository.createSong(normalizedName);
+  return created.id;
+}
+
+async function upsertContiByDate(
+  date: string,
+  title: string | null,
+  description: string | null,
+): Promise<string> {
+  const repository = getStoryboardRepository();
+  const existing = await repository.getContiByDate(date);
+
+  if (existing) {
+    await repository.updateConti(existing.id, {
+      title: title ?? existing.title,
+      date,
+      description: description ?? existing.description,
+    });
+    return existing.id;
+  }
+
+  const created = await repository.createConti({ title, date, description });
   return created.id;
 }
 
@@ -48,31 +63,26 @@ async function addSongsToConti(contiId: string, songNames: string[]) {
     return;
   }
 
-  const maxOrderResult = await db
-    .select({ maxOrder: max(contiSongs.sortOrder) })
-    .from(contiSongs)
-    .where(eq(contiSongs.contiId, contiId));
-
-  let nextSortOrder = (maxOrderResult[0]?.maxOrder ?? -1) + 1;
+  const repository = getStoryboardRepository();
+  const conti = await repository.getConti(contiId);
+  const existingSongIds = new Set(conti?.songs.map((contiSong) => contiSong.songId) ?? []);
 
   for (const songName of songNames) {
     const songId = await findOrCreateSongId(songName);
-    const existsInConti = await db
-      .select({ id: contiSongs.id })
-      .from(contiSongs)
-      .where(and(eq(contiSongs.contiId, contiId), eq(contiSongs.songId, songId)))
-      .limit(1);
-
-    if (existsInConti.length > 0) {
+    if (existingSongIds.has(songId)) {
       continue;
     }
 
-    await insertContiSong(db, contiId, songId, nextSortOrder);
-    nextSortOrder += 1;
+    await repository.addSongToConti(contiId, songId);
+    existingSongIds.add(songId);
   }
 }
 
-export async function processDiscordMessages(threadId: string, sundayDate: string, messages: DiscordMessage[]) {
+export async function processDiscordMessages(
+  threadId: string,
+  sundayDate: string,
+  messages: DiscordMessage[],
+) {
   const processedIds = new Set(await getProcessedMessageIds(threadId));
   const unprocessed = messages.filter((message) => !processedIds.has(message.id));
 

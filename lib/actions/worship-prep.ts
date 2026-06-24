@@ -19,7 +19,7 @@ import {
   setActiveThread,
 } from '@/lib/discord-sync';
 import { parseDiscordMessages } from '@/lib/discord-parser';
-import { resolveGuildId, selectPreviousWorshipThread } from '@/lib/discord-sync/cron-state';
+import { resolveGuildId, selectPreviousWorshipThread, selectTargetWorshipThread } from '@/lib/discord-sync/cron-state';
 import { correctSpelling } from '@/lib/discord-sync/spell-checker';
 import { findRowByDate, readRoleOptionsWithFallback, updateWorshipData } from '@/lib/discord-sync/google-sheets';
 import { checkAndSendWorshipPrepReadyNotification } from '@/lib/discord-sync/worship-prep-notifications';
@@ -44,6 +44,28 @@ async function safelyCheckWorshipPrepReadyNotification(input: { sundayDate: stri
   } catch (error) {
     console.error('[checkAndSendWorshipPrepReadyNotification]', error);
   }
+}
+
+async function getCurrentWorshipThread(): Promise<{ threadId: string; sundayDate: string } | null> {
+  const channelId = process.env.DISCORD_CHANNEL_ID;
+  if (channelId) {
+    const configuredGuildId = process.env.DISCORD_GUILD_ID;
+    const guildId = resolveGuildId({
+      configuredGuildId,
+      channel: configuredGuildId?.trim() ? null : await getChannel(channelId),
+    });
+
+    if (guildId) {
+      const selected = selectTargetWorshipThread(await getActiveForumThreads(guildId, channelId));
+      if (selected) {
+        await setActiveThread(selected.id, selected.sundayDate);
+        return { threadId: selected.id, sundayDate: selected.sundayDate };
+      }
+    }
+  }
+
+  const activeThread = await getActiveThread();
+  return activeThread ? { threadId: activeThread.threadId, sundayDate: activeThread.sundayDate } : null;
 }
 
 export async function createWeeklyWorshipThread(): Promise<ActionResult<{ threadId: string; threadName: string; sundayDate: string }>> {
@@ -114,14 +136,16 @@ export async function createWeeklyWorshipThread(): Promise<ActionResult<{ thread
 
 export async function parseActiveWorshipThreadComments(): Promise<ActionResult<{ threadId: string; processedCount: number }>> {
   try {
-    const activeThread = await getActiveThread();
+    const activeThread = await getCurrentWorshipThread();
     if (!activeThread) {
       return { success: false, error: '활성 스레드가 없습니다' };
     }
 
     const messages = await getThreadMessages(activeThread.threadId);
     const processedIds = new Set(await getProcessedMessageIds(activeThread.threadId));
-    const newMessages = messages.filter((message) => !processedIds.has(message.id) && message.id !== activeThread.threadId);
+    const newMessages = messages.filter(
+      (message) => !message.author.bot && !processedIds.has(message.id) && message.id !== activeThread.threadId,
+    );
 
     if (newMessages.length === 0) {
       return {
@@ -202,7 +226,7 @@ export async function parseActiveWorshipThreadComments(): Promise<ActionResult<{
 
 export async function resendWorshipRoleDropdowns(): Promise<ActionResult<{ threadId: string }>> {
   try {
-    const activeThread = await getActiveThread();
+    const activeThread = await getCurrentWorshipThread();
     if (!activeThread) {
       return { success: false, error: '활성 스레드가 없습니다' };
     }

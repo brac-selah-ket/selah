@@ -2,18 +2,6 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-test('neon schema defines worship prep notification state and conti date index', async () => {
-  const source = await readFile(new URL('../lib/db/schema.ts', import.meta.url), 'utf8');
-
-  assert.match(source, /export const worshipPrepNotifications = pgTable/);
-  assert.match(source, /sundayDate:\s*text\('sunday_date'\)\.notNull\(\)/);
-  assert.match(source, /type:\s*text\('type'\)\.notNull\(\)/);
-  assert.match(source, /status:\s*text\('status'\)\.notNull\(\)/);
-  assert.match(source, /attempts:\s*integer\('attempts'\)\.notNull\(\)\.default\(0\)/);
-  assert.match(source, /uniqueIndex\('worship_prep_notifications_week_type_unique'\)\.on\(table\.sundayDate,\s*table\.type\)/);
-  assert.match(source, /index\('contis_date_idx'\)\.on\(table\.date\)/);
-});
-
 test('turso schema defines worship prep notification state and conti date index', async () => {
   const source = await readFile(new URL('../lib/db/turso-schema.ts', import.meta.url), 'utf8');
 
@@ -45,7 +33,7 @@ test('notification state store uses atomic claim before send and sent marking', 
   assert.match(source, /status:\s*'pending'/);
   assert.match(source, /status:\s*'sent'/);
   assert.match(source, /status:\s*'failed'/);
-  assert.match(source, /getStoryboardDatabaseProviderName/);
+  assert.doesNotMatch(source, /getStoryboardDatabaseProviderName/);
 });
 
 test('notification terminal updates are scoped to the active pending claim', async () => {
@@ -55,13 +43,10 @@ test('notification terminal updates are scoped to the active pending claim', asy
   );
 
   assert.match(source, /markWorshipPrepNotificationSent\(\s*claim:/);
-  assert.match(source, /markWorshipPrepNotificationFailed\(claim:/);
-  assert.match(source, /eq\(neonNotifications\.status,\s*'pending'\)/);
-  assert.match(source, /eq\(neonNotifications\.attempts,\s*claim\.attempts\)/);
-  assert.match(source, /eq\(neonNotifications\.lastAttemptAt,\s*claim\.lastAttemptAt\)/);
-  assert.match(source, /eq\(tursoNotifications\.status,\s*'pending'\)/);
-  assert.match(source, /eq\(tursoNotifications\.attempts,\s*claim\.attempts\)/);
-  assert.match(source, /eq\(tursoNotifications\.lastAttemptAt,\s*dateToDbText\(claim\.lastAttemptAt\)\)/);
+  assert.match(source, /markWorshipPrepNotificationFailed\(\s*claim:/);
+  assert.match(source, /eq\(worshipPrepNotifications\.status,\s*'pending'\)/);
+  assert.match(source, /eq\(worshipPrepNotifications\.attempts,\s*claim\.attempts\)/);
+  assert.match(source, /eq\(worshipPrepNotifications\.lastAttemptAt,\s*dateToDbText\(claim\.lastAttemptAt\)\)/);
 });
 
 test('notification orchestration checks sent state before expensive reads and claims before send', async () => {
