@@ -76,9 +76,7 @@ export function ContiForm({
       const importItems =
         enableInlineYouTubeImport && importState.step === "review"
           ? buildBatchImportItems(
-              importState.items
-                .filter((item) => !item.excluded)
-                .map((item) => ({ ...item, presetName: defaultPresetName })),
+              importState.items.map((item) => ({ ...item, presetName: defaultPresetName })),
               defaultPresetName,
             )
           : []
@@ -217,6 +215,7 @@ export function ContiForm({
                     importState.handleReplaceExistingYoutubeChange
                   }
                   onToggleExclude={importState.toggleExclude}
+                  onToggleMashupWithNext={importState.toggleMashupWithNext}
                 />
                 <div className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-3 sm:flex-row sm:items-center">
                   <Button

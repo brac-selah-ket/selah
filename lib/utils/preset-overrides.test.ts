@@ -28,3 +28,24 @@ test("copies full preset arrangement data into conti overrides", () => {
 test("uses all sheet music semantics when a preset has no explicit sheet music", () => {
   assert.equal(songPresetToContiOverrides(preset, []).sheetMusicFileIds, null)
 })
+
+test("copies display-only mashup preset data without changing conti override shape", () => {
+  const mashupPreset = {
+    ...preset,
+    presetType: "mashup",
+    displayTitle: "A / B",
+  }
+  const overrides = songPresetToContiOverrides(mashupPreset, ["sheet-1"])
+
+  assert.deepEqual(Object.keys(overrides).sort(), [
+    "keys",
+    "lyrics",
+    "notes",
+    "presetId",
+    "sectionLyricsMap",
+    "sectionOrder",
+    "sheetMusicFileIds",
+    "tempos",
+  ].sort())
+  assert.equal(overrides.presetId, "preset-1")
+})

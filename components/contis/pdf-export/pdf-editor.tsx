@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useSidebarHeader } from "@/components/layout/sidebar-header-context";
@@ -17,6 +17,7 @@ import {
   Delete01Icon,
 } from "@hugeicons/core-free-icons";
 import { formatDate } from "./utils";
+import { buildArrangementItems } from "@/lib/utils/arrangement-items";
 import type { PdfEditorProps } from "./types";
 import {
   useEditorPages,
@@ -32,6 +33,10 @@ export function PdfEditor({ conti, existingExport }: PdfEditorProps) {
   const { setHeaderContent } = useSidebarHeader();
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const arrangementItems = useMemo(
+    () => buildArrangementItems(conti.songs),
+    [conti.songs],
+  );
 
   // 1. Page state (no hook dependencies)
   const {
@@ -174,9 +179,13 @@ export function PdfEditor({ conti, existingExport }: PdfEditorProps) {
     );
   }
 
-  const songName = currentPage
-    ? (conti.songs[currentPage.songIndex]?.song.name ?? "")
-    : "";
+  const currentArrangementItem = currentPage
+    ? arrangementItems.find((item) => item.key === currentPage.arrangementItemKey) ??
+      arrangementItems[currentPage.displayIndex] ??
+      arrangementItems[currentPage.songIndex] ??
+      null
+    : null;
+  const songName = currentArrangementItem?.displayTitle ?? "";
 
   return (
     <div className="flex flex-col gap-4">
@@ -211,12 +220,11 @@ export function PdfEditor({ conti, existingExport }: PdfEditorProps) {
                 size="sm"
                 onClick={() => {
                   if (!currentPage) return;
-                  const contiSong = conti.songs[currentPage.songIndex];
-                  if (contiSong) {
+                  if (currentArrangementItem) {
                     resetOverlaysToDefault(
-                      currentPage.songIndex,
-                      contiSong.overrides.sectionOrder,
-                      contiSong.overrides.tempos,
+                      currentPage.displayIndex,
+                      currentArrangementItem.sectionOrder,
+                      currentArrangementItem.tempos,
                     );
                   }
                 }}

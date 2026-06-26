@@ -11,13 +11,22 @@ function parseJsonField<T>(field: string | null, fallback: T): T {
   }
 }
 
+function getPresetLyrics(preset: SongPresetWithSheetMusic | undefined): string[] {
+  const lyrics = parseJsonField<string[]>(preset?.lyrics ?? null, [])
+  if (lyrics.length > 0) return lyrics
+  if (preset?.presetType === "single") return preset.songLyrics ?? []
+  if (preset?.presetType === "mashup") return preset.fallbackLyrics ?? []
+  return lyrics
+}
+
 export function songPresetToDraft(preset: SongPresetWithSheetMusic | undefined): ArrangementDraft {
   return {
     name: preset?.name ?? "",
+    displayTitle: preset?.displayTitle ?? null,
     keys: parseJsonField<string[]>(preset?.keys ?? null, []),
     tempos: parseJsonField<number[]>(preset?.tempos ?? null, []),
     sectionOrder: parseJsonField<string[]>(preset?.sectionOrder ?? null, []),
-    lyrics: parseJsonField<string[]>(preset?.lyrics ?? null, []),
+    lyrics: getPresetLyrics(preset),
     sectionLyricsMap: parseJsonField<Record<number, number[]>>(preset?.sectionLyricsMap ?? null, {}),
     notes: preset?.notes ?? null,
     sheetMusicFileIds: preset?.sheetMusicFileIds?.length ? preset.sheetMusicFileIds : null,
@@ -36,6 +45,7 @@ export function arrangementDraftToSongPresetData(draft: ArrangementDraft): SongP
 
   return {
     name: draft.name.trim(),
+    displayTitle: draft.displayTitle?.trim() || null,
     keys: draft.keys,
     tempos: draft.tempos,
     sectionOrder: draft.sectionOrder,

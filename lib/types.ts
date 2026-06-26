@@ -1,6 +1,10 @@
+export type { SongPresetType } from './song-preset-types';
+import type { SongPresetType } from './song-preset-types';
+
 export interface Song {
   id: string;
   name: string;
+  lyrics?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -18,6 +22,9 @@ export interface SheetMusicFile {
 export interface SongPreset {
   id: string;
   songId: string;
+  presetType: SongPresetType;
+  displayTitle: string | null;
+  mashupPairKey: string | null;
   name: string;
   keys: string | null;
   tempos: string | null;
@@ -39,6 +46,15 @@ export interface PresetSheetMusic {
   presetId: string;
   sheetMusicFileId: string;
   sortOrder: number;
+}
+
+export interface SongPresetMember {
+  id: string;
+  presetId: string;
+  songId: string;
+  sortOrder: number;
+  partLabel: string | null;
+  songName?: string;
 }
 
 export interface Conti {
@@ -63,6 +79,9 @@ export interface ContiSong {
   notes: string | null;
   sheetMusicFileIds: string | null;
   presetId: string | null;
+  mashupGroupId: string | null;
+  mashupPartOrder: number | null;
+  preMashupPresetId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -101,6 +120,7 @@ export interface PresetPdfMetadata {
 
 export interface SongPresetData {
   name: string;
+  displayTitle?: string | null;
   keys: string[];
   tempos: number[];
   sectionOrder: string[];
@@ -121,12 +141,34 @@ export interface SongWithSheetMusic extends Song {
 
 export interface SongPresetWithSheetMusic extends SongPreset {
   sheetMusicFileIds: string[];
+  members: SongPresetMember[];
+  availableSheetMusic?: SheetMusicFile[];
+  songLyrics?: string[];
+  fallbackLyrics?: string[];
 }
 
 export interface ContiSongWithSong extends ContiSong {
   song: Song;
   overrides: ContiSongOverrides;
-  appliedPreset?: Pick<SongPreset, 'id' | 'name' | 'youtubeReference' | 'youtubeTitle'> | null;
+  appliedPreset?: Pick<
+    SongPreset,
+    'id' | 'name' | 'presetType' | 'displayTitle' | 'youtubeReference' | 'youtubeTitle'
+  > | null;
+}
+
+export interface ArrangementItem {
+  key: string;
+  type: SongPresetType;
+  displayTitle: string;
+  displaySongNames: string[];
+  songs: ContiSongWithSong[];
+  primarySong: ContiSongWithSong;
+  presetId: string | null;
+  sectionOrder: string[];
+  lyrics: string[];
+  sectionLyricsMap: Record<number, number[]>;
+  tempos: number[];
+  keys: string[];
 }
 
 export interface ContiWithSongs extends Conti {
@@ -143,9 +185,13 @@ export interface ContiSongSummary {
   sectionOrder: string[]
   presetId: string | null
   presetName: string | null
+  presetType: SongPresetType | null
+  presetDisplayTitle: string | null
   youtubeReference: string | null
   youtubeTitle: string | null
   hasSheetMusicSelection: boolean
+  mashupGroupId: string | null
+  mashupPartOrder: number | null
 }
 
 export interface ContiWithSongSummaries extends Conti {
@@ -237,6 +283,7 @@ export interface OverlayElement {
 export interface PageLayout {
   pageIndex: number;
   songIndex: number;
+  arrangementItemKey?: string | null;
   sheetMusicFileId: string | null;
   pdfPageIndex?: number | null;
   overlays: OverlayElement[];

@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { test } from "vitest"
 import {
   getSheetMusicSelectionSaveError,
+  shouldConfirmLyricsSaveScope,
   shouldShowYouTubeReferenceField,
 } from "./save-rules.ts"
 
@@ -21,4 +22,63 @@ test("allows all sheet music, a non-empty selection, or no available sheet music
   assert.equal(getSheetMusicSelectionSaveError(null, 2), null)
   assert.equal(getSheetMusicSelectionSaveError(["sheet-1"], 2), null)
   assert.equal(getSheetMusicSelectionSaveError([], 0), null)
+})
+
+test("confirms save scope only for changed existing single preset lyrics", () => {
+  assert.equal(
+    shouldConfirmLyricsSaveScope({
+      mode: "preset",
+      presetType: "single",
+      hasExistingPreset: true,
+      initialLyrics: ["old lyrics"],
+      draftLyrics: ["new lyrics"],
+    }),
+    true,
+  )
+
+  assert.equal(
+    shouldConfirmLyricsSaveScope({
+      mode: "preset",
+      presetType: "single",
+      hasExistingPreset: true,
+      initialLyrics: ["same lyrics"],
+      draftLyrics: ["same lyrics"],
+    }),
+    false,
+  )
+})
+
+test("does not confirm save scope for mashups, new presets, or conti songs", () => {
+  assert.equal(
+    shouldConfirmLyricsSaveScope({
+      mode: "preset",
+      presetType: "mashup",
+      hasExistingPreset: true,
+      initialLyrics: ["old lyrics"],
+      draftLyrics: ["new lyrics"],
+    }),
+    false,
+  )
+
+  assert.equal(
+    shouldConfirmLyricsSaveScope({
+      mode: "preset",
+      presetType: "single",
+      hasExistingPreset: false,
+      initialLyrics: ["old lyrics"],
+      draftLyrics: ["new lyrics"],
+    }),
+    false,
+  )
+
+  assert.equal(
+    shouldConfirmLyricsSaveScope({
+      mode: "conti-song",
+      presetType: "single",
+      hasExistingPreset: true,
+      initialLyrics: ["old lyrics"],
+      draftLyrics: ["new lyrics"],
+    }),
+    false,
+  )
 })

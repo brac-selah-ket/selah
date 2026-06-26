@@ -2,7 +2,13 @@ import type { ContiSongOverrides, SongPreset } from "../types"
 
 type PresetArrangementSource = Pick<
   SongPreset,
-  "id" | "keys" | "tempos" | "sectionOrder" | "lyrics" | "sectionLyricsMap" | "notes"
+  | "id"
+  | "keys"
+  | "tempos"
+  | "sectionOrder"
+  | "lyrics"
+  | "sectionLyricsMap"
+  | "notes"
 >
 
 function parseJsonField<T>(field: string | null, fallback: T): T {

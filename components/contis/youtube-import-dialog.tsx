@@ -64,7 +64,7 @@ export function YouTubeImportDialog({
     }
 
     startTransition(async () => {
-      const batchItems = buildBatchImportItems(importableItems, defaultPresetName)
+      const batchItems = buildBatchImportItems(importState.items, defaultPresetName)
 
       const result = await batchImportSongsToConti(contiId, batchItems)
       if (!result.success || !result.data) {
@@ -76,6 +76,7 @@ export function YouTubeImportDialog({
       if (result.data.added > 0) msgs.push(`${result.data.added}곡 추가`)
       if (result.data.created > 0) msgs.push(`새 곡 ${result.data.created}개 생성`)
       if (result.data.presetUpdated > 0) msgs.push(`프리셋 ${result.data.presetUpdated}개 업데이트`)
+      if (result.data.mashupsApplied > 0) msgs.push(`매시업 ${result.data.mashupsApplied}개 연결`)
       toast.success(msgs.join(', '))
       onOpenChange(false)
       importState.resetState()
@@ -136,6 +137,7 @@ export function YouTubeImportDialog({
                   importState.handleReplaceExistingYoutubeChange
                 }
                 onToggleExclude={importState.toggleExclude}
+                onToggleMashupWithNext={importState.toggleMashupWithNext}
               />
             </div>
 

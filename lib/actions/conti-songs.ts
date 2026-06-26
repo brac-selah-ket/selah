@@ -179,8 +179,54 @@ export async function syncPresetPdfMetadataFromContiLayout(
   }
 }
 
+const applyMashupSchema = z.object({
+  contiId: z.string().min(1),
+  firstContiSongId: z.string().min(1),
+  secondContiSongId: z.string().min(1),
+  presetId: z.string().min(1),
+});
+
+const splitMashupSchema = z.object({
+  contiId: z.string().min(1),
+  mashupGroupId: z.string().min(1),
+  mode: z.enum(['restore', 'clear']),
+});
+
+export async function applyMashupToContiSongs(
+  input: z.input<typeof applyMashupSchema>
+): Promise<ActionResult<{ mashupGroupId: string }>> {
+  try {
+    const validation = applyMashupSchema.safeParse(input);
+    if (!validation.success) return { success: false, error: '매시업 연결 정보가 올바르지 않습니다' };
+    const result = await getStoryboardRepository().applyMashupToContiSongs(validation.data);
+    invalidateConti(validation.data.contiId);
+    revalidatePath('/contis');
+    return { success: true, data: result };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '';
+    if (message === 'MASHUP_REQUIRES_ADJACENT_ROWS') return { success: false, error: '인접한 두 곡만 매시업으로 연결할 수 있습니다' };
+    if (message === 'MASHUP_ALREADY_GROUPED') return { success: false, error: '이미 매시업으로 연결된 곡입니다' };
+    if (message === 'MASHUP_PRESET_SONGS_MISMATCH') return { success: false, error: '선택한 매시업 프리셋의 곡 순서가 현재 콘티와 맞지 않습니다' };
+    return { success: false, error: '매시업 연결 중 오류가 발생했습니다' };
+  }
+}
+
+export async function splitMashup(input: z.input<typeof splitMashupSchema>): Promise<ActionResult> {
+  try {
+    const validation = splitMashupSchema.safeParse(input);
+    if (!validation.success) return { success: false, error: '매시업 분리 정보가 올바르지 않습니다' };
+    await getStoryboardRepository().splitMashup(validation.data);
+    invalidateConti(validation.data.contiId);
+    revalidatePath('/contis');
+    return { success: true };
+  } catch {
+    return { success: false, error: '매시업 분리 중 오류가 발생했습니다' };
+  }
+}
+
 const batchImportItemSchema = z.object({
   songId: z.string().nullable(),
+  songName: z.string().nullable().optional().default(null),
   newSongName: z.string().nullable(),
   videoId: z.string().nullable().optional().default(null),
   title: z.string().nullable().optional().default(null),
@@ -189,6 +235,15 @@ const batchImportItemSchema = z.object({
   presetName: z.string().nullable().optional().default(null),
   alreadyInConti: z.boolean().optional().default(false),
   replaceExistingYoutube: z.boolean().optional().default(true),
+  mashupWithNext: z
+    .object({
+      presetId: z.string().nullable().optional().default(null),
+      createNewPreset: z.boolean().optional().default(true),
+      presetName: z.string().optional().default(''),
+    })
+    .nullable()
+    .optional()
+    .default(null),
 })
 
 const batchImportSchema = z.object({
@@ -200,6 +255,7 @@ export async function batchImportSongsToConti(
   contiId: string,
   items: Array<{
     songId: string | null
+    songName?: string | null
     newSongName: string | null
     videoId?: string | null
     title?: string | null
@@ -208,8 +264,13 @@ export async function batchImportSongsToConti(
     presetName?: string | null
     alreadyInConti?: boolean
     replaceExistingYoutube?: boolean
+    mashupWithNext?: {
+      presetId: string | null
+      createNewPreset: boolean
+      presetName: string
+    } | null
   }>
-): Promise<ActionResult<{ added: number; created: number; presetUpdated: number }>> {
+): Promise<ActionResult<{ added: number; created: number; presetUpdated: number; mashupsApplied: number }>> {
   try {
     const validation = batchImportSchema.safeParse({ contiId, items })
     if (!validation.success) {

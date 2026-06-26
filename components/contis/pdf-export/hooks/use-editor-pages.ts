@@ -4,6 +4,7 @@ import {
   findPresetPdfPageMetadata,
   mergePresetOverlays,
 } from "@/lib/utils/pdf-export-helpers";
+import { buildArrangementItems } from "@/lib/utils/arrangement-items";
 import { getSheetMusicAssetUrl } from "@/lib/sheet-music-assets";
 import { getPdfPageCount, renderPdfPageToDataUrl } from "@/lib/utils/pdfjs";
 import { applySavedCrop } from "../utils";
@@ -29,22 +30,80 @@ export function useEditorPages(
   const buildEditorPages = useCallback(
     async (savedLayouts: PageLayout[] | null): Promise<EditorPage[]> => {
       const editorPages: EditorPage[] = [];
+      const arrangementItems = buildArrangementItems(conti.songs);
+      const isLegacyLayout = (layout: PageLayout) =>
+        layout.arrangementItemKey === undefined || layout.arrangementItemKey === null;
 
-      for (let songIdx = 0; songIdx < conti.songs.length; songIdx++) {
-        const contiSong = conti.songs[songIdx];
+      const findSavedLayout = (
+        arrangementItemKey: string,
+        displayIndex: number,
+        legacySongIndex: number,
+        sheetMusicFileId: string | null,
+        pdfPageIndex: number | null,
+      ) => {
+        const exact = savedLayouts?.find(
+          (l) =>
+            l.arrangementItemKey === arrangementItemKey &&
+            l.sheetMusicFileId === sheetMusicFileId &&
+            (l.pdfPageIndex ?? null) === pdfPageIndex,
+        );
+        if (exact) return exact;
+
+        return savedLayouts?.find(
+          (l) =>
+            l.songIndex === legacySongIndex &&
+            isLegacyLayout(l) &&
+            l.sheetMusicFileId === sheetMusicFileId &&
+            (l.pdfPageIndex ?? null) === pdfPageIndex,
+        ) ?? savedLayouts?.find(
+          (l) =>
+            l.songIndex === displayIndex &&
+            isLegacyLayout(l) &&
+            l.sheetMusicFileId === sheetMusicFileId &&
+            (l.pdfPageIndex ?? null) === pdfPageIndex,
+        );
+      };
+
+      const findSavedLayoutByPageIndex = (
+        displayIndex: number,
+        legacySongIndex: number,
+        sheetMusicFileId: string,
+      ) =>
+        savedLayouts?.find(
+          (l) =>
+            l.songIndex === legacySongIndex &&
+            isLegacyLayout(l) &&
+            l.sheetMusicFileId === sheetMusicFileId &&
+            l.pageIndex === editorPages.length,
+        ) ?? savedLayouts?.find(
+          (l) =>
+            l.songIndex === displayIndex &&
+            isLegacyLayout(l) &&
+            l.sheetMusicFileId === sheetMusicFileId &&
+            l.pageIndex === editorPages.length,
+        );
+
+      for (let itemIndex = 0; itemIndex < arrangementItems.length; itemIndex++) {
+        const item = arrangementItems[itemIndex];
+        const contiSong = item.primarySong as typeof conti.songs[number];
+        const legacySongIndex = conti.songs.findIndex((song) => song.id === contiSong.id);
         const sheetMusic = contiSong.sheetMusic;
+        const pageBase = {
+          songIndex: itemIndex,
+          arrangementItemKey: item.key,
+          displayIndex: itemIndex,
+          primaryContiSongId: contiSong.id,
+        };
 
         if (sheetMusic.length === 0) {
           const defaultOverlays = buildDefaultOverlays(
-            songIdx,
-            contiSong.overrides.sectionOrder,
-            contiSong.overrides.tempos,
+            itemIndex,
+            item.sectionOrder,
+            item.tempos,
           );
-          const saved = savedLayouts?.find(
-            (l) => l.songIndex === songIdx && l.sheetMusicFileId === null,
-          );
+          const saved = findSavedLayout(item.key, itemIndex, legacySongIndex, null, null);
           editorPages.push({
-            songIndex: songIdx,
+            ...pageBase,
             sheetMusicFileId: null,
             imageUrl: null,
             pdfPageIndex: null,
@@ -65,20 +124,18 @@ export function useEditorPages(
           const assetUrl = getSheetMusicAssetUrl(file);
           if (file.fileType.includes("image")) {
             const defaultOverlays = buildDefaultOverlays(
-              songIdx,
-              contiSong.overrides.sectionOrder,
-              contiSong.overrides.tempos,
+              itemIndex,
+              item.sectionOrder,
+              item.tempos,
             );
-            const saved = savedLayouts?.find(
-              (l) => l.songIndex === songIdx && l.sheetMusicFileId === file.id,
-            );
+            const saved = findSavedLayout(item.key, itemIndex, legacySongIndex, file.id, null);
             const preset = findPresetPdfPageMetadata(
               contiSong.presetPdfMetadata,
               file.id,
               null,
             );
             editorPages.push({
-              songIndex: songIdx,
+              ...pageBase,
               sheetMusicFileId: file.id,
               imageUrl: assetUrl,
               pdfPageIndex: null,
@@ -86,9 +143,9 @@ export function useEditorPages(
                 saved?.overlays ??
                 mergePresetOverlays(
                   preset?.overlays,
-                  songIdx,
-                  contiSong.overrides.sectionOrder,
-                  contiSong.overrides.tempos,
+                  itemIndex,
+                  item.sectionOrder,
+                  item.tempos,
                 ) ??
                 defaultOverlays,
               imageScale: saved?.imageScale ?? preset?.imageScale ?? 1,
@@ -115,30 +172,20 @@ export function useEditorPages(
               const pageCount = await getPdfPageCount(assetUrl);
               for (let p = 0; p < pageCount; p++) {
                 const defaultOverlays = buildDefaultOverlays(
-                  songIdx,
-                  contiSong.overrides.sectionOrder,
-                  contiSong.overrides.tempos,
+                  itemIndex,
+                  item.sectionOrder,
+                  item.tempos,
                 );
                 const saved =
-                  savedLayouts?.find(
-                    (l) =>
-                      l.songIndex === songIdx &&
-                      l.sheetMusicFileId === file.id &&
-                      (l.pdfPageIndex ?? null) === p,
-                  ) ??
-                  savedLayouts?.find(
-                    (l) =>
-                      l.songIndex === songIdx &&
-                      l.sheetMusicFileId === file.id &&
-                      l.pageIndex === editorPages.length,
-                  );
+                  findSavedLayout(item.key, itemIndex, legacySongIndex, file.id, p) ??
+                  findSavedLayoutByPageIndex(itemIndex, legacySongIndex, file.id);
                 const preset = findPresetPdfPageMetadata(
                   contiSong.presetPdfMetadata,
                   file.id,
                   p,
                 );
                 editorPages.push({
-                  songIndex: songIdx,
+                  ...pageBase,
                   sheetMusicFileId: file.id,
                   imageUrl: null,
                   pdfPageIndex: p,
@@ -146,9 +193,9 @@ export function useEditorPages(
                     saved?.overlays ??
                     mergePresetOverlays(
                       preset?.overlays,
-                      songIdx,
-                      contiSong.overrides.sectionOrder,
-                      contiSong.overrides.tempos,
+                      itemIndex,
+                      item.sectionOrder,
+                      item.tempos,
                     ) ??
                     defaultOverlays,
                   imageScale: saved?.imageScale ?? preset?.imageScale ?? 1,
@@ -163,21 +210,18 @@ export function useEditorPages(
               }
             } catch {
               const defaultOverlays = buildDefaultOverlays(
-                songIdx,
-                contiSong.overrides.sectionOrder,
-                contiSong.overrides.tempos,
+                itemIndex,
+                item.sectionOrder,
+                item.tempos,
               );
-              const savedFallback = savedLayouts?.find(
-                (l) =>
-                  l.songIndex === songIdx && l.sheetMusicFileId === file.id,
-              );
+              const savedFallback = findSavedLayout(item.key, itemIndex, legacySongIndex, file.id, null);
               const presetFallback = findPresetPdfPageMetadata(
                 contiSong.presetPdfMetadata,
                 file.id,
                 null,
               );
               editorPages.push({
-                songIndex: songIdx,
+                ...pageBase,
                 sheetMusicFileId: file.id,
                 imageUrl: null,
                 pdfPageIndex: null,
@@ -185,9 +229,9 @@ export function useEditorPages(
                   savedFallback?.overlays ??
                   mergePresetOverlays(
                     presetFallback?.overlays,
-                    songIdx,
-                    contiSong.overrides.sectionOrder,
-                    contiSong.overrides.tempos,
+                    itemIndex,
+                    item.sectionOrder,
+                    item.tempos,
                   ) ??
                   defaultOverlays,
                 imageScale:
@@ -243,7 +287,7 @@ export function useEditorPages(
 
       return editorPages;
     },
-    [conti.songs],
+    [conti],
   );
 
   // Initialize pages from conti data

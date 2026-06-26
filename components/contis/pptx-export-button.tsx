@@ -20,6 +20,7 @@ import {
   Loading03Icon,
 } from "@hugeicons/core-free-icons"
 import { listPptxFiles, exportContiToPptx } from "@/lib/actions/pptx-export"
+import { buildArrangementItems } from "@/lib/utils/arrangement-items"
 import type { ContiWithSongs, PptxDriveFile } from "@/lib/types"
 
 type Step = "file-list" | "mode-select" | "confirm"
@@ -45,22 +46,33 @@ export function PptxExportButton({ conti, iconOnly = false }: PptxExportButtonPr
   const [selectedFile, setSelectedFile] = useState<PptxDriveFile | null>(null)
   const [overwrite, setOverwrite] = useState(true)
   const [outputFileName, setOutputFileName] = useState("")
+  const [separateMashups, setSeparateMashups] = useState(false)
 
   // Songs eligible for export (have sectionOrder configured)
   const eligibleSongs = useMemo(() => {
-    return conti.songs
-      .filter((cs) => cs.overrides.sectionOrder.length > 0)
+    const sources = separateMashups
+      ? conti.songs.map((song) => ({
+          title: song.song.name,
+          sectionOrder: song.overrides.sectionOrder,
+        }))
+      : buildArrangementItems(conti.songs).map((item) => ({
+          title: item.displayTitle,
+          sectionOrder: item.sectionOrder,
+        }))
+
+    return sources
+      .filter((source) => source.sectionOrder.length > 0)
       .slice(0, 4)
-  }, [conti.songs])
+  }, [conti.songs, separateMashups])
 
   const hasEligibleSongs = eligibleSongs.length > 0
 
   // Auto-generated section names for summary
   const sectionSummary = useMemo(() => {
-    return eligibleSongs.map((cs, idx) => ({
+    return eligibleSongs.map((source, idx) => ({
       sectionName: `${SECTION_PREFIX} ${idx + 1}`,
-      songName: cs.song.name,
-      slideCount: cs.overrides.sectionOrder.filter(
+      songName: source.title,
+      slideCount: source.sectionOrder.filter(
         (s) => s.trim().toLowerCase() !== "intro"
       ).length,
     }))
@@ -92,6 +104,7 @@ export function PptxExportButton({ conti, iconOnly = false }: PptxExportButtonPr
       setSelectedFile(null)
       setOverwrite(true)
       setOutputFileName("")
+      setSeparateMashups(false)
       setFiles([])
       setFilesError(null)
     }
@@ -129,6 +142,7 @@ export function PptxExportButton({ conti, iconOnly = false }: PptxExportButtonPr
         overwrite,
         outputFileName: overwrite ? undefined : outputFileName.trim(),
         contiId: conti.id,
+        separateMashups,
       })
 
       if (!result.success || !result.data) {
@@ -275,6 +289,16 @@ export function PptxExportButton({ conti, iconOnly = false }: PptxExportButtonPr
                 />
               </div>
             )}
+
+            <label className="flex items-center gap-2 rounded-lg border p-3 text-sm">
+              <input
+                type="checkbox"
+                checked={separateMashups}
+                onChange={(event) => setSeparateMashups(event.target.checked)}
+                className="size-4 accent-primary"
+              />
+              <span>매시업 분리 내보내기</span>
+            </label>
           </div>
         )}
 

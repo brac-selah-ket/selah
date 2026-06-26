@@ -45,6 +45,24 @@ function detectDuplicates(items: YouTubeImportStateItem[]) {
   })
 }
 
+function clearInvalidMashupLinks(items: YouTubeImportStateItem[]) {
+  return items.map((item, index) => {
+    const nextItem = items[index + 1]
+    const previousItem = items[index - 1]
+    const blockedByPrevious = Boolean(previousItem?.mashupWithNext)
+    const canLinkNext = Boolean(nextItem && !item.excluded && !nextItem.excluded && !blockedByPrevious)
+
+    return {
+      ...item,
+      mashupWithNext: item.mashupWithNext && canLinkNext ? item.mashupWithNext : null,
+    }
+  })
+}
+
+function normalizeReviewItems(items: YouTubeImportStateItem[]) {
+  return clearInvalidMashupLinks(detectDuplicates(items))
+}
+
 export function useYouTubeImportState({
   defaultPresetName,
   existingSongIds,
@@ -141,16 +159,17 @@ export function useYouTubeImportState({
         presets: null,
         existingYoutubeRef: null,
         replaceExistingYoutube: true,
+        mashupWithNext: null,
       }))
 
-      setItems(detectDuplicates(importItems))
+      setItems(normalizeReviewItems(importItems))
       setInternalStep("review")
     })
   }
 
   function handleEditName(itemId: string, newName: string) {
     setItems((prev) =>
-      detectDuplicates(
+      normalizeReviewItems(
         prev.map((item) =>
           item.id === itemId ? { ...item, editedName: newName } : item,
         ),
@@ -165,7 +184,7 @@ export function useYouTubeImportState({
     const playlistToken = playlistRequestTokenRef.current
 
     setItems((prev) =>
-      detectDuplicates(
+      normalizeReviewItems(
         prev.map((item) => {
           if (item.id !== itemId) return item
 
@@ -256,10 +275,43 @@ export function useYouTubeImportState({
 
   function toggleExclude(itemId: string) {
     setItems((prev) =>
-      prev.map((item) =>
-        item.id === itemId ? { ...item, excluded: !item.excluded } : item,
+      clearInvalidMashupLinks(
+        prev.map((item) =>
+          item.id === itemId ? { ...item, excluded: !item.excluded } : item,
+        ),
       ),
     )
+  }
+
+  function toggleMashupWithNext(itemId: string) {
+    setItems((prev) => {
+      const itemIndex = prev.findIndex((item) => item.id === itemId)
+      if (itemIndex === -1 || itemIndex >= prev.length - 1) return prev
+
+      const currentItem = prev[itemIndex]
+      const nextItem = prev[itemIndex + 1]
+      if (currentItem.excluded || nextItem.excluded) return prev
+
+      const nextMashupLink = currentItem.mashupWithNext
+        ? null
+        : {
+            presetId: null,
+            createNewPreset: true,
+            presetName: `${currentItem.editedName} + ${nextItem.editedName}`,
+          }
+
+      return clearInvalidMashupLinks(
+        prev.map((item, index) => {
+          if (index === itemIndex) {
+            return { ...item, mashupWithNext: nextMashupLink }
+          }
+          if (nextMashupLink && (index === itemIndex - 1 || index === itemIndex + 1)) {
+            return { ...item, mashupWithNext: null }
+          }
+          return item
+        }),
+      )
+    })
   }
 
   function getMatchingSongs(itemId: string) {
@@ -290,6 +342,7 @@ export function useYouTubeImportState({
     handlePresetSelection,
     handleReplaceExistingYoutubeChange,
     toggleExclude,
+    toggleMashupWithNext,
     getMatchingSongs,
     importStats,
   }

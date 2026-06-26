@@ -83,10 +83,26 @@ export function mergePresetOverlays(
 export function extractPresetPdfMetadataFromLayout(
   pageLayouts: PageLayout[],
   songIndex: number,
+  arrangementItemKey?: string | null,
 ): PresetPdfMetadata | null {
-  const songLayouts = pageLayouts.filter(
-    (layout) => layout.songIndex === songIndex && layout.sheetMusicFileId,
-  );
+  const isLegacyLayout = (layout: PageLayout) =>
+    layout.arrangementItemKey === undefined || layout.arrangementItemKey === null;
+  const keyLayouts = arrangementItemKey
+    ? pageLayouts.filter(
+        (layout) =>
+          layout.arrangementItemKey === arrangementItemKey &&
+          layout.sheetMusicFileId,
+      )
+    : [];
+  const songLayouts =
+    keyLayouts.length > 0
+      ? keyLayouts
+      : pageLayouts.filter(
+          (layout) =>
+            layout.songIndex === songIndex &&
+            layout.sheetMusicFileId &&
+            (!arrangementItemKey || isLegacyLayout(layout)),
+        );
 
   if (songLayouts.length === 0) {
     return null;

@@ -13,13 +13,16 @@ import type {
   SongPageImage,
   SongPreset,
   SongPresetData,
+  SongPresetMember,
   SongPresetWithSheetMusic,
   SongWithSheetMusic,
 } from '@/lib/types';
+import type { SongPresetType } from '@/lib/song-preset-types';
 
 export interface SnapshotSong {
   id: string;
   name: string;
+  lyrics?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -37,6 +40,9 @@ export interface SnapshotSheetMusicFile {
 export interface SnapshotSongPreset {
   id: string;
   songId: string;
+  presetType: SongPresetType;
+  displayTitle: string | null;
+  mashupPairKey: string | null;
   name: string;
   keys: string | null;
   tempos: string | null;
@@ -51,6 +57,14 @@ export interface SnapshotSongPreset {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SnapshotSongPresetSong {
+  id: string;
+  presetId: string;
+  songId: string;
+  sortOrder: number;
+  partLabel: string | null;
 }
 
 export interface SnapshotPresetSheetMusic {
@@ -82,6 +96,9 @@ export interface SnapshotContiSong {
   notes: string | null;
   sheetMusicFileIds: string | null;
   presetId: string | null;
+  mashupGroupId: string | null;
+  mashupPartOrder: number | null;
+  preMashupPresetId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -112,6 +129,7 @@ export interface StoryboardSnapshot {
   songs: SnapshotSong[];
   sheetMusicFiles: SnapshotSheetMusicFile[];
   songPresets: SnapshotSongPreset[];
+  songPresetSongs: SnapshotSongPresetSong[];
   presetSheetMusic: SnapshotPresetSheetMusic[];
   contis: SnapshotConti[];
   contiSongs: SnapshotContiSong[];
@@ -170,6 +188,7 @@ export interface ContiSongPresetSource {
 
 export interface BatchImportSongsToContiItem {
   songId: string | null;
+  songName?: string | null;
   newSongName: string | null;
   videoId?: string | null;
   title?: string | null;
@@ -178,12 +197,36 @@ export interface BatchImportSongsToContiItem {
   presetName?: string | null;
   alreadyInConti?: boolean;
   replaceExistingYoutube?: boolean;
+  mashupWithNext?: {
+    presetId: string | null;
+    createNewPreset: boolean;
+    presetName: string;
+  } | null;
 }
 
 export interface BatchImportSongsToContiResult {
   added: number;
   created: number;
   presetUpdated: number;
+  mashupsApplied: number;
+}
+
+export interface CreateMashupPresetInput {
+  songIds: [string, string];
+  data: SongPresetData;
+}
+
+export interface ApplyMashupToContiInput {
+  contiId: string;
+  firstContiSongId: string;
+  secondContiSongId: string;
+  presetId: string;
+}
+
+export interface SplitMashupInput {
+  contiId: string;
+  mashupGroupId: string;
+  mode: 'restore' | 'clear';
 }
 
 export interface StoryboardRepository {
@@ -192,6 +235,8 @@ export interface StoryboardRepository {
   getSongPresets(songId: string): Promise<SongPreset[]>;
   getSongPresetsWithSheetMusic(songId: string): Promise<SongPresetWithSheetMusic[]>;
   getSongPresetWithSheetMusic(presetId: string): Promise<SongPresetWithSheetMusic | null>;
+  getPresetMembers(presetId: string): Promise<SongPresetMember[]>;
+  findMashupPresetBySongs(songIds: [string, string]): Promise<SongPresetWithSheetMusic | null>;
   getPresetSheetMusicFileIds(presetId: string): Promise<string[]>;
   searchSongs(query: string): Promise<Song[]>;
   getContis(): Promise<Conti[]>;
@@ -208,7 +253,7 @@ export interface StoryboardRepository {
   getPageImagesForSong(songId: string): Promise<SongPageImage[]>;
 
   createSong(name: string): Promise<Song>;
-  updateSong(id: string, data: { name: string }): Promise<Song | null>;
+  updateSong(id: string, data: { name?: string; lyrics?: string[] }): Promise<Song | null>;
   deleteSong(id: string): Promise<{ blockedByConti: boolean }>;
   createConti(data: ContiInput): Promise<Conti>;
   updateConti(id: string, data: ContiInput): Promise<Conti | null>;
@@ -224,7 +269,15 @@ export interface StoryboardRepository {
   syncPresetPdfMetadataFromContiLayout(contiId: string, layoutState: PdfLayoutState): Promise<{ updatedPresetCount: number }>;
   batchImportSongsToConti(contiId: string, items: BatchImportSongsToContiItem[]): Promise<BatchImportSongsToContiResult>;
   createSongPreset(songId: string, data: SongPresetData, resolvedYoutube: ResolvedYouTubeMetadata | null): Promise<SongPreset>;
-  updateSongPreset(presetId: string, data: Partial<SongPresetData>, resolvedYoutube?: ResolvedYouTubeMetadata | null): Promise<SongPreset | null>;
+  createMashupPreset(input: CreateMashupPresetInput, resolvedYoutube: ResolvedYouTubeMetadata | null): Promise<SongPreset>;
+  applyMashupToContiSongs(input: ApplyMashupToContiInput): Promise<{ mashupGroupId: string }>;
+  splitMashup(input: SplitMashupInput): Promise<void>;
+  updateSongPreset(
+    presetId: string,
+    data: Partial<SongPresetData>,
+    resolvedYoutube?: ResolvedYouTubeMetadata | null,
+    options?: { lyricsSaveScope?: 'song' | 'preset' },
+  ): Promise<SongPreset | null>;
   deleteSongPreset(presetId: string): Promise<SongPreset | null>;
   setDefaultPreset(songId: string, presetId: string): Promise<void>;
   upsertContiPdfExport(contiId: string, data: { pdfUrl?: string | null; layoutState?: string | null }): Promise<ContiPdfExport>;

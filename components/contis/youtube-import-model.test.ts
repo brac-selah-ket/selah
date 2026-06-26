@@ -6,6 +6,11 @@ import {
 } from "./youtube-import-model.ts"
 
 const defaultPresetName = "2026-03-08"
+const mashupLink = {
+  presetId: null,
+  createNewPreset: true,
+  presetName: "주를 바라보며 + 주님 마음 내게 주소서",
+}
 
 const existingItem: YouTubeImportReviewItem = {
   id: "yt-1",
@@ -21,6 +26,7 @@ const existingItem: YouTubeImportReviewItem = {
   presets: [],
   existingYoutubeRef: "existing-video",
   replaceExistingYoutube: false,
+  mashupWithNext: null,
 }
 
 test("existing preset can preserve its YouTube reference while keeping playlist metadata in payload", () => {
@@ -57,6 +63,7 @@ test("new song path creates a new song payload and defaults to playlist YouTube"
         presets: null,
         existingYoutubeRef: null,
         replaceExistingYoutube: false,
+        mashupWithNext: null,
       },
     ],
     defaultPresetName,
@@ -86,4 +93,41 @@ test("excluded review items are omitted from the batch payload", () => {
 
   assert.equal(items.length, 1)
   assert.equal(items[0]?.videoId, "playlist-video")
+})
+
+test("active adjacent mashup link objects are preserved in the batch payload", () => {
+  const secondItem: YouTubeImportReviewItem = {
+    ...existingItem,
+    id: "yt-2",
+    videoId: "playlist-video-2",
+    matchedSong: { id: "song-2", name: "주님 마음 내게 주소서" },
+    selectedPresetId: "preset-2",
+  }
+
+  const items = buildBatchImportItems(
+    [{ ...existingItem, mashupWithNext: mashupLink }, secondItem],
+    defaultPresetName,
+  )
+
+  assert.equal(items.length, 2)
+  assert.deepEqual(items[0]?.mashupWithNext, mashupLink)
+  assert.equal(items[1]?.mashupWithNext, null)
+})
+
+test("mashup links are omitted when either linked review item is excluded", () => {
+  const items = buildBatchImportItems(
+    [
+      { ...existingItem, mashupWithNext: mashupLink },
+      {
+        ...existingItem,
+        id: "yt-2",
+        videoId: "excluded-linked-video",
+        excluded: true,
+      },
+    ],
+    defaultPresetName,
+  )
+
+  assert.equal(items.length, 1)
+  assert.equal(items[0]?.mashupWithNext, null)
 })

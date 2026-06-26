@@ -12,7 +12,7 @@ function getFunctionBody(source, name) {
   return match[1];
 }
 
-test('song queries use next cache tags and hourly cache life', async () => {
+test('song collection queries use next cache tags and hourly cache life', async () => {
   const source = await read('lib/queries/songs.ts');
 
   assert.match(source, /from ['"]next\/cache['"]/);
@@ -20,7 +20,6 @@ test('song queries use next cache tags and hourly cache life', async () => {
   for (const [name, tagPattern] of [
     ['getSongs', /cacheTag\(cacheTags\.songs\(\)\)/],
     ['searchSongs', /cacheTag\(cacheTags\.songs\(\)\)/],
-    ['getSong', /cacheTag\(cacheTags\.song\(id\)\)/],
     ['getSongPresets', /cacheTag\(cacheTags\.songPresets\(songId\)\)/],
   ]) {
     const body = getFunctionBody(source, name);
@@ -28,14 +27,17 @@ test('song queries use next cache tags and hourly cache life', async () => {
     assert.match(body, /cacheLife\(['"]hours['"]\)/, `${name} should cache for hours`);
     assert.match(body, tagPattern, `${name} should use the expected cache tag`);
   }
+});
 
-  const presetsWithSheetMusic = getFunctionBody(source, 'getSongPresetsWithSheetMusic');
-  assert.match(presetsWithSheetMusic, /'use cache'/);
-  assert.match(presetsWithSheetMusic, /cacheLife\(['"]hours['"]\)/);
-  assert.match(
-    presetsWithSheetMusic,
-    /cacheTag\(\s*cacheTags\.song\(songId\),\s*cacheTags\.songPresets\(songId\)\s*\)/
-  );
+test('song detail queries stay uncached because mashup presets depend on linked songs', async () => {
+  const source = await read('lib/queries/songs.ts');
+
+  for (const name of ['getSong', 'getSongPresetsWithSheetMusic']) {
+    const body = getFunctionBody(source, name);
+    assert.doesNotMatch(body, /'use cache'/, `${name} should not cache cross-song preset editor data`);
+    assert.doesNotMatch(body, /cacheLife\(/, `${name} should not set cache life`);
+    assert.doesNotMatch(body, /cacheTag\(/, `${name} should not tag cached detail data`);
+  }
 });
 
 test('song mutations invalidate the song list and changed song entries', async () => {
@@ -109,11 +111,15 @@ test('song preset mutations invalidate preset cache entries', async () => {
   );
   assert.match(
     source,
-    /updateSongPreset[\s\S]*updateSongPreset\(presetId,[\s\S]*\)[\s\S]*invalidateSongPresets\(updatedPreset\.songId\)[\s\S]*revalidatePath\(`\/songs\/\$\{updatedPreset\.songId\}`\)/
+    /function invalidatePresetSongIds\(songIds:[\s\S]*for \(const songId of new Set\(songIds\)\)[\s\S]*invalidateSongPresets\(songId\)[\s\S]*revalidatePath\(`\/songs\/\$\{songId\}`\)/
   );
   assert.match(
     source,
-    /deleteSongPreset[\s\S]*deleteSongPreset\(presetId\)[\s\S]*invalidateSongPresets\(existing\.songId\)[\s\S]*revalidatePath\(`\/songs\/\$\{existing\.songId\}`\)/
+    /updateSongPreset[\s\S]*updateSongPreset\([\s\S]*presetId,[\s\S]*data,[\s\S]*resolvedYoutube,[\s\S]*optionValidation\.data,[\s\S]*\)[\s\S]*invalidatePresetSongIds\(\[\.\.\.beforeSongIds, \.\.\.afterSongIds\]\)/
+  );
+  assert.match(
+    source,
+    /deleteSongPreset[\s\S]*deleteSongPreset\(presetId\)[\s\S]*invalidatePresetSongIds\(songIds\.length > 0 \? songIds : \[existing\.songId\]\)/
   );
   assert.match(
     source,

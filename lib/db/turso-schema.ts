@@ -1,8 +1,10 @@
 import { integer, sqliteTable, text, uniqueIndex, index } from 'drizzle-orm/sqlite-core';
+import type { SongPresetType } from '@/lib/song-preset-types';
 
 export const songs = sqliteTable('songs', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
+  lyrics: text('lyrics'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
@@ -20,6 +22,9 @@ export const sheetMusicFiles = sqliteTable('sheet_music_files', {
 export const songPresets = sqliteTable('song_presets', {
   id: text('id').primaryKey(),
   songId: text('song_id').notNull().references(() => songs.id, { onDelete: 'cascade' }),
+  presetType: text('preset_type').$type<SongPresetType>().notNull().default('single'),
+  displayTitle: text('display_title'),
+  mashupPairKey: text('mashup_pair_key'),
   name: text('name').notNull(),
   keys: text('keys'),
   tempos: text('tempos'),
@@ -34,7 +39,21 @@ export const songPresets = sqliteTable('song_presets', {
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
-});
+}, (table) => [
+  uniqueIndex('song_presets_mashup_pair_key_unique').on(table.mashupPairKey),
+]);
+
+export const songPresetSongs = sqliteTable('song_preset_songs', {
+  id: text('id').primaryKey(),
+  presetId: text('preset_id').notNull().references(() => songPresets.id, { onDelete: 'cascade' }),
+  songId: text('song_id').notNull().references(() => songs.id, { onDelete: 'cascade' }),
+  sortOrder: integer('sort_order').notNull(),
+  partLabel: text('part_label'),
+}, (table) => [
+  uniqueIndex('song_preset_songs_unique').on(table.presetId, table.songId),
+  uniqueIndex('song_preset_songs_order_unique').on(table.presetId, table.sortOrder),
+  index('song_preset_songs_song_idx').on(table.songId),
+]);
 
 export const presetSheetMusic = sqliteTable('preset_sheet_music', {
   id: text('id').primaryKey(),
@@ -69,6 +88,9 @@ export const contiSongs = sqliteTable('conti_songs', {
   notes: text('notes'),
   sheetMusicFileIds: text('sheet_music_file_ids'),
   presetId: text('preset_id').references(() => songPresets.id, { onDelete: 'set null' }),
+  mashupGroupId: text('mashup_group_id'),
+  mashupPartOrder: integer('mashup_part_order'),
+  preMashupPresetId: text('pre_mashup_preset_id').references(() => songPresets.id, { onDelete: 'set null' }),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 }, (table) => [

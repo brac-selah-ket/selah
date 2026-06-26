@@ -31,11 +31,13 @@ import {
 } from "./dirty-state"
 import {
   getSheetMusicSelectionSaveError,
+  shouldConfirmLyricsSaveScope,
   shouldShowYouTubeReferenceField,
 } from "./save-rules"
 import type {
   ArrangementDraft,
   ArrangementEditorProps,
+  ArrangementEditorSaveOptions,
 } from "./types"
 
 function prepareDraftForSave(draft: ArrangementDraft): ArrangementDraft | null {
@@ -69,6 +71,10 @@ export function ArrangementEditor({
   sheetMusicPreviewItem,
   sheetMusicLoading = false,
   sheetMusicWorkspacePreview = false,
+  showDisplayTitleField = false,
+  showDefaultPresetField = true,
+  presetType,
+  hasExistingPreset = false,
   presetOptions = [],
   sheetMusicManagementSlot,
   savingLabel = "저장",
@@ -86,6 +92,9 @@ export function ArrangementEditor({
   const [selectedPresetId, setSelectedPresetId] = useState("")
   const [pdfEditorOpen, setPdfEditorOpen] = useState(false)
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
+  const [showLyricsScopeDialog, setShowLyricsScopeDialog] = useState(false)
+  const [pendingSaveDraft, setPendingSaveDraft] = useState<ArrangementDraft | null>(null)
+  const [presetOnlyLyrics, setPresetOnlyLyrics] = useState(false)
   const [editorKey, setEditorKey] = useState(0)
   const wasOpenRef = useRef(false)
 
@@ -139,6 +148,9 @@ export function ArrangementEditor({
       setSelectedPresetId("")
       setPdfEditorOpen(false)
       setShowUnsavedDialog(false)
+      setShowLyricsScopeDialog(false)
+      setPendingSaveDraft(null)
+      setPresetOnlyLyrics(false)
       setEditorKey((key) => key + 1)
     }
 
@@ -156,6 +168,32 @@ export function ArrangementEditor({
     }
 
     onOpenChange(false)
+  }
+
+  async function performSave(
+    draftToSave: ArrangementDraft,
+    options?: ArrangementEditorSaveOptions,
+  ) {
+    setIsSaving(true)
+    try {
+      const result = await onSave(draftToSave, options)
+      if (result.success) {
+        toast.success(mode === "preset" ? "프리셋이 저장되었습니다" : "곡 설정이 저장되었습니다")
+        const savedDraft = cloneDraft(draftToSave)
+        setDraft(savedDraft)
+        setInitialDirtyDraft(cloneDraft(savedDraft))
+        setShowLyricsScopeDialog(false)
+        setPendingSaveDraft(null)
+        setPresetOnlyLyrics(false)
+        onOpenChange(false)
+      } else {
+        toast.error(result.error ?? "저장 중 오류가 발생했습니다")
+      }
+    } catch {
+      toast.error("저장 중 오류가 발생했습니다")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   async function handleSave() {
@@ -177,23 +215,28 @@ export function ArrangementEditor({
     const draftToSave = prepareDraftForSave(prunedDraft)
     if (!draftToSave) return
 
-    setIsSaving(true)
-    try {
-      const result = await onSave(draftToSave)
-      if (result.success) {
-        toast.success(mode === "preset" ? "프리셋이 저장되었습니다" : "곡 설정이 저장되었습니다")
-        const savedDraft = cloneDraft(draftToSave)
-        setDraft(savedDraft)
-        setInitialDirtyDraft(cloneDraft(savedDraft))
-        onOpenChange(false)
-      } else {
-        toast.error(result.error ?? "저장 중 오류가 발생했습니다")
-      }
-    } catch {
-      toast.error("저장 중 오류가 발생했습니다")
-    } finally {
-      setIsSaving(false)
+    if (shouldConfirmLyricsSaveScope({
+      mode,
+      presetType,
+      hasExistingPreset,
+      initialLyrics: initialDirtyDraft.lyrics,
+      draftLyrics: draftToSave.lyrics,
+    })) {
+      setPendingSaveDraft(draftToSave)
+      setPresetOnlyLyrics(false)
+      setShowLyricsScopeDialog(true)
+      return
     }
+
+    await performSave(draftToSave)
+  }
+
+  async function handleConfirmLyricsScopeSave() {
+    if (!pendingSaveDraft) return
+
+    await performSave(pendingSaveDraft, {
+      lyricsSaveScope: presetOnlyLyrics ? "preset" : "song",
+    })
   }
 
   async function handleLoadPreset(presetId: string) {
@@ -399,6 +442,20 @@ export function ArrangementEditor({
                   />
                 </div>
               )}
+
+              {mode === "preset" && showDisplayTitleField && (
+                <div className="space-y-3">
+                  <label htmlFor="arrangement-display-title" className="text-base font-medium">
+                    표시 제목
+                  </label>
+                  <Input
+                    id="arrangement-display-title"
+                    value={draft.displayTitle ?? ""}
+                    onChange={(event) => updateDraft({ displayTitle: event.target.value })}
+                    placeholder="비워두면 첫 곡 제목 사용"
+                  />
+                </div>
+              )}
             </div>
 
             {mode === "conti-song" && presetOptions.length > 0 && onLoadPreset && (
@@ -457,7 +514,7 @@ export function ArrangementEditor({
               onNotesChange={(notes) => updateDraft({ notes })}
             />
 
-            {mode === "preset" && (
+            {mode === "preset" && showDefaultPresetField && (
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
@@ -586,6 +643,45 @@ export function ArrangementEditor({
               }}
             >
               저장하지 않고 닫기
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showLyricsScopeDialog} onOpenChange={setShowLyricsScopeDialog}>
+        <AlertDialogContent
+          overlayClassName="z-[70]"
+          className="z-[70]"
+          size="sm"
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>가사 저장 범위</AlertDialogTitle>
+            <AlertDialogDescription>
+              가사 변경은 곡 가사로 저장되어 이 곡의 다른 단일 프리셋에도 반영됩니다.
+              매시업 프리셋은 기존 저장된 가사를 유지합니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <label className="flex cursor-pointer items-center gap-3 rounded-md border p-3 text-base">
+            <input
+              type="checkbox"
+              checked={presetOnlyLyrics}
+              onChange={(event) => setPresetOnlyLyrics(event.target.checked)}
+              className="size-5 cursor-pointer rounded"
+            />
+            <span>이 프리셋에만 적용</span>
+          </label>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowLyricsScopeDialog(false)
+                setPendingSaveDraft(null)
+                setPresetOnlyLyrics(false)
+              }}
+            >
+              취소
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmLyricsScopeSave} disabled={isSaving}>
+              {isSaving ? "저장 중..." : "저장"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

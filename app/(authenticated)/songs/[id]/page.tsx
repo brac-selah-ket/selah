@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { getSong } from "@/lib/queries/songs"
+import { getSong, getSongs } from "@/lib/queries/songs"
 import { PageHeader } from "@/components/layout/page-header"
 import { SheetMusicGallery } from "@/components/songs/sheet-music-gallery"
 import { SongDeleteButton } from "@/components/songs/song-delete-button"
@@ -9,17 +9,30 @@ import { Button } from "@/components/ui/button"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { PencilEdit01Icon } from "@hugeicons/core-free-icons"
 
+function parseLyricsField(field: string | null | undefined): string[] {
+  if (!field) return []
+
+  try {
+    const parsed = JSON.parse(field) as unknown
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : []
+  } catch {
+    return []
+  }
+}
+
 export default async function SongDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const song = await getSong(id)
+  const [song, allSongs] = await Promise.all([getSong(id), getSongs()])
 
   if (!song) {
     notFound()
   }
+
+  const songLyrics = parseLyricsField(song.lyrics)
 
   return (
     <div>
@@ -57,7 +70,14 @@ export default async function SongDetailPage({
 
         <div>
           <h2 className="text-xl font-semibold mb-4">프리셋</h2>
-          <PresetList songId={song.id} presets={song.presets ?? []} sheetMusic={song.sheetMusic} />
+          <PresetList
+            songId={song.id}
+            songName={song.name}
+            songLyrics={songLyrics}
+            presets={song.presets ?? []}
+            sheetMusic={song.sheetMusic}
+            allSongs={allSongs}
+          />
         </div>
       </div>
     </div>

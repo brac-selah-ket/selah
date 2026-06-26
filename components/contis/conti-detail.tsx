@@ -58,10 +58,14 @@ export function ContiDetail({
     if (index === 0) return
     const reordered = [...optimisticSongs]
     ;[reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]]
+    const reorderedWithSortOrder = reordered.map((song, sortOrder) => ({
+      ...song,
+      sortOrder,
+    }))
 
     startTransition(async () => {
-      setOptimisticSongs(reordered)
-      const orderedIds = reordered.map((s) => s.id)
+      setOptimisticSongs(reorderedWithSortOrder)
+      const orderedIds = reorderedWithSortOrder.map((s) => s.id)
       const result = await reorderContiSongs(conti.id, orderedIds)
       if (!result.success) {
         toast.error(result.error ?? "순서 변경 중 오류가 발생했습니다")
@@ -74,10 +78,14 @@ export function ContiDetail({
     if (index === optimisticSongs.length - 1) return
     const reordered = [...optimisticSongs]
     ;[reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]]
+    const reorderedWithSortOrder = reordered.map((song, sortOrder) => ({
+      ...song,
+      sortOrder,
+    }))
 
     startTransition(async () => {
-      setOptimisticSongs(reordered)
-      const orderedIds = reordered.map((s) => s.id)
+      setOptimisticSongs(reorderedWithSortOrder)
+      const orderedIds = reorderedWithSortOrder.map((s) => s.id)
       const result = await reorderContiSongs(conti.id, orderedIds)
       if (!result.success) {
         toast.error(result.error ?? "순서 변경 중 오류가 발생했습니다")
@@ -127,6 +135,7 @@ export function ContiDetail({
             <ContiSongSummaryTable
               songs={optimisticSongs}
               mode="action"
+              contiId={conti.id}
               density={drawerOpen ? "compact" : "default"}
               onEdit={handleEdit}
               onMoveUp={handleMoveUp}
