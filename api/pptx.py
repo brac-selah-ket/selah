@@ -1,6 +1,7 @@
 from http.server import BaseHTTPRequestHandler
 import json
 import os
+import hashlib
 import hmac
 import re
 import tempfile
@@ -10,6 +11,7 @@ import urllib.request
 import urllib.parse
 import zipfile
 from copy import deepcopy
+from datetime import datetime, timezone
 
 from lxml import etree
 from pptx import Presentation
@@ -84,54 +86,131 @@ def overwrite_drive_file(service, file_id, file_path):
     return file
 
 
+PPTX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+
+
+def _require_r2_env(name):
+    """Read a required Cloudflare R2 environment variable or raise ValueError."""
+    value = (os.environ.get(name) or '').strip()
+    if not value:
+        raise ValueError(f'{name} environment variable is not set')
+    return value
+
+
+def _r2_encode_path_segment(segment):
+    """URI-encode a single path segment per AWS SigV4 rules (slashes excluded)."""
+    return urllib.parse.quote(segment, safe='-._~')
+
+
 def upload_to_blob(file_path, file_name):
-    """Upload a file to Vercel Blob API and return the URL.
+    """Upload a file to Cloudflare R2 (S3-compatible) and return its public URL.
+
+    Uses the same R2 credentials as the rest of the app. Requests are signed
+    manually with AWS Signature Version 4 so no extra dependency (boto3) is
+    needed, keeping the serverless bundle small.
 
     Args:
         file_path: Path to the file to upload
-        file_name: Desired filename in Blob storage
+        file_name: Desired filename within the pptx-exports/ prefix
 
     Returns:
-        str: The URL of the uploaded blob
+        str: The public URL of the uploaded object
 
     Raises:
-        ValueError: If BLOB_READ_WRITE_TOKEN is not set
+        ValueError: If any required R2 environment variable is missing
         Exception: If upload fails
     """
-    token = os.environ.get('BLOB_READ_WRITE_TOKEN')
-    if not token:
-        raise ValueError('BLOB_READ_WRITE_TOKEN environment variable is not set')
+    account_id = _require_r2_env('CLOUDFLARE_ACCOUNT_ID')
+    access_key_id = _require_r2_env('R2_ACCESS_KEY_ID')
+    secret_access_key = _require_r2_env('R2_SECRET_ACCESS_KEY')
+    bucket_name = _require_r2_env('R2_BUCKET_NAME')
+    public_base_url = _require_r2_env('R2_PUBLIC_BASE_URL').rstrip('/')
 
-    # Read file bytes
     with open(file_path, 'rb') as f:
         file_bytes = f.read()
 
-    # Construct Blob API URL
-    encoded_name = urllib.parse.quote(file_name, safe='')
-    blob_url = f'https://blob.vercel-storage.com/pptx-exports/{encoded_name}'
+    object_key = f'pptx-exports/{file_name}'
+    host = f'{account_id}.r2.cloudflarestorage.com'
+    region = 'auto'
+    service = 's3'
 
-    # Create request
+    # Canonical (path-style) URI: /<bucket>/<key>, each segment encoded.
+    encoded_key = '/'.join(_r2_encode_path_segment(part) for part in object_key.split('/'))
+    canonical_uri = f'/{_r2_encode_path_segment(bucket_name)}/{encoded_key}'
+    endpoint = f'https://{host}{canonical_uri}'
+
+    now = datetime.now(timezone.utc)
+    amz_date = now.strftime('%Y%m%dT%H%M%SZ')
+    date_stamp = now.strftime('%Y%m%d')
+    payload_hash = hashlib.sha256(file_bytes).hexdigest()
+
+    # --- SigV4: canonical request ---
+    canonical_headers = (
+        f'content-type:{PPTX_CONTENT_TYPE}\n'
+        f'host:{host}\n'
+        f'x-amz-content-sha256:{payload_hash}\n'
+        f'x-amz-date:{amz_date}\n'
+    )
+    signed_headers = 'content-type;host;x-amz-content-sha256;x-amz-date'
+    canonical_request = '\n'.join([
+        'PUT',
+        canonical_uri,
+        '',  # empty query string
+        canonical_headers,
+        signed_headers,
+        payload_hash,
+    ])
+
+    # --- SigV4: string to sign ---
+    credential_scope = f'{date_stamp}/{region}/{service}/aws4_request'
+    string_to_sign = '\n'.join([
+        'AWS4-HMAC-SHA256',
+        amz_date,
+        credential_scope,
+        hashlib.sha256(canonical_request.encode('utf-8')).hexdigest(),
+    ])
+
+    # --- SigV4: signing key + signature ---
+    def _hmac(key, msg):
+        return hmac.new(key, msg.encode('utf-8'), hashlib.sha256).digest()
+
+    k_date = _hmac(f'AWS4{secret_access_key}'.encode('utf-8'), date_stamp)
+    k_region = _hmac(k_date, region)
+    k_service = _hmac(k_region, service)
+    k_signing = _hmac(k_service, 'aws4_request')
+    signature = hmac.new(
+        k_signing, string_to_sign.encode('utf-8'), hashlib.sha256
+    ).hexdigest()
+
+    authorization = (
+        f'AWS4-HMAC-SHA256 Credential={access_key_id}/{credential_scope}, '
+        f'SignedHeaders={signed_headers}, Signature={signature}'
+    )
+
     req = urllib.request.Request(
-        blob_url,
+        endpoint,
         data=file_bytes,
         method='PUT',
         headers={
-            'authorization': f'Bearer {token}',
-            'x-api-version': '7',
-            'x-content-type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        }
+            'Authorization': authorization,
+            'Content-Type': PPTX_CONTENT_TYPE,
+            'Host': host,
+            'x-amz-content-sha256': payload_hash,
+            'x-amz-date': amz_date,
+        },
     )
 
-    # Upload
     try:
         with urllib.request.urlopen(req) as response:
-            response_data = json.loads(response.read().decode('utf-8'))
-            return response_data.get('url', '')
+            response.read()
     except urllib.error.HTTPError as e:
         error_body = e.read().decode('utf-8') if e.fp else 'No error body'
-        raise Exception(f'Blob upload failed with status {e.code}: {error_body}')
+        raise Exception(f'R2 upload failed with status {e.code}: {error_body}')
     except Exception as e:
-        raise Exception(f'Blob upload failed: {str(e)}')
+        raise Exception(f'R2 upload failed: {str(e)}')
+
+    # Public URL: <R2_PUBLIC_BASE_URL>/<encoded key>
+    return f'{public_base_url}/{encoded_key}'
 
 
 def cleanup_orphaned_parts(pptx_path):
@@ -1355,7 +1434,7 @@ class handler(BaseHTTPRequestHandler):
                     "data": response_data
                 })
             else:
-                # Upload to Vercel Blob and return JSON with download URL
+                # Upload to Cloudflare R2 and return JSON with download URL
                 try:
                     download_url = upload_to_blob(output_path, output_file_name)
                     response_data = {
@@ -1377,16 +1456,16 @@ class handler(BaseHTTPRequestHandler):
                         "data": response_data
                     })
                 except ValueError as e:
-                    # BLOB_READ_WRITE_TOKEN not set
+                    # Required R2 environment variable missing
                     self.send_json(500, {
                         "success": False,
-                        "error": f"Blob storage configuration error: {str(e)}"
+                        "error": f"R2 storage configuration error: {str(e)}"
                     })
                 except Exception as e:
                     # Upload failed
                     self.send_json(500, {
                         "success": False,
-                        "error": f"Failed to upload to blob storage: {str(e)}"
+                        "error": f"Failed to upload to R2 storage: {str(e)}"
                     })
         finally:
             shutil.rmtree(tmp_dir, ignore_errors=True)
