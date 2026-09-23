@@ -24,7 +24,7 @@ import { SheetMusicPreviewPane } from "@/components/shared/sheet-music-preview"
 import { OverrideEditorFields } from "@/components/shared/override-editor-fields"
 import { PresetPdfEditor } from "@/components/songs/preset-pdf-editor"
 import { cn } from "@/lib/utils"
-import { normalizeYouTubeReference } from "@/lib/utils/youtube"
+import { normalizeYouTubeReference, toYouTubeInputValue } from "@/lib/utils/youtube"
 import {
   shiftSectionLyricsMapForRemoval,
   mergeSectionLyricsMapPages,
@@ -34,12 +34,19 @@ import {
   cloneDraft,
 } from "./dirty-state"
 import {
+  PRESET_SAVE_LABEL,
+  PRESET_SAVE_SUCCESS_MESSAGE,
+  getPrimarySaveLabel,
+  getPrimarySaveSuccessMessage,
   getSheetMusicSelectionSaveError,
+  resolvePresetLyricsSave,
   shouldConfirmLyricsSaveScope,
   shouldShowYouTubeReferenceField,
+  shouldSyncAppliedPresetYoutube,
 } from "./save-rules"
 import type {
   ArrangementDraft,
+  ArrangementEditorPresetOption,
   ArrangementEditorProps,
   ArrangementEditorSaveOptions,
 } from "./types"
@@ -81,12 +88,11 @@ export function ArrangementEditor({
   hasExistingPreset = false,
   presetOptions = [],
   sheetMusicManagementSlot,
-  savingLabel = "저장",
-  saveToPresetLabel = "프리셋에 저장",
   onOpenChange,
   onSave,
   onLoadPreset,
-  onSaveAsPreset,
+  presetSaveTargets = [],
+  allowNewPresetTarget = true,
   onSaveToPreset,
   onRefreshPresetOptions,
 }: ArrangementEditorProps) {
@@ -94,8 +100,12 @@ export function ArrangementEditor({
   const [initialDirtyDraft, setInitialDirtyDraft] = useState<ArrangementDraft>(() => cloneDraft(initialDraft))
   const [isSaving, setIsSaving] = useState(false)
   const [isPresetSaving, setIsPresetSaving] = useState(false)
+  const [presetSaveDialogOpen, setPresetSaveDialogOpen] = useState(false)
+  const [presetSaveDraft, setPresetSaveDraft] = useState<ArrangementDraft | null>(null)
   const [presetName, setPresetName] = useState("")
   const [selectedPresetId, setSelectedPresetId] = useState("")
+  const [presetYoutubeReference, setPresetYoutubeReference] = useState("")
+  const [presetTargetOnlyLyrics, setPresetTargetOnlyLyrics] = useState(false)
   const [pdfEditorOpen, setPdfEditorOpen] = useState(false)
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
   const [showLyricsScopeDialog, setShowLyricsScopeDialog] = useState(false)
@@ -150,8 +160,12 @@ export function ArrangementEditor({
       const nextDraft = cloneDraft(initialDraft)
       setDraft(nextDraft)
       setInitialDirtyDraft(cloneDraft(nextDraft))
+      setPresetSaveDialogOpen(false)
+      setPresetSaveDraft(null)
       setPresetName("")
       setSelectedPresetId("")
+      setPresetYoutubeReference("")
+      setPresetTargetOnlyLyrics(false)
       setPdfEditorOpen(false)
       setShowUnsavedDialog(false)
       setShowLyricsScopeDialog(false)
@@ -184,7 +198,7 @@ export function ArrangementEditor({
     try {
       const result = await onSave(draftToSave, options)
       if (result.success) {
-        toast.success(mode === "preset" ? "프리셋이 저장되었습니다" : "곡 설정이 저장되었습니다")
+        toast.success(getPrimarySaveSuccessMessage(mode))
         const savedDraft = cloneDraft(draftToSave)
         setDraft(savedDraft)
         setInitialDirtyDraft(cloneDraft(savedDraft))
@@ -263,49 +277,23 @@ export function ArrangementEditor({
     }
   }
 
-  async function handleSaveAsPreset() {
-    const trimmedName = presetName.trim()
-    if (!trimmedName) {
-      toast.error("프리셋 이름을 입력해주세요")
-      return
-    }
-    if (!onSaveAsPreset) return
+  const selectedPresetTarget = presetSaveTargets.find((preset) => preset.id === selectedPresetId)
+  const presetTargetLyricsSave = presetSaveDraft
+    ? resolvePresetLyricsSave({
+        presetType: selectedPresetTarget?.presetType ?? null,
+        hasExistingPreset: Boolean(selectedPresetTarget),
+        baselineLyrics: selectedPresetTarget?.resolvedLyrics ?? [],
+        draftLyrics: presetSaveDraft.lyrics,
+      })
+    : null
 
-    const prunedDraft = pruneUnavailableSheetMusicIds(draft)
-    const selectionError = getSheetMusicSelectionSaveError(
-      prunedDraft.sheetMusicFileIds,
-      allSheetMusicIds.length,
-    )
-    if (selectionError) {
-      toast.error(selectionError)
-      return
-    }
-
-    const draftToSave = prepareDraftForSave(prunedDraft)
-    if (!draftToSave) return
-
-    setIsPresetSaving(true)
-    try {
-      const result = await onSaveAsPreset(draftToSave, trimmedName, selectedPresetId || undefined)
-      if (result.success) {
-        toast.success(selectedPresetId ? "프리셋이 업데이트되었습니다" : "새 프리셋이 저장되었습니다")
-        const savedDraft = cloneDraft(draftToSave)
-        setDraft(savedDraft)
-        setInitialDirtyDraft(cloneDraft(savedDraft))
-        setPresetName("")
-        setSelectedPresetId("")
-        await onRefreshPresetOptions?.()
-      } else {
-        toast.error(result.error ?? "프리셋 저장 중 오류가 발생했습니다")
-      }
-    } catch {
-      toast.error("프리셋 저장 중 오류가 발생했습니다")
-    } finally {
-      setIsPresetSaving(false)
-    }
+  function selectPresetTarget(target: ArrangementEditorPresetOption | undefined) {
+    setSelectedPresetId(target?.id ?? "")
+    setPresetName(target?.name ?? "")
+    setPresetTargetOnlyLyrics(false)
   }
 
-  async function handleSaveToPreset() {
+  function handleOpenPresetSaveDialog() {
     if (!onSaveToPreset) return
 
     const prunedDraft = pruneUnavailableSheetMusicIds(draft)
@@ -318,17 +306,54 @@ export function ArrangementEditor({
       return
     }
 
-    const draftToSave = prepareDraftForSave(prunedDraft)
-    if (!draftToSave) return
+    setPresetSaveDraft(cloneDraft(prunedDraft))
+    selectPresetTarget(allowNewPresetTarget ? undefined : presetSaveTargets[0])
+    // Starts from the body field so the dialog never shows a different value
+    // than what the user is looking at.
+    setPresetYoutubeReference(toYouTubeInputValue(prunedDraft.youtubeReference) ?? "")
+    setPresetSaveDialogOpen(true)
+  }
+
+  async function handleConfirmPresetSave() {
+    if (!onSaveToPreset || !presetSaveDraft || !presetTargetLyricsSave) return
+
+    const trimmedName = presetName.trim()
+    if (!trimmedName) {
+      toast.error("프리셋 이름을 입력해주세요")
+      return
+    }
+
+    const youtubeInput = presetYoutubeReference.trim()
+    const normalizedYoutube = youtubeInput ? normalizeYouTubeReference(youtubeInput) : null
+    if (youtubeInput && !normalizedYoutube) {
+      toast.error("올바른 YouTube 링크 또는 영상 ID를 입력해주세요")
+      return
+    }
 
     setIsPresetSaving(true)
     try {
-      const result = await onSaveToPreset(draftToSave)
+      const result = await onSaveToPreset(presetSaveDraft, {
+        presetId: selectedPresetTarget?.id ?? null,
+        presetName: trimmedName,
+        youtubeReference: normalizedYoutube?.videoId ?? null,
+        includeLyrics: presetTargetLyricsSave.includeLyrics,
+        lyricsSaveScope: presetTargetLyricsSave.askScope
+          ? presetTargetOnlyLyrics ? "preset" : "song"
+          : undefined,
+      })
       if (result.success) {
-        toast.success("프리셋에 저장되었습니다")
-        const savedDraft = cloneDraft(draftToSave)
+        toast.success(PRESET_SAVE_SUCCESS_MESSAGE)
+        const savedDraft = cloneDraft(presetSaveDraft)
+        const savedYoutubeReference = normalizedYoutube?.videoId ?? null
+        if (shouldSyncAppliedPresetYoutube(savedYoutubeReference, savedDraft.youtubeReference)) {
+          savedDraft.youtubeReference = savedYoutubeReference
+          savedDraft.youtubeTitle = null
+        }
         setDraft(savedDraft)
         setInitialDirtyDraft(cloneDraft(savedDraft))
+        setPresetSaveDialogOpen(false)
+        setPresetSaveDraft(null)
+        await onRefreshPresetOptions?.()
       } else {
         toast.error(result.error ?? "프리셋 저장 중 오류가 발생했습니다")
       }
@@ -410,11 +435,24 @@ export function ArrangementEditor({
 
     return (
       <section data-slot="sheet-music-workspace" className="space-y-4">
-        <div className="space-y-1">
-          <h3 className="text-base font-medium">악보</h3>
-          <p className="text-sm text-muted-foreground">
-            PDF 내보내기에 포함할 악보를 선택하세요.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <h3 className="text-base font-medium">악보</h3>
+            <p className="text-sm text-muted-foreground">
+              PDF 내보내기에 포함할 악보를 선택하세요.
+            </p>
+          </div>
+          {mode === "preset" && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPdfEditorOpen(true)}
+              disabled={selectedSheetMusic.length === 0}
+            >
+              PDF 편집
+            </Button>
+          )}
         </div>
 
         <SheetMusicPreviewPane
@@ -460,10 +498,10 @@ export function ArrangementEditor({
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={handleSaveToPreset}
+                onClick={handleOpenPresetSaveDialog}
                 disabled={isSaving || isPresetSaving}
               >
-                {isPresetSaving ? "저장 중..." : saveToPresetLabel}
+                {PRESET_SAVE_LABEL}
               </Button>
             )}
             <Button
@@ -471,7 +509,7 @@ export function ArrangementEditor({
               onClick={handleSave}
               disabled={isSaving || isPresetSaving}
             >
-              {isSaving ? "저장 중..." : savingLabel}
+              {isSaving ? "저장 중..." : getPrimarySaveLabel(mode)}
             </Button>
           </div>
         }
@@ -561,6 +599,13 @@ export function ArrangementEditor({
                   })}
                   placeholder="https://www.youtube.com/watch?v=..."
                 />
+                {mode === "conti-song" && (
+                  <p className="text-sm text-muted-foreground">
+                    {draft.appliedPresetId
+                      ? "적용된 프리셋에 저장되어, 이 프리셋을 쓰는 다른 콘티에도 반영됩니다."
+                      : "적용된 프리셋이 없어 「프리셋에 저장」할 때 함께 저장됩니다."}
+                  </p>
+                )}
               </div>
             )}
 
@@ -596,57 +641,6 @@ export function ArrangementEditor({
               </div>
             )}
 
-            {mode === "conti-song" && onSaveAsPreset && (
-              <div className="space-y-3 border-t pt-8">
-                <h3 className="text-base font-medium">프리셋으로 저장</h3>
-                {presetOptions.length > 0 && (
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="arrangement-save-preset-select" className="text-sm text-muted-foreground">
-                      기존 프리셋 업데이트
-                    </label>
-                    <select
-                      id="arrangement-save-preset-select"
-                      className="h-9 rounded-md border border-border bg-background px-3 text-base"
-                      value={selectedPresetId}
-                      onChange={(event) => {
-                        const nextPresetId = event.target.value
-                        setSelectedPresetId(nextPresetId)
-                        const preset = presetOptions.find((option) => option.id === nextPresetId)
-                        setPresetName(preset?.name ?? "")
-                      }}
-                    >
-                      <option value="">새 프리셋 만들기</option>
-                      {presetOptions.map((preset) => (
-                        <option key={preset.id} value={preset.id}>
-                          {preset.name}{preset.isDefault ? " (기본)" : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <div className="flex-1 space-y-1">
-                    <label htmlFor="arrangement-save-preset-name" className="text-sm text-muted-foreground">
-                      프리셋 이름
-                    </label>
-                    <Input
-                      id="arrangement-save-preset-name"
-                      value={presetName}
-                      onChange={(event) => setPresetName(event.target.value)}
-                      placeholder="프리셋 이름"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    onClick={handleSaveAsPreset}
-                    disabled={isPresetSaving}
-                    className="sm:mt-6 sm:w-32"
-                  >
-                    {isPresetSaving ? "저장 중..." : selectedPresetId ? "업데이트" : "저장"}
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
 
           {hasSheetMusicWorkspace && (
@@ -681,6 +675,102 @@ export function ArrangementEditor({
             </div>
           </DialogContent>
         </Dialog>
+      )}
+
+      {onSaveToPreset && (
+        <AlertDialog
+          open={presetSaveDialogOpen}
+          onOpenChange={(nextOpen) => {
+            if (isPresetSaving) return
+            setPresetSaveDialogOpen(nextOpen)
+            if (!nextOpen) setPresetSaveDraft(null)
+          }}
+        >
+          <AlertDialogContent overlayClassName="z-[70]" className="z-[70]">
+            <AlertDialogHeader>
+              <AlertDialogTitle>{PRESET_SAVE_LABEL}</AlertDialogTitle>
+              <AlertDialogDescription>
+                이 콘티에도 함께 저장되고, 선택한 프리셋은 다른 콘티에서 불러올 때 사용됩니다.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <div className="space-y-4">
+              {(allowNewPresetTarget || presetSaveTargets.length > 1) && (
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="arrangement-save-preset-select" className="text-sm text-muted-foreground">
+                    저장할 프리셋
+                  </label>
+                  <select
+                    id="arrangement-save-preset-select"
+                    className="h-9 rounded-md border border-border bg-background px-3 text-base"
+                    value={selectedPresetId}
+                    onChange={(event) => {
+                      selectPresetTarget(
+                        presetSaveTargets.find((preset) => preset.id === event.target.value),
+                      )
+                    }}
+                  >
+                    {allowNewPresetTarget && <option value="">새 프리셋 만들기</option>}
+                    {presetSaveTargets.map((preset) => (
+                      <option key={preset.id} value={preset.id}>
+                        {preset.name}{preset.isDefault ? " (기본)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-1">
+                <label htmlFor="arrangement-save-preset-name" className="text-sm text-muted-foreground">
+                  프리셋 이름 <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  id="arrangement-save-preset-name"
+                  value={presetName}
+                  onChange={(event) => setPresetName(event.target.value)}
+                  placeholder="예: 주일 예배"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label htmlFor="arrangement-save-preset-youtube" className="text-sm text-muted-foreground">
+                  YouTube 레퍼런스
+                </label>
+                <Input
+                  id="arrangement-save-preset-youtube"
+                  value={presetYoutubeReference}
+                  onChange={(event) => setPresetYoutubeReference(event.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                />
+              </div>
+
+              {presetTargetLyricsSave?.askScope && (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    가사 변경은 곡 가사로 저장되어 이 곡의 다른 단일 프리셋에도 반영됩니다.
+                    매시업 프리셋은 기존 저장된 가사를 유지합니다.
+                  </p>
+                  <label className="flex cursor-pointer items-center gap-3 rounded-md border p-3 text-base">
+                    <input
+                      type="checkbox"
+                      checked={presetTargetOnlyLyrics}
+                      onChange={(event) => setPresetTargetOnlyLyrics(event.target.checked)}
+                      className="size-5 cursor-pointer rounded"
+                    />
+                    <span>이 프리셋에만 적용</span>
+                  </label>
+                </div>
+              )}
+            </div>
+
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isPresetSaving}>취소</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmPresetSave} disabled={isPresetSaving}>
+                {isPresetSaving ? "저장 중..." : selectedPresetTarget ? "업데이트" : "저장"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>

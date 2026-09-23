@@ -417,7 +417,9 @@ test('conti song drawer uses wide controlled sheet music preview instead of nest
   assert.match(presetEditorSource, /sheetMusicPreviewItem=\{currentPreviewItem\}/);
   assert.match(presetEditorSource, /previewMode="controlled"/);
   assert.match(presetEditorSource, /onPreviewChange=\{handleSheetMusicPreviewChange\}/);
-  assert.doesNotMatch(presetEditorSource, /SheetMusicUploader/);
+  // Single presets manage sheet music like conti songs; mashups stay preview-only.
+  assert.match(presetEditorSource, /<SheetMusicUploader songId=\{songId\}/);
+  assert.match(presetEditorSource, /isMashup \? \(/);
 });
 
 test('sheet music lyrics generator uses Gemini images and appends generated pages', async () => {

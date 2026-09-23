@@ -10,10 +10,15 @@ import type { SheetMusicPreviewItem } from "@/components/shared/sheet-music-prev
 import { SheetMusicGallery } from "@/components/songs/sheet-music-gallery"
 import { updateMashupContiSongs } from "@/lib/actions/conti-songs"
 import { getPresetsForSongWithSheetMusic, updateSongPreset } from "@/lib/actions/song-presets"
+import { shouldSyncAppliedPresetYoutube } from "@/components/shared/arrangement-editor/save-rules"
 import { getMashupDisplayTitle } from "@/lib/utils/mashup-presets"
 import { draftToMashupContiSongOverrides } from "@/lib/utils/mashup-conti-overrides"
 import { toYouTubeInputValue } from "@/lib/utils/youtube"
-import type { ContiSongWithSong, SheetMusicFile } from "@/lib/types"
+import type {
+  ContiSongWithSong,
+  ResolvedSongPresetWithSheetMusic,
+  SheetMusicFile,
+} from "@/lib/types"
 
 interface ContiMashupEditorProps {
   contiId: string
@@ -61,6 +66,7 @@ export function ContiMashupEditor({ contiId, group, open, onOpenChange }: ContiM
   )
 
   const [availableSheetMusic, setAvailableSheetMusic] = useState<SheetMusicFile[]>([])
+  const [mashupPreset, setMashupPreset] = useState<ResolvedSongPresetWithSheetMusic | null>(null)
   const [sheetMusicLoading, setSheetMusicLoading] = useState(false)
   const [sheetMusicPreviewPrepared, setSheetMusicPreviewPrepared] = useState(false)
   const [sheetMusicPreviewItem, setSheetMusicPreviewItem] = useState<SheetMusicPreviewItem | null>(null)
@@ -82,6 +88,7 @@ export function ContiMashupEditor({ contiId, group, open, onOpenChange }: ContiM
       if (!openRef.current || requestIdRef.current !== requestId) return
       if (result.success && result.data) {
         const applied = result.data.find((preset) => preset.id === presetId)
+        setMashupPreset(applied ?? null)
         setAvailableSheetMusic(applied?.availableSheetMusic ?? [])
       }
     })()
@@ -142,8 +149,8 @@ export function ContiMashupEditor({ contiId, group, open, onOpenChange }: ContiM
           />
         ) : null
       }
-      savingLabel="이 콘티에만 저장"
-      saveToPresetLabel="프리셋에 저장"
+      presetSaveTargets={mashupPreset ? [mashupPreset] : []}
+      allowNewPresetTarget={false}
       onOpenChange={onOpenChange}
       onSave={async (draft) => {
         if (!primary.mashupGroupId) {
@@ -154,13 +161,28 @@ export function ContiMashupEditor({ contiId, group, open, onOpenChange }: ContiM
           mashupGroupId: primary.mashupGroupId,
           overrides: draftToMashupContiSongOverrides(draft),
         })
-        if (result.success) {
-          router.refresh()
+        if (!result.success) {
+          return { success: false, error: result.error }
         }
-        return { success: result.success, error: result.error }
+
+        // YouTube lives on the shared mashup preset, not the conti rows.
+        const presetYoutube = mashupPreset?.youtubeReference ?? primary.appliedPreset?.youtubeReference
+        if (presetId && shouldSyncAppliedPresetYoutube(draft.youtubeReference, presetYoutube)) {
+          const presetResult = await updateSongPreset(presetId, {
+            youtubeReference: draft.youtubeReference,
+            youtubeTitle: draft.youtubeTitle,
+          })
+          if (!presetResult.success) {
+            router.refresh()
+            return { success: false, error: presetResult.error }
+          }
+        }
+
+        router.refresh()
+        return { success: true }
       }}
-      onSaveToPreset={async (draft) => {
-        if (!primary.mashupGroupId || !presetId) {
+      onSaveToPreset={async (draft, request) => {
+        if (!primary.mashupGroupId || !presetId || request.presetId !== presetId) {
           return { success: false, error: "매시업 프리셋을 찾을 수 없습니다" }
         }
         // Persist to the current conti (both grouped rows) so the change is
@@ -176,13 +198,16 @@ export function ContiMashupEditor({ contiId, group, open, onOpenChange }: ContiM
         }
 
         const presetResult = await updateSongPreset(presetId, {
+          name: request.presetName,
           keys: draft.keys,
           tempos: draft.tempos,
           sectionOrder: draft.sectionOrder,
-          lyrics: draft.lyrics,
+          ...(request.includeLyrics ? { lyrics: draft.lyrics } : {}),
           sectionLyricsMap: draft.sectionLyricsMap,
           notes: draft.notes,
           sheetMusicFileIds: draft.sheetMusicFileIds ?? [],
+          youtubeReference: request.youtubeReference,
+          youtubeTitle: null,
         })
         if (presetResult.success) {
           router.refresh()

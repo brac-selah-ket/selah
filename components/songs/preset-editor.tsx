@@ -1,10 +1,12 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrangementEditor } from "@/components/shared/arrangement-editor"
 import type { SheetMusicPreviewItem } from "@/components/shared/sheet-music-preview"
 import { SheetMusicGallery } from "@/components/songs/sheet-music-gallery"
+import { SheetMusicUploader } from "@/components/songs/sheet-music-uploader"
+import { resolvePresetLyricsSave } from "@/components/shared/arrangement-editor/save-rules"
 import { createSongPreset, updateSongPreset } from "@/lib/actions/song-presets"
 import {
   arrangementDraftToSongPresetData,
@@ -27,11 +29,6 @@ interface PresetEditorProps {
   onOpenChange: (open: boolean) => void
 }
 
-function areLyricsEqual(left: readonly string[], right: readonly string[]) {
-  if (left.length !== right.length) return false
-  return left.every((item, index) => item === right[index])
-}
-
 function omitLyrics(data: SongPresetData): Partial<SongPresetData> {
   const next: Partial<SongPresetData> = { ...data }
   delete next.lyrics
@@ -43,7 +40,20 @@ export function PresetEditor({ songId, songLyrics, preset, sheetMusic, open, onO
   const initialDraft = preset
     ? songPresetToDraft(preset)
     : { ...songPresetToDraft(undefined), lyrics: songLyrics }
-  const editorSheetMusic = buildPresetEditorSheetMusic(preset, sheetMusic)
+  const isMashup = preset?.presetType === "mashup"
+  // Uploads and deletes show up immediately; the refreshed server props then
+  // catch up and replace these local adjustments.
+  const [uploadedSheetMusic, setUploadedSheetMusic] = useState<SheetMusicFile[]>([])
+  const [deletedSheetMusicIds, setDeletedSheetMusicIds] = useState<string[]>([])
+  const songSheetMusic = useMemo(() => {
+    const deletedIds = new Set(deletedSheetMusicIds)
+    const knownIds = new Set(sheetMusic.map((file) => file.id))
+    return [
+      ...sheetMusic,
+      ...uploadedSheetMusic.filter((file) => !knownIds.has(file.id)),
+    ].filter((file) => !deletedIds.has(file.id))
+  }, [deletedSheetMusicIds, sheetMusic, uploadedSheetMusic])
+  const editorSheetMusic = buildPresetEditorSheetMusic(preset, songSheetMusic)
   const [sheetMusicLoading, setSheetMusicLoading] = useState(false)
   const [sheetMusicPreviewPrepared, setSheetMusicPreviewPrepared] = useState(false)
   const [sheetMusicPreviewItem, setSheetMusicPreviewItem] = useState<SheetMusicPreviewItem | null>(null)
@@ -108,6 +118,19 @@ export function PresetEditor({ songId, songLyrics, preset, sheetMusic, open, onO
     setSheetMusicPreviewItem(item)
   }
 
+  function handleSheetMusicUploaded(file: SheetMusicFile) {
+    setUploadedSheetMusic((current) =>
+      current.some((item) => item.id === file.id) ? current : [...current, file],
+    )
+    router.refresh()
+  }
+
+  function handleSheetMusicDeleted(fileId: string) {
+    setDeletedSheetMusicIds((current) => [...current, fileId])
+    setSheetMusicPreviewItem((current) => (current?.file.id === fileId ? null : current))
+    router.refresh()
+  }
+
   if (!open) {
     return null
   }
@@ -129,25 +152,42 @@ export function PresetEditor({ songId, songLyrics, preset, sheetMusic, open, onO
       presetType={preset?.presetType ?? null}
       hasExistingPreset={Boolean(preset)}
       sheetMusicManagementSlot={
-        editorSheetMusic.length > 0 ? (
-          <SheetMusicGallery
-            files={editorSheetMusic}
-            previewMode="controlled"
-            onPreviewChange={handleSheetMusicPreviewChange}
-            onPreviewLoadingChange={handlePreviewLoadingChange}
-          />
-        ) : null
+        isMashup ? (
+          editorSheetMusic.length > 0 ? (
+            <SheetMusicGallery
+              files={editorSheetMusic}
+              previewMode="controlled"
+              onPreviewChange={handleSheetMusicPreviewChange}
+              onPreviewLoadingChange={handlePreviewLoadingChange}
+            />
+          ) : null
+        ) : (
+          <div className="space-y-4">
+            <SheetMusicUploader songId={songId} onUploaded={handleSheetMusicUploaded} />
+            {editorSheetMusic.length > 0 && (
+              <SheetMusicGallery
+                files={editorSheetMusic}
+                editable
+                songId={songId}
+                onDeleted={handleSheetMusicDeleted}
+                previewMode="controlled"
+                onPreviewChange={handleSheetMusicPreviewChange}
+                onPreviewLoadingChange={handlePreviewLoadingChange}
+              />
+            )}
+          </div>
+        )
       }
-      savingLabel="저장"
       onOpenChange={handleEditorOpenChange}
       onSave={async (draft, options?: ArrangementEditorSaveOptions) => {
         const data = arrangementDraftToSongPresetData(draft)
-        const payload =
-          preset?.presetType === "single" &&
-          !options?.lyricsSaveScope &&
-          areLyricsEqual(initialDraft.lyrics, draft.lyrics)
-            ? omitLyrics(data)
-            : data
+        const { includeLyrics } = resolvePresetLyricsSave({
+          presetType: preset?.presetType ?? null,
+          hasExistingPreset: Boolean(preset),
+          baselineLyrics: initialDraft.lyrics,
+          draftLyrics: draft.lyrics,
+        })
+        const payload = includeLyrics || options?.lyricsSaveScope ? data : omitLyrics(data)
         const result = preset
           ? await updateSongPreset(preset.id, payload, options)
           : await createSongPreset(songId, data)

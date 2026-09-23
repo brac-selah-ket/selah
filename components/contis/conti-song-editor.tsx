@@ -10,10 +10,11 @@ import type { SheetMusicPreviewItem } from "@/components/shared/sheet-music-prev
 import { SheetMusicUploader } from "@/components/songs/sheet-music-uploader"
 import { SheetMusicGallery } from "@/components/songs/sheet-music-gallery"
 import { updateContiSong, saveContiSongAsPreset } from "@/lib/actions/conti-songs"
-import { getPresetsForSongWithSheetMusic } from "@/lib/actions/song-presets"
+import { getPresetsForSongWithSheetMusic, updateSongPreset } from "@/lib/actions/song-presets"
+import { shouldSyncAppliedPresetYoutube } from "@/components/shared/arrangement-editor/save-rules"
 import { getSheetMusicForSong } from "@/lib/actions/sheet-music"
 import { songPresetToDraft } from "@/lib/utils/song-preset-draft"
-import { normalizeYouTubeReference, toYouTubeInputValue } from "@/lib/utils/youtube"
+import { toYouTubeInputValue } from "@/lib/utils/youtube"
 import type {
   ContiSongWithSong,
   ResolvedSongPresetWithSheetMusic,
@@ -204,7 +205,7 @@ export function ContiSongEditor({
         </div>
       }
       presetOptions={presets}
-      savingLabel="이 콘티에만 저장"
+      presetSaveTargets={presets}
       onOpenChange={onOpenChange}
       onLoadPreset={async (preset) => ({
         ...songPresetToDraft(preset),
@@ -218,21 +219,35 @@ export function ContiSongEditor({
           draftToContiSongOverrides(draft),
         )
 
-        if (result.success) {
-          router.refresh()
+        if (!result.success) {
+          return { success: false, error: result.error }
         }
 
-        return { success: result.success, error: result.error }
+        // YouTube lives on the applied preset, not the conti row.
+        const appliedPresetId = draft.appliedPresetId
+        const appliedPresetYoutube =
+          presets.find((preset) => preset.id === appliedPresetId)?.youtubeReference ??
+          (appliedPresetId === contiSong.overrides.presetId
+            ? contiSong.appliedPreset?.youtubeReference
+            : null)
+        if (
+          appliedPresetId &&
+          shouldSyncAppliedPresetYoutube(draft.youtubeReference, appliedPresetYoutube)
+        ) {
+          const presetResult = await updateSongPreset(appliedPresetId, {
+            youtubeReference: draft.youtubeReference,
+            youtubeTitle: draft.youtubeTitle,
+          })
+          if (!presetResult.success) {
+            router.refresh()
+            return { success: false, error: presetResult.error }
+          }
+        }
+
+        router.refresh()
+        return { success: true }
       }}
-      onSaveAsPreset={async (draft, presetName, existingPresetId) => {
-        const normalized = draft.youtubeReference
-          ? normalizeYouTubeReference(draft.youtubeReference)
-          : null
-        const youtubeOptions = normalized
-          ? { youtubeReference: normalized.videoId, youtubeTitle: draft.youtubeTitle ?? null }
-          : existingPresetId
-            ? { youtubeReference: null, youtubeTitle: null }
-            : undefined
+      onSaveToPreset={async (draft, request) => {
         const updateResult = await updateContiSong(
           contiSong.id,
           draftToContiSongOverrides(draft),
@@ -244,9 +259,14 @@ export function ContiSongEditor({
 
         const presetResult = await saveContiSongAsPreset(
           contiSong.id,
-          presetName,
-          existingPresetId,
-          youtubeOptions,
+          request.presetName,
+          request.presetId ?? undefined,
+          {
+            youtubeReference: request.youtubeReference,
+            youtubeTitle: null,
+            includeLyrics: request.includeLyrics,
+            lyricsSaveScope: request.lyricsSaveScope,
+          },
         )
 
         if (presetResult.success) {

@@ -104,7 +104,14 @@ export async function saveContiSongAsPreset(
   contiSongId: string,
   presetName: string,
   existingPresetId?: string,
-  options: { youtubeReference?: string | null; youtubeTitle?: string | null } = {},
+  options: {
+    youtubeReference?: string | null;
+    youtubeTitle?: string | null;
+    // false skips lyrics when updating an existing preset, so unchanged lyrics
+    // do not rewrite the song's shared lyrics.
+    includeLyrics?: boolean;
+    lyricsSaveScope?: 'song' | 'preset';
+  } = {},
 ): Promise<ActionResult> {
   try {
     const source = await getStoryboardRepository().getContiSongPresetSource(contiSongId);
@@ -121,18 +128,22 @@ export async function saveContiSongAsPreset(
         : {};
 
     if (existingPresetId) {
-      result = await updateSongPreset(existingPresetId, {
-        name: presetName,
-        keys: source.overrides.keys,
-        tempos: source.overrides.tempos,
-        sectionOrder: source.overrides.sectionOrder,
-        lyrics: source.overrides.lyrics,
-        sectionLyricsMap: source.overrides.sectionLyricsMap,
-        notes: source.overrides.notes,
-        sheetMusicFileIds: source.overrides.sheetMusicFileIds ?? [],
-        pdfMetadata: source.pdfMetadata,
-        ...youtubePayload,
-      });
+      result = await updateSongPreset(
+        existingPresetId,
+        {
+          name: presetName,
+          keys: source.overrides.keys,
+          tempos: source.overrides.tempos,
+          sectionOrder: source.overrides.sectionOrder,
+          ...(options.includeLyrics === false ? {} : { lyrics: source.overrides.lyrics }),
+          sectionLyricsMap: source.overrides.sectionLyricsMap,
+          notes: source.overrides.notes,
+          sheetMusicFileIds: source.overrides.sheetMusicFileIds ?? [],
+          pdfMetadata: source.pdfMetadata,
+          ...youtubePayload,
+        },
+        { lyricsSaveScope: options.lyricsSaveScope },
+      );
     } else {
       result = await createSongPreset(source.songId, {
         name: presetName,
