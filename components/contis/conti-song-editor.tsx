@@ -13,7 +13,7 @@ import { updateContiSong, saveContiSongAsPreset } from "@/lib/actions/conti-song
 import { getPresetsForSongWithSheetMusic } from "@/lib/actions/song-presets"
 import { getSheetMusicForSong } from "@/lib/actions/sheet-music"
 import { songPresetToDraft } from "@/lib/utils/song-preset-draft"
-import { normalizeYouTubeReference, toYouTubeInputValue } from "@/lib/utils/youtube"
+import { toYouTubeInputValue } from "@/lib/utils/youtube"
 import type {
   ContiSongWithSong,
   ResolvedSongPresetWithSheetMusic,
@@ -204,7 +204,7 @@ export function ContiSongEditor({
         </div>
       }
       presetOptions={presets}
-      savingLabel="이 콘티에만 저장"
+      presetSaveTargets={presets}
       onOpenChange={onOpenChange}
       onLoadPreset={async (preset) => ({
         ...songPresetToDraft(preset),
@@ -224,15 +224,7 @@ export function ContiSongEditor({
 
         return { success: result.success, error: result.error }
       }}
-      onSaveAsPreset={async (draft, presetName, existingPresetId) => {
-        const normalized = draft.youtubeReference
-          ? normalizeYouTubeReference(draft.youtubeReference)
-          : null
-        const youtubeOptions = normalized
-          ? { youtubeReference: normalized.videoId, youtubeTitle: draft.youtubeTitle ?? null }
-          : existingPresetId
-            ? { youtubeReference: null, youtubeTitle: null }
-            : undefined
+      onSaveToPreset={async (draft, request) => {
         const updateResult = await updateContiSong(
           contiSong.id,
           draftToContiSongOverrides(draft),
@@ -244,9 +236,14 @@ export function ContiSongEditor({
 
         const presetResult = await saveContiSongAsPreset(
           contiSong.id,
-          presetName,
-          existingPresetId,
-          youtubeOptions,
+          request.presetName,
+          request.presetId ?? undefined,
+          {
+            youtubeReference: request.youtubeReference,
+            youtubeTitle: null,
+            includeLyrics: request.includeLyrics,
+            lyricsSaveScope: request.lyricsSaveScope,
+          },
         )
 
         if (presetResult.success) {

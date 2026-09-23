@@ -38,6 +38,18 @@ export interface ArrangementEditorSaveOptions {
   lyricsSaveScope?: "song" | "preset"
 }
 
+export interface ArrangementEditorPresetSaveRequest {
+  // null creates a new preset.
+  presetId: string | null
+  presetName: string
+  // Normalized YouTube video id, or null to clear.
+  youtubeReference: string | null
+  // false when an existing single preset's lyrics are unchanged, so the song's
+  // shared lyrics are not rewritten.
+  includeLyrics: boolean
+  lyricsSaveScope?: "song" | "preset"
+}
+
 export interface ArrangementEditorProps {
   mode: ArrangementEditorMode
   title: string
@@ -55,22 +67,20 @@ export interface ArrangementEditorProps {
   presetType?: SongPreset["presetType"] | null
   hasExistingPreset?: boolean
   sheetMusicManagementSlot?: ReactNode
-  savingLabel?: string
-  // Optional secondary save that persists to a shared preset (e.g. a mashup
-  // preset) in addition to the primary conti-scoped save. When provided, the
-  // footer shows an extra button labelled `saveToPresetLabel`.
-  saveToPresetLabel?: string
   onOpenChange: (open: boolean) => void
   onSave: (
     draft: ArrangementDraft,
     options?: ArrangementEditorSaveOptions,
   ) => Promise<ArrangementEditorSaveResult>
   onLoadPreset?: (preset: ArrangementEditorPresetOption) => Promise<ArrangementDraft>
-  onSaveAsPreset?: (
+  // Conti-only secondary save that also persists the arrangement to a shared
+  // preset. The footer shows a "프리셋에 저장" button that opens a target dialog.
+  presetSaveTargets?: ArrangementEditorPresetOption[]
+  // false pins the dialog to the given targets (e.g. a mashup's own preset).
+  allowNewPresetTarget?: boolean
+  onSaveToPreset?: (
     draft: ArrangementDraft,
-    presetName: string,
-    existingPresetId?: string,
+    request: ArrangementEditorPresetSaveRequest,
   ) => Promise<ArrangementEditorSaveResult>
-  onSaveToPreset?: (draft: ArrangementDraft) => Promise<ArrangementEditorSaveResult>
   onRefreshPresetOptions?: () => Promise<void>
 }

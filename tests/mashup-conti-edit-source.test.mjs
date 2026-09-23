@@ -43,8 +43,8 @@ test("arrangement editor renders a secondary save-to-preset action when provided
   const editor = await read("components/shared/arrangement-editor/arrangement-editor.tsx")
 
   assert.match(editor, /onSaveToPreset && \(/)
-  assert.match(editor, /handleSaveToPreset/)
-  assert.match(editor, /saveToPresetLabel/)
+  assert.match(editor, /handleOpenPresetSaveDialog/)
+  assert.match(editor, /handleConfirmPresetSave/)
 })
 
 test("repository updates both grouped rows without touching presetId", async () => {
@@ -64,4 +64,20 @@ test("mashup override builder omits presetId so the group stays applied", async 
 
   // No `presetId:` property assignment in the returned overrides.
   assert.doesNotMatch(overrides, /presetId:/)
+})
+
+test("conti save-to-preset goes through one dialog pinned to the mashup preset", async () => {
+  const mashupEditor = await read("components/contis/conti-mashup-editor.tsx")
+  const songEditor = await read("components/contis/conti-song-editor.tsx")
+
+  assert.match(mashupEditor, /allowNewPresetTarget=\{false\}/)
+  assert.match(songEditor, /presetSaveTargets=\{presets\}/)
+  assert.doesNotMatch(songEditor, /onSaveAsPreset/)
+})
+
+test("saving a conti song into an existing preset forwards the lyrics scope", async () => {
+  const actions = await read("lib/actions/conti-songs.ts")
+
+  assert.match(actions, /options\.includeLyrics === false \? \{\} : \{ lyrics: source\.overrides\.lyrics \}/)
+  assert.match(actions, /\{ lyricsSaveScope: options\.lyricsSaveScope \}/)
 })

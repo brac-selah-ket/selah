@@ -1,7 +1,10 @@
 import assert from "node:assert/strict"
 import { test } from "vitest"
 import {
+  getPrimarySaveLabel,
+  getPrimarySaveSuccessMessage,
   getSheetMusicSelectionSaveError,
+  resolvePresetLyricsSave,
   shouldConfirmLyricsSaveScope,
   shouldShowYouTubeReferenceField,
 } from "./save-rules.ts"
@@ -81,4 +84,53 @@ test("does not confirm save scope for mashups, new presets, or conti songs", () 
     }),
     false,
   )
+})
+
+test("asks lyrics scope and includes lyrics only when existing single preset lyrics changed", () => {
+  assert.deepEqual(
+    resolvePresetLyricsSave({
+      presetType: "single",
+      hasExistingPreset: true,
+      baselineLyrics: ["a"],
+      draftLyrics: ["b"],
+    }),
+    { includeLyrics: true, askScope: true },
+  )
+  assert.deepEqual(
+    resolvePresetLyricsSave({
+      presetType: "single",
+      hasExistingPreset: true,
+      baselineLyrics: ["a"],
+      draftLyrics: ["a"],
+    }),
+    { includeLyrics: false, askScope: false },
+  )
+})
+
+test("always includes lyrics without scope for new or mashup presets", () => {
+  assert.deepEqual(
+    resolvePresetLyricsSave({
+      presetType: "single",
+      hasExistingPreset: false,
+      baselineLyrics: [],
+      draftLyrics: ["a"],
+    }),
+    { includeLyrics: true, askScope: false },
+  )
+  assert.deepEqual(
+    resolvePresetLyricsSave({
+      presetType: "mashup",
+      hasExistingPreset: true,
+      baselineLyrics: ["a"],
+      draftLyrics: ["b"],
+    }),
+    { includeLyrics: true, askScope: false },
+  )
+})
+
+test("labels the primary save button and toast by save target", () => {
+  assert.equal(getPrimarySaveLabel("preset"), "프리셋에 저장")
+  assert.equal(getPrimarySaveLabel("conti-song"), "이 콘티에만 저장")
+  assert.equal(getPrimarySaveSuccessMessage("preset"), "프리셋에 저장되었습니다")
+  assert.equal(getPrimarySaveSuccessMessage("conti-song"), "이 콘티에 저장되었습니다")
 })
