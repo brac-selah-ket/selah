@@ -1,15 +1,28 @@
 import type { ArrangementEditorMode } from "./types"
 import type { SongPresetType } from "@/lib/song-preset-types"
+import { normalizeYouTubeReference } from "../../../lib/utils/youtube.ts"
 
 const EMPTY_SHEET_MUSIC_SELECTION_ERROR = "악보를 최소 1개 이상 선택해주세요"
 
 export const PRESET_SAVE_LABEL = "프리셋에 저장"
 export const PRESET_SAVE_SUCCESS_MESSAGE = "프리셋에 저장되었습니다"
 
+// YouTube is stored on presets only; conti editors edit the applied preset's value.
 export function shouldShowYouTubeReferenceField(
   mode: ArrangementEditorMode,
 ): boolean {
-  return mode === "preset"
+  return mode === "preset" || mode === "conti-song"
+}
+
+// A conti save writes YouTube to the applied preset only when it actually
+// changed, so an untouched field never rewrites the shared preset.
+export function shouldSyncAppliedPresetYoutube(
+  draftReference: string | null | undefined,
+  presetReference: string | null | undefined,
+): boolean {
+  const toVideoId = (value: string | null | undefined) =>
+    normalizeYouTubeReference(value)?.videoId ?? null
+  return toVideoId(draftReference) !== toVideoId(presetReference)
 }
 
 export function getSheetMusicSelectionSaveError(

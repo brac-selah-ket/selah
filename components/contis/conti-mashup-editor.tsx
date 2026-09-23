@@ -10,6 +10,7 @@ import type { SheetMusicPreviewItem } from "@/components/shared/sheet-music-prev
 import { SheetMusicGallery } from "@/components/songs/sheet-music-gallery"
 import { updateMashupContiSongs } from "@/lib/actions/conti-songs"
 import { getPresetsForSongWithSheetMusic, updateSongPreset } from "@/lib/actions/song-presets"
+import { shouldSyncAppliedPresetYoutube } from "@/components/shared/arrangement-editor/save-rules"
 import { getMashupDisplayTitle } from "@/lib/utils/mashup-presets"
 import { draftToMashupContiSongOverrides } from "@/lib/utils/mashup-conti-overrides"
 import { toYouTubeInputValue } from "@/lib/utils/youtube"
@@ -160,10 +161,25 @@ export function ContiMashupEditor({ contiId, group, open, onOpenChange }: ContiM
           mashupGroupId: primary.mashupGroupId,
           overrides: draftToMashupContiSongOverrides(draft),
         })
-        if (result.success) {
-          router.refresh()
+        if (!result.success) {
+          return { success: false, error: result.error }
         }
-        return { success: result.success, error: result.error }
+
+        // YouTube lives on the shared mashup preset, not the conti rows.
+        const presetYoutube = mashupPreset?.youtubeReference ?? primary.appliedPreset?.youtubeReference
+        if (presetId && shouldSyncAppliedPresetYoutube(draft.youtubeReference, presetYoutube)) {
+          const presetResult = await updateSongPreset(presetId, {
+            youtubeReference: draft.youtubeReference,
+            youtubeTitle: draft.youtubeTitle,
+          })
+          if (!presetResult.success) {
+            router.refresh()
+            return { success: false, error: presetResult.error }
+          }
+        }
+
+        router.refresh()
+        return { success: true }
       }}
       onSaveToPreset={async (draft, request) => {
         if (!primary.mashupGroupId || !presetId || request.presetId !== presetId) {

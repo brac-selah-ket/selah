@@ -7,11 +7,23 @@ import {
   resolvePresetLyricsSave,
   shouldConfirmLyricsSaveScope,
   shouldShowYouTubeReferenceField,
+  shouldSyncAppliedPresetYoutube,
 } from "./save-rules.ts"
 
-test("shows editable YouTube reference only in preset mode", () => {
+test("shows editable YouTube reference in both preset and conti modes", () => {
   assert.equal(shouldShowYouTubeReferenceField("preset"), true)
-  assert.equal(shouldShowYouTubeReferenceField("conti-song"), false)
+  assert.equal(shouldShowYouTubeReferenceField("conti-song"), true)
+})
+
+test("syncs applied preset YouTube only when the video actually changed", () => {
+  assert.equal(shouldSyncAppliedPresetYoutube("dQw4w9WgXcQ", "dQw4w9WgXcQ"), false)
+  assert.equal(
+    shouldSyncAppliedPresetYoutube("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "dQw4w9WgXcQ"),
+    false,
+  )
+  assert.equal(shouldSyncAppliedPresetYoutube(null, undefined), false)
+  assert.equal(shouldSyncAppliedPresetYoutube("dQw4w9WgXcQ", null), true)
+  assert.equal(shouldSyncAppliedPresetYoutube(null, "dQw4w9WgXcQ"), true)
 })
 
 test("rejects an explicit empty sheet music selection when files are available", () => {

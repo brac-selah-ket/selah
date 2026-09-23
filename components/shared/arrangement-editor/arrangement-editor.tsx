@@ -42,6 +42,7 @@ import {
   resolvePresetLyricsSave,
   shouldConfirmLyricsSaveScope,
   shouldShowYouTubeReferenceField,
+  shouldSyncAppliedPresetYoutube,
 } from "./save-rules"
 import type {
   ArrangementDraft,
@@ -289,11 +290,6 @@ export function ArrangementEditor({
   function selectPresetTarget(target: ArrangementEditorPresetOption | undefined) {
     setSelectedPresetId(target?.id ?? "")
     setPresetName(target?.name ?? "")
-    // A new preset starts from the currently applied preset's reference so
-    // the carried-over value is visible and editable instead of implicit.
-    setPresetYoutubeReference(
-      target ? toYouTubeInputValue(target.youtubeReference) ?? "" : draft.youtubeReference ?? "",
-    )
     setPresetTargetOnlyLyrics(false)
   }
 
@@ -312,6 +308,9 @@ export function ArrangementEditor({
 
     setPresetSaveDraft(cloneDraft(prunedDraft))
     selectPresetTarget(allowNewPresetTarget ? undefined : presetSaveTargets[0])
+    // Starts from the body field so the dialog never shows a different value
+    // than what the user is looking at.
+    setPresetYoutubeReference(toYouTubeInputValue(prunedDraft.youtubeReference) ?? "")
     setPresetSaveDialogOpen(true)
   }
 
@@ -345,6 +344,11 @@ export function ArrangementEditor({
       if (result.success) {
         toast.success(PRESET_SAVE_SUCCESS_MESSAGE)
         const savedDraft = cloneDraft(presetSaveDraft)
+        const savedYoutubeReference = normalizedYoutube?.videoId ?? null
+        if (shouldSyncAppliedPresetYoutube(savedYoutubeReference, savedDraft.youtubeReference)) {
+          savedDraft.youtubeReference = savedYoutubeReference
+          savedDraft.youtubeTitle = null
+        }
         setDraft(savedDraft)
         setInitialDirtyDraft(cloneDraft(savedDraft))
         setPresetSaveDialogOpen(false)
@@ -595,6 +599,13 @@ export function ArrangementEditor({
                   })}
                   placeholder="https://www.youtube.com/watch?v=..."
                 />
+                {mode === "conti-song" && (
+                  <p className="text-sm text-muted-foreground">
+                    {draft.appliedPresetId
+                      ? "적용된 프리셋에 저장되어, 이 프리셋을 쓰는 다른 콘티에도 반영됩니다."
+                      : "적용된 프리셋이 없어 「프리셋에 저장」할 때 함께 저장됩니다."}
+                  </p>
+                )}
               </div>
             )}
 
