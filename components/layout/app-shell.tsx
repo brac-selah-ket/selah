@@ -30,6 +30,22 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const sectionThemeClassName = getSectionThemeClassName(pathname);
   const [isDesktopDrawer, setIsDesktopDrawer] = useState(false);
 
+  // Dialog/Dropdown portals mount under document.body, outside the shell div.
+  // Sync the section theme onto body so --primary and friends reach those surfaces.
+  useEffect(() => {
+    const { body } = document;
+    const themeClasses = ["theme-chapel", "theme-selah"] as const;
+
+    for (const themeClass of themeClasses) {
+      body.classList.remove(themeClass);
+    }
+    body.classList.add(sectionThemeClassName);
+
+    return () => {
+      body.classList.remove(sectionThemeClassName);
+    };
+  }, [sectionThemeClassName]);
+
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 768px)");
     const syncIsDesktopDrawer = () => setIsDesktopDrawer(mediaQuery.matches);
