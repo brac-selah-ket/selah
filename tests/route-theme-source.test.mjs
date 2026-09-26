@@ -29,3 +29,12 @@ test("globals define chapel green as a full route primary token set", async () =
   assert.match(source, /--ring:\s*#55776d;/)
   assert.match(source, /\.dark\s+\.theme-chapel\s*\{/)
 })
+
+test("app shell syncs section theme onto document.body for portaled surfaces", async () => {
+  const source = await read("components/layout/app-shell.tsx")
+
+  assert.match(source, /document\.body/)
+  assert.match(source, /body\.classList\.add\(sectionThemeClassName\)/)
+  assert.match(source, /body\.classList\.remove\(sectionThemeClassName\)/)
+  assert.match(source, /\[sectionThemeClassName\]/)
+})
