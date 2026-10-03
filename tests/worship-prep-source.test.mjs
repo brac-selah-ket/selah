@@ -198,6 +198,9 @@ test('PPT text editor drawer keeps outside click disabled and uses a full-row na
   )?.[0];
   assert.ok(backdropSource);
   assert.doesNotMatch(backdropSource, /onClick=\{handleClose\}/);
+  assert.match(drawerPrimitiveSource, /closeOnOutsideClick = false/);
+  assert.match(drawerPrimitiveSource, /onClick=\{closeOnOutsideClick \? handleOutsideClick : undefined\}/);
+  assert.doesNotMatch(drawerSource, /closeOnOutsideClick/);
   assert.match(drawerPrimitiveSource, /<Button[\s\S]+onClick=\{handleClose\}/);
   assert.doesNotMatch(drawerPrimitiveSource, /bg-black\/40[^\n"]*md:hidden/);
   assert.match(appShellSource, /md:w-\[min\(640px,76vw\)\] xl:w-\[40%\]/);

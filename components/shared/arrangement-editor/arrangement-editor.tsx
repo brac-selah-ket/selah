@@ -479,6 +479,7 @@ export function ArrangementEditor({
     <>
       <Drawer
         open={open}
+        closeOnOutsideClick
         onClose={() => onOpenChange(false)}
         onBeforeClose={() => {
           if (isDirty) {
