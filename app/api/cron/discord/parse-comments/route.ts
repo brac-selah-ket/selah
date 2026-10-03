@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { expireWorshipPrepSundayDate } from '@/lib/cache/invalidation';
 import { isCronAuthorized } from '@/lib/cron-auth';
+import { isContiPraiseTemplateMessage } from '@/lib/discord-sync/praise-template-message';
 import { addMessageReaction, getActiveForumThreads, getChannel, getThreadMessages } from '@/lib/discord-sync/discord-client';
 import { parseDiscordMessages } from '@/lib/discord-parser';
 import { correctSpelling } from '@/lib/discord-sync/spell-checker';
@@ -58,7 +59,11 @@ export async function GET(request: NextRequest) {
     }
 
     const messages = await getThreadMessages(activeThread.id);
-    const newMessages = messages.filter((message) => !message.author.bot && !hasProcessedReaction(message));
+    const newMessages = messages.filter((message) => {
+      if (hasProcessedReaction(message)) return false;
+      if (!message.author.bot) return true;
+      return isContiPraiseTemplateMessage(message.content);
+    });
 
     if (newMessages.length === 0) {
       return NextResponse.json({

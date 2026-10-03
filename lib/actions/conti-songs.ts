@@ -10,6 +10,7 @@ import type {
 import { createSongPreset, updateSongPreset } from './song-presets';
 import { z } from 'zod';
 import { getStoryboardRepository } from '@/lib/repositories/storyboard';
+import { postContiPraiseTemplate } from '@/lib/discord-sync/praise-template-message';
 import type { MashupContiSongOverrides } from '@/lib/repositories/storyboard/types';
 import { invalidateConti, invalidateSong, invalidateSongs } from '@/lib/cache/invalidation';
 
@@ -335,6 +336,12 @@ export async function batchImportSongsToConti(
 
     revalidatePath('/contis')
     revalidatePath('/songs')
+
+    try {
+      await postContiPraiseTemplate(contiId)
+    } catch (error) {
+      console.error('[postContiPraiseTemplate]', error)
+    }
 
     return {
       success: true,
