@@ -3,6 +3,18 @@ import { findDiscordThreadForSundayDate } from '@/lib/discord-sync/worship-prep-
 import { toYYMMDDFromIsoDate } from '@/lib/discord-sync/worship-prep-readiness';
 import { getStoryboardRepository } from '@/lib/repositories/storyboard';
 import { buildArrangementItems } from '@/lib/utils/arrangement-items';
+import type { ArrangementItem } from '@/lib/types';
+
+export function praiseSlotTitle(item: Pick<ArrangementItem, 'type' | 'displayTitle' | 'displaySongNames' | 'primarySong'>): string {
+  if (item.type !== 'mashup') return item.displayTitle.trim();
+
+  const custom = item.primarySong.appliedPreset?.displayTitle?.trim();
+  if (custom) return custom;
+
+  const names = item.displaySongNames.map((name) => name.trim()).filter(Boolean);
+  if (names.length >= 2) return `${names[0]} × ${names[1]}`;
+  return names[0] || item.displayTitle.trim();
+}
 
 export function buildPraiseTemplateMessage(titles: readonly string[]): string | null {
   const names = titles.map((title) => title.trim()).filter(Boolean);
@@ -19,7 +31,7 @@ export async function postContiPraiseTemplate(contiId: string): Promise<'sent' |
   if (!conti) return 'skipped';
 
   const content = buildPraiseTemplateMessage(
-    buildArrangementItems(conti.songs).map((item) => item.displayTitle),
+    buildArrangementItems(conti.songs).map((item) => praiseSlotTitle(item)),
   );
   if (!content) return 'skipped';
 
