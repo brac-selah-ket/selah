@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useOptionalDrawerState } from "@/components/ui/drawer-context"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ContiSongSummaryTable } from "@/components/contis/conti-song-summary-table"
 import { ContiSongEditor } from "./conti-song-editor"
 import { ContiMashupEditor } from "./conti-mashup-editor"
@@ -268,24 +269,34 @@ export function ContiDetail({
             disabled={isPending}
           >
             <HugeiconsIcon icon={PlayListIcon} strokeWidth={2} data-icon="inline-start" />
-            YouTube에서 가져오기
+            유튜브에서 가져오기
           </Button>
-          <Button
-            variant="outline"
-            onClick={handleOpenYouTubePlaylist}
-            disabled={isPending || optimisticSongs.length === 0}
-          >
-            <HugeiconsIcon icon={HeadphonesIcon} strokeWidth={2} data-icon="inline-start" />
-            유튜브에서 이어 듣기
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleCopyYouTubePlaylistLink}
-            disabled={isPending || optimisticSongs.length === 0}
-          >
-            <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} data-icon="inline-start" />
-            링크 복사
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              onClick={handleOpenYouTubePlaylist}
+              disabled={isPending || optimisticSongs.length === 0}
+            >
+              <HugeiconsIcon icon={HeadphonesIcon} strokeWidth={2} data-icon="inline-start" />
+              유튜브에서 이어 듣기
+            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-label="재생목록 링크 복사"
+                    onClick={handleCopyYouTubePlaylistLink}
+                    disabled={isPending || optimisticSongs.length === 0}
+                  />
+                }
+              >
+                <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} />
+              </TooltipTrigger>
+              <TooltipContent>재생목록 링크 복사</TooltipContent>
+            </Tooltip>
+          </div>
         </div>
 
         <SongPicker

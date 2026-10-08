@@ -132,6 +132,83 @@ test("collectYouTubeVideoIdsForExport includes both parts of a mashup in order",
   assert.deepEqual(result.videoIds, ["partonevid1", "parttwovid2"])
 })
 
+test("collectYouTubeVideoIdsForExport collapses a mashup's consecutive duplicate video id into one", () => {
+  const songs = [
+    makeContiSong({
+      sortOrder: 0,
+      mashupGroupId: "group-1",
+      mashupPartOrder: 0,
+      appliedPreset: {
+        id: "preset-1",
+        name: "p1",
+        presetType: "mashup",
+        displayTitle: "Mashup",
+        youtubeReference: "sharedvide1",
+        youtubeTitle: null,
+      },
+    }),
+    makeContiSong({
+      sortOrder: 1,
+      mashupGroupId: "group-1",
+      mashupPartOrder: 1,
+      appliedPreset: {
+        id: "preset-1",
+        name: "p1",
+        presetType: "mashup",
+        displayTitle: "Mashup",
+        youtubeReference: "sharedvide1",
+        youtubeTitle: null,
+      },
+    }),
+  ]
+
+  const result = collectYouTubeVideoIdsForExport(songs)
+  assert.deepEqual(result.videoIds, ["sharedvide1"])
+  assert.equal(result.missingCount, 0)
+  assert.equal(result.totalCount, 2)
+})
+
+test("collectYouTubeVideoIdsForExport keeps non-consecutive repeats of the same video id", () => {
+  const songs = [
+    makeContiSong({
+      sortOrder: 0,
+      appliedPreset: {
+        id: "preset-1",
+        name: "p1",
+        presetType: "single",
+        displayTitle: null,
+        youtubeReference: "repeatvide1",
+        youtubeTitle: null,
+      },
+    }),
+    makeContiSong({
+      sortOrder: 1,
+      appliedPreset: {
+        id: "preset-2",
+        name: "p2",
+        presetType: "single",
+        displayTitle: null,
+        youtubeReference: "differentv2",
+        youtubeTitle: null,
+      },
+    }),
+    makeContiSong({
+      sortOrder: 2,
+      appliedPreset: {
+        id: "preset-1",
+        name: "p1",
+        presetType: "single",
+        displayTitle: null,
+        youtubeReference: "repeatvide1",
+        youtubeTitle: null,
+      },
+    }),
+  ]
+
+  const result = collectYouTubeVideoIdsForExport(songs)
+  assert.deepEqual(result.videoIds, ["repeatvide1", "differentv2", "repeatvide1"])
+})
+
 test("collectYouTubeVideoIdsForExport truncates to MAX_EXPORT_VIDEO_IDS", () => {
   const songs = Array.from({ length: MAX_EXPORT_VIDEO_IDS + 5 }, (_, index) =>
     makeContiSong({

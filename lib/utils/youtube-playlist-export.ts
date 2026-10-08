@@ -15,16 +15,20 @@ export function collectYouTubeVideoIdsForExport(
 ): YouTubePlaylistExportResult {
   const ordered = [...songs].sort((left, right) => left.sortOrder - right.sortOrder)
 
-  const allVideoIds = ordered
+  const rawVideoIds = ordered
     .map((song) => extractYouTubeVideoId(song.appliedPreset?.youtubeReference))
     .filter((videoId): videoId is string => videoId !== null)
+
+  const allVideoIds = rawVideoIds.filter(
+    (videoId, index) => videoId !== rawVideoIds[index - 1],
+  )
 
   const truncated = allVideoIds.length > MAX_EXPORT_VIDEO_IDS
   const videoIds = truncated ? allVideoIds.slice(0, MAX_EXPORT_VIDEO_IDS) : allVideoIds
 
   return {
     videoIds,
-    missingCount: ordered.length - allVideoIds.length,
+    missingCount: ordered.length - rawVideoIds.length,
     totalCount: ordered.length,
     truncated,
   }
