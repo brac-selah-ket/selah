@@ -1,11 +1,38 @@
 import assert from 'node:assert/strict';
-import { test } from 'vitest';
-import {
+import { beforeEach, test, vi } from 'vitest';
+import type { ArrangementItem } from '@/lib/types';
+
+const getConti = vi.fn();
+const findDiscordThreadForSundayDate = vi.fn();
+const getThreadMessages = vi.fn();
+const sendThreadMessage = vi.fn();
+const editThreadMessage = vi.fn();
+const buildArrangementItems = vi.fn();
+
+vi.mock('@/lib/repositories/storyboard', () => ({
+  getStoryboardRepository: () => ({ getConti }),
+}));
+
+vi.mock('@/lib/discord-sync/worship-prep-notifications', () => ({
+  findDiscordThreadForSundayDate,
+}));
+
+vi.mock('@/lib/discord-sync/discord-client', () => ({
+  getThreadMessages,
+  sendThreadMessage,
+  editThreadMessage,
+}));
+
+vi.mock('@/lib/utils/arrangement-items', () => ({
+  buildArrangementItems,
+}));
+
+const {
   buildPraiseTemplateMessage,
   isContiPraiseTemplateMessage,
+  postContiPraiseTemplate,
   praiseSlotTitle,
-} from './praise-template-message.ts';
-import type { ArrangementItem } from '@/lib/types';
+} = await import('./praise-template-message.ts');
 
 test('builds the discord praise line from arrangement titles', () => {
   assert.equal(buildPraiseTemplateMessage(['  주를 찬양  ', '은혜']), '찬양: 주를 찬양 - 은혜');
@@ -36,4 +63,89 @@ test('recognizes only a praise template line', () => {
   assert.equal(isContiPraiseTemplateMessage('찬양：주를 찬양'), true);
   assert.equal(isContiPraiseTemplateMessage('찬양 인도자를 선택하세요'), false);
   assert.equal(isContiPraiseTemplateMessage('**2026년**\n찬양: 예시'), false);
+});
+
+function stubConti(songTitles: string[]) {
+  getConti.mockResolvedValue({ id: 'conti1', date: '2026-01-04', songs: [] });
+  buildArrangementItems.mockReturnValue(
+    songTitles.map((title) => ({
+      type: 'single',
+      displayTitle: title,
+      displaySongNames: [title],
+      primarySong: {},
+    })),
+  );
+  findDiscordThreadForSundayDate.mockResolvedValue({ id: 'thread1' });
+}
+
+beforeEach(() => {
+  getConti.mockReset();
+  findDiscordThreadForSundayDate.mockReset();
+  getThreadMessages.mockReset();
+  sendThreadMessage.mockReset();
+  editThreadMessage.mockReset();
+  buildArrangementItems.mockReset();
+});
+
+test('sends a new message when no bot template message exists yet', async () => {
+  stubConti(['주를 찬양']);
+  getThreadMessages.mockResolvedValue([]);
+
+  const result = await postContiPraiseTemplate('conti1');
+
+  assert.equal(result, 'sent');
+  assert.equal(editThreadMessage.mock.calls.length, 0);
+  assert.deepEqual(sendThreadMessage.mock.calls[0], ['thread1', '찬양: 주를 찬양']);
+});
+
+test('edits the existing bot template message when the song list changes', async () => {
+  stubConti(['주를 찬양', '은혜']);
+  getThreadMessages.mockResolvedValue([
+    { id: 'msg1', content: '찬양: 주를 찬양', author: { id: 'bot1', bot: true } },
+  ]);
+
+  const result = await postContiPraiseTemplate('conti1');
+
+  assert.equal(result, 'edited');
+  assert.equal(sendThreadMessage.mock.calls.length, 0);
+  assert.deepEqual(editThreadMessage.mock.calls[0], ['thread1', 'msg1', '찬양: 주를 찬양 - 은혜']);
+});
+
+test('skips when the existing bot template message already matches', async () => {
+  stubConti(['주를 찬양']);
+  getThreadMessages.mockResolvedValue([
+    { id: 'msg1', content: '찬양: 주를 찬양', author: { id: 'bot1', bot: true } },
+  ]);
+
+  const result = await postContiPraiseTemplate('conti1');
+
+  assert.equal(result, 'skipped');
+  assert.equal(sendThreadMessage.mock.calls.length, 0);
+  assert.equal(editThreadMessage.mock.calls.length, 0);
+});
+
+test('skips without touching the existing message when the conti has no songs', async () => {
+  stubConti([]);
+  getThreadMessages.mockResolvedValue([
+    { id: 'msg1', content: '찬양: 주를 찬양', author: { id: 'bot1', bot: true } },
+  ]);
+
+  const result = await postContiPraiseTemplate('conti1');
+
+  assert.equal(result, 'skipped');
+  assert.equal(getThreadMessages.mock.calls.length, 0);
+  assert.equal(sendThreadMessage.mock.calls.length, 0);
+  assert.equal(editThreadMessage.mock.calls.length, 0);
+});
+
+test('ignores a non-bot message when looking for the existing template', async () => {
+  stubConti(['은혜']);
+  getThreadMessages.mockResolvedValue([
+    { id: 'msg1', content: '찬양: 주를 찬양', author: { id: 'user1', bot: false } },
+  ]);
+
+  const result = await postContiPraiseTemplate('conti1');
+
+  assert.equal(result, 'sent');
+  assert.deepEqual(sendThreadMessage.mock.calls[0], ['thread1', '찬양: 은혜']);
 });

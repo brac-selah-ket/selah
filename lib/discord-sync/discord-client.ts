@@ -160,6 +160,20 @@ export async function sendThreadMessage(threadId: string, content: string): Prom
   return parseDiscordResponse<{ id: string }>(response, 'Failed to send thread message');
 }
 
+export async function editThreadMessage(threadId: string, messageId: string, content: string): Promise<{ id: string }> {
+  const response = await fetchWithTimeout(
+    `${DISCORD_API_BASE}/channels/${threadId}/messages/${messageId}`,
+    {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ content }),
+    },
+    { timeoutMs: DISCORD_WRITE_TIMEOUT_MS, label: 'Edit thread message' },
+  );
+
+  return parseDiscordResponse<{ id: string }>(response, 'Failed to edit thread message');
+}
+
 export async function archiveThread(threadId: string): Promise<void> {
   const response = await fetchWithTimeout(
     `${DISCORD_API_BASE}/channels/${threadId}`,
