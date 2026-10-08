@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Add01Icon, PlayListIcon } from "@hugeicons/core-free-icons"
+import { Add01Icon, PlayListIcon, HeadphonesIcon, Copy01Icon } from "@hugeicons/core-free-icons"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +27,10 @@ import {
   removeSongFromConti,
   reorderContiSongs,
 } from "@/lib/actions/conti-songs"
+import {
+  buildYouTubeWatchVideosUrl,
+  collectYouTubeVideoIdsForExport,
+} from "@/lib/utils/youtube-playlist-export"
 import type { ContiWithSongs, Song, ContiSongWithSong } from "@/lib/types"
 
 interface ContiDetailProps {
@@ -112,6 +116,43 @@ export function ContiDetail({
 
   function handleEdit(contiSongId: string) {
     setEditingId(prev => prev === contiSongId ? null : contiSongId)
+  }
+
+  function handleOpenYouTubePlaylist() {
+    const { videoIds, missingCount, truncated } = collectYouTubeVideoIdsForExport(optimisticSongs)
+
+    if (videoIds.length === 0) {
+      toast.error("유튜브 링크가 있는 곡이 없습니다")
+      return
+    }
+
+    window.open(buildYouTubeWatchVideosUrl(videoIds), "_blank", "noopener,noreferrer")
+
+    if (truncated) {
+      toast.warning(`영상이 많아 처음 ${videoIds.length}개만 열었습니다`)
+    } else if (missingCount > 0) {
+      toast.info(`${missingCount}곡은 영상이 없어 빠졌어요`)
+    }
+  }
+
+  async function handleCopyYouTubePlaylistLink() {
+    const { videoIds, missingCount } = collectYouTubeVideoIdsForExport(optimisticSongs)
+
+    if (videoIds.length === 0) {
+      toast.error("유튜브 링크가 있는 곡이 없습니다")
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(buildYouTubeWatchVideosUrl(videoIds))
+      toast.success(
+        missingCount > 0
+          ? `링크를 복사했습니다 (${missingCount}곡은 영상이 없어 빠졌어요)`
+          : "링크를 복사했습니다",
+      )
+    } catch {
+      toast.error("링크 복사 중 오류가 발생했습니다")
+    }
   }
 
   return (
@@ -228,6 +269,22 @@ export function ContiDetail({
           >
             <HugeiconsIcon icon={PlayListIcon} strokeWidth={2} data-icon="inline-start" />
             YouTube에서 가져오기
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleOpenYouTubePlaylist}
+            disabled={isPending || optimisticSongs.length === 0}
+          >
+            <HugeiconsIcon icon={HeadphonesIcon} strokeWidth={2} data-icon="inline-start" />
+            유튜브에서 이어 듣기
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleCopyYouTubePlaylistLink}
+            disabled={isPending || optimisticSongs.length === 0}
+          >
+            <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} data-icon="inline-start" />
+            링크 복사
           </Button>
         </div>
 
