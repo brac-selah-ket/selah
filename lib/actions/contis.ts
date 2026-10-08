@@ -7,6 +7,7 @@ import { getStoryboardRepository } from '@/lib/repositories/storyboard';
 import { invalidateContiDate, invalidateContiWithDate } from '@/lib/cache/invalidation';
 import { checkAndSendWorshipPrepReadyNotification } from '@/lib/discord-sync/worship-prep-notifications';
 import { toYYMMDDFromIsoDate } from '@/lib/discord-sync/worship-prep-readiness';
+import { postContiPraiseTemplate } from '@/lib/discord-sync/praise-template-message';
 
 const contiSchema = z.object({
   title: z.string().transform(v => v.trim() || null),
@@ -55,6 +56,11 @@ export async function createConti(formData: FormData): Promise<ActionResult<Cont
     invalidateContiWithDate(conti.id, conti.date);
     revalidatePath('/contis');
     await safelyCheckWorshipPrepReadyNotificationForIsoDate(conti.date);
+    try {
+      await postContiPraiseTemplate(conti.id);
+    } catch (error) {
+      console.error('[postContiPraiseTemplate]', error);
+    }
 
     return {
       success: true,

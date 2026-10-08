@@ -12,6 +12,7 @@ interface DrawerProps {
   open: boolean;
   onClose: () => void;
   onBeforeClose?: () => boolean;
+  closeOnOutsideClick?: boolean;
   size?: DrawerSize;
   title: string;
   footer?: React.ReactNode;
@@ -22,6 +23,7 @@ export function Drawer({
   open,
   onClose,
   onBeforeClose,
+  closeOnOutsideClick = false,
   size = "default",
   title,
   footer,
@@ -64,6 +66,11 @@ export function Drawer({
     }
     onClose();
   }, [onBeforeClose, onClose]);
+
+  const handleOutsideClick = useCallback(() => {
+    if (!closeOnOutsideClick) return;
+    handleClose();
+  }, [closeOnOutsideClick, handleClose]);
 
   // ESC key handler
   useEffect(() => {
@@ -130,6 +137,7 @@ export function Drawer({
         )}
         aria-hidden="true"
         tabIndex={-1}
+        onClick={closeOnOutsideClick ? handleOutsideClick : undefined}
       />
 
       {/* Portal content into AppShell aside */}
