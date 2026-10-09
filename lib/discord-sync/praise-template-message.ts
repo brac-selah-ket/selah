@@ -1,7 +1,7 @@
 import { editThreadMessage, getThreadMessages, sendThreadMessage } from '@/lib/discord-sync/discord-client';
 import { toSheetDateFromYYMMDD } from '@/lib/discord-sync/cron-state';
 import { findRowByDate, updateContiSongsInSheet } from '@/lib/discord-sync/google-sheets';
-import { findDiscordThreadForSundayDate } from '@/lib/discord-sync/worship-prep-notifications';
+import { findDiscordThreadForSundayDate, resolveDiscordGuildId } from '@/lib/discord-sync/worship-prep-notifications';
 import { toYYMMDDFromIsoDate } from '@/lib/discord-sync/worship-prep-readiness';
 import { getStoryboardRepository } from '@/lib/repositories/storyboard';
 import { buildArrangementItems } from '@/lib/utils/arrangement-items';
@@ -77,4 +77,42 @@ export async function postContiPraiseTemplate(contiId: string): Promise<'sent' |
   }
 
   return result;
+}
+
+export interface ContiPraiseThreadStatus {
+  threadUrl: string | null;
+  lastSentAt: string | null;
+}
+
+// Read-only counterpart of postContiPraiseTemplate — resolves the conti's
+// worship thread and existing bot message without sending or editing
+// anything, for the "스레드에 올리기" button's disabled/label state.
+export async function getContiPraiseThreadStatus(contiId: string): Promise<ContiPraiseThreadStatus> {
+  try {
+    const conti = await getStoryboardRepository().getConti(contiId);
+    if (!conti) return { threadUrl: null, lastSentAt: null };
+
+    const channelId = process.env.DISCORD_CHANNEL_ID?.trim();
+    if (!channelId) return { threadUrl: null, lastSentAt: null };
+
+    const [thread, guildId] = await Promise.all([
+      findDiscordThreadForSundayDate(toYYMMDDFromIsoDate(conti.date)),
+      resolveDiscordGuildId(channelId),
+    ]);
+
+    if (!thread || !guildId) return { threadUrl: null, lastSentAt: null };
+
+    const messages = await getThreadMessages(thread.id);
+    const existing = messages.find(
+      (message) => message.author.bot && isContiPraiseTemplateMessage(message.content),
+    );
+
+    return {
+      threadUrl: `https://discord.com/channels/${guildId}/${thread.id}`,
+      lastSentAt: existing?.edited_timestamp ?? existing?.timestamp ?? null,
+    };
+  } catch (error) {
+    console.error('[getContiPraiseThreadStatus]', error);
+    return { threadUrl: null, lastSentAt: null };
+  }
 }
