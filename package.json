@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "lint:design": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:turso:generate": "drizzle-kit generate --config=drizzle.turso.config.ts",
@@ -44,6 +45,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@shadcn/lint": "^0.2.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -52,6 +54,7 @@
     "drizzle-kit": "^0.31.8",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "oxlint": "^1.87.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.8"

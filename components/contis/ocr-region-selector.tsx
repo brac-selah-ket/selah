@@ -345,6 +345,7 @@ export function OcrRegionSelector({
                   {regions.map((region, i) => (
                     <div
                       key={i}
+                      // oxlint-disable-next-line shadcn/no-raw-colors -- PDF overlay highlight must stay a fixed color over the rendered page regardless of theme
                       className="absolute border-2 border-blue-500 bg-blue-500/15"
                       style={{
                         left: `${region.x * 100}%`,
@@ -354,13 +355,14 @@ export function OcrRegionSelector({
                       }}
                     >
                       <div className="absolute -top-3 -left-1 flex items-center gap-0.5">
+                        {/* oxlint-disable-next-line shadcn/no-raw-colors -- PDF overlay highlight must stay a fixed color over the rendered page regardless of theme */}
                         <span className="bg-blue-500 text-white text-xs font-bold rounded-full size-5 flex items-center justify-center">
                           {i + 1}
                         </span>
                         {extractedText === null && (
                           <button
                             type="button"
-                            className="bg-red-500 text-white rounded-full size-4 flex items-center justify-center hover:bg-red-600"
+                            className="bg-destructive text-white rounded-full size-4 flex items-center justify-center hover:bg-destructive/90"
                             onClick={(e) => { e.stopPropagation(); removeRegion(i) }}
                           >
                             <HugeiconsIcon icon={Cancel01Icon} strokeWidth={3} className="size-2.5" />
@@ -373,6 +375,7 @@ export function OcrRegionSelector({
                   {/* Active drawing region */}
                   {drawingRegion && (
                     <div
+                      // oxlint-disable-next-line shadcn/no-raw-colors -- PDF overlay highlight must stay a fixed color over the rendered page regardless of theme
                       className="absolute border-2 border-dashed border-blue-500 bg-blue-500/10"
                       style={{
                         left: `${drawingRegion.x * 100}%`,
@@ -438,7 +441,7 @@ export function OcrRegionSelector({
                         <div className="text-sm whitespace-pre-wrap leading-relaxed">
                           {getOriginalParts(computeWordDiff(extractedText, correctedText)).map((part, i) =>
                             part.removed ? (
-                              <span key={i} className="bg-red-100 text-red-800 line-through rounded-sm px-0.5">{part.value}</span>
+                              <span key={i} className="bg-destructive/10 text-destructive line-through rounded-sm px-0.5">{part.value}</span>
                             ) : (
                               <span key={i}>{part.value}</span>
                             )
@@ -457,7 +460,7 @@ export function OcrRegionSelector({
                         <div className="text-sm whitespace-pre-wrap leading-relaxed">
                           {getCorrectedParts(computeWordDiff(extractedText, correctedText)).map((part, i) =>
                             part.added ? (
-                              <span key={i} className="bg-green-100 text-green-800 rounded-sm px-0.5">{part.value}</span>
+                              <span key={i} className="bg-success/10 text-success rounded-sm px-0.5">{part.value}</span>
                             ) : (
                               <span key={i}>{part.value}</span>
                             )

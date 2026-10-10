@@ -95,6 +95,7 @@ function InputGroupButton({
       type={type}
       data-size={size}
       variant={variant}
+      // oxlint-disable-next-line shadcn/require-static-classes -- inputGroupButtonVariants is a local cva the plugin doesn't resolve statically against <Button>; size has a closed enum so the output is still bounded
       className={cn(inputGroupButtonVariants({ size }), className)}
       {...props}
     />

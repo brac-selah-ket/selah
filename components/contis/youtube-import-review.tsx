@@ -135,7 +135,7 @@ export function YouTubeImportReview({
 
                     {item.isAlreadyInConti ? (
                       <>
-                        <Badge className="border-blue-500/20 bg-blue-500/10 text-blue-600">
+                        <Badge className="border-chart-2/20 bg-chart-2/10 text-chart-2">
                           기존 곡
                         </Badge>
                         <Badge variant="secondary">프리셋만 업데이트</Badge>
@@ -145,11 +145,11 @@ export function YouTubeImportReview({
                         {duplicateReason}
                       </Badge>
                     ) : item.matchedSong ? (
-                      <Badge className="border-blue-500/20 bg-blue-500/10 text-blue-600">
+                      <Badge className="border-chart-2/20 bg-chart-2/10 text-chart-2">
                         기존 곡
                       </Badge>
                     ) : (
-                      <Badge className="border-green-500/20 bg-green-500/10 text-green-600">
+                      <Badge className="border-success/20 bg-success/10 text-success">
                         새 곡
                       </Badge>
                     )}
@@ -235,7 +235,7 @@ export function YouTubeImportReview({
                   type="checkbox"
                   checked={!item.excluded}
                   onChange={() => onToggleExclude(item.id)}
-                  className="h-4 w-4 rounded border-gray-300 accent-primary"
+                  className="h-4 w-4 rounded border-border accent-primary"
                 />
               </div>
             </div>
