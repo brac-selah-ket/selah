@@ -135,7 +135,7 @@ export function YouTubeImportReview({
 
                     {item.isAlreadyInConti ? (
                       <>
-                        <Badge className="border-chart-2/20 bg-chart-2/10 text-chart-2">
+                        <Badge variant="secondary">
                           기존 곡
                         </Badge>
                         <Badge variant="secondary">프리셋만 업데이트</Badge>
@@ -145,7 +145,7 @@ export function YouTubeImportReview({
                         {duplicateReason}
                       </Badge>
                     ) : item.matchedSong ? (
-                      <Badge className="border-chart-2/20 bg-chart-2/10 text-chart-2">
+                      <Badge variant="secondary">
                         기존 곡
                       </Badge>
                     ) : (
