@@ -310,7 +310,7 @@ export function LyricsEditor({
               {warnings.length > 0 && (
                 <div className="flex flex-col gap-0.5 px-1">
                   {warnings.map((w) => (
-                    <p key={w.type} className="text-sm text-amber-600">
+                    <p key={w.type} className="text-sm text-warning">
                       {w.message}
                     </p>
                   ))}
@@ -323,7 +323,7 @@ export function LyricsEditor({
               )}
 
               {sc && !sc.isLoading && !sc.error && sc.correctedText === null && (
-                <div className="text-sm text-green-600 px-1">맞춤법 오류가 없습니다!</div>
+                <div className="text-sm text-success px-1">맞춤법 오류가 없습니다!</div>
               )}
 
               {sc?.correctedText !== null && sc?.correctedText !== undefined && (
@@ -339,7 +339,7 @@ export function LyricsEditor({
                       <div className="text-sm whitespace-pre-wrap leading-relaxed">
                         {getOriginalParts(computeWordDiff(lyric, sc.correctedText)).map((part, i) =>
                           part.removed ? (
-                            <span key={i} className="bg-red-100 text-red-800 line-through rounded-sm px-0.5">{part.value}</span>
+                            <span key={i} className="bg-destructive/10 text-destructive line-through rounded-sm px-0.5">{part.value}</span>
                           ) : (
                             <span key={i}>{part.value}</span>
                           )
@@ -355,7 +355,7 @@ export function LyricsEditor({
                       <div className="text-sm whitespace-pre-wrap leading-relaxed">
                         {getCorrectedParts(computeWordDiff(lyric, sc.correctedText)).map((part, i) =>
                           part.added ? (
-                            <span key={i} className="bg-green-100 text-green-800 rounded-sm px-0.5">{part.value}</span>
+                            <span key={i} className="bg-success/10 text-success rounded-sm px-0.5">{part.value}</span>
                           ) : (
                             <span key={i}>{part.value}</span>
                           )

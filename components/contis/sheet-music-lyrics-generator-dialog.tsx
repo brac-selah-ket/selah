@@ -327,7 +327,7 @@ export function SheetMusicLyricsGeneratorDialog({
                         {warnings.length > 0 && (
                           <div className="flex flex-col gap-0.5 px-1">
                             {warnings.map((warning) => (
-                              <p key={warning.type} className="text-sm text-amber-600">
+                              <p key={warning.type} className="text-sm text-warning">
                                 {warning.message}
                               </p>
                             ))}
@@ -339,7 +339,7 @@ export function SheetMusicLyricsGeneratorDialog({
                         )}
 
                         {sc && !sc.isLoading && !sc.error && sc.correctedText === null && (
-                          <div className="px-1 text-sm text-green-600">맞춤법 오류가 없습니다!</div>
+                          <div className="px-1 text-sm text-success">맞춤법 오류가 없습니다!</div>
                         )}
 
                         {correctedText !== null && correctedText !== undefined && (
@@ -355,7 +355,7 @@ export function SheetMusicLyricsGeneratorDialog({
                                 <div className="whitespace-pre-wrap text-sm leading-relaxed">
                                   {getOriginalParts(computeWordDiff(page, correctedText)).map((part, partIndex) => (
                                     part.removed ? (
-                                      <span key={partIndex} className="rounded-sm bg-red-100 px-0.5 text-red-800 line-through">
+                                      <span key={partIndex} className="rounded-sm bg-destructive/10 px-0.5 text-destructive line-through">
                                         {part.value}
                                       </span>
                                     ) : (
@@ -373,7 +373,7 @@ export function SheetMusicLyricsGeneratorDialog({
                                 <div className="whitespace-pre-wrap text-sm leading-relaxed">
                                   {getCorrectedParts(computeWordDiff(page, correctedText)).map((part, partIndex) => (
                                     part.added ? (
-                                      <span key={partIndex} className="rounded-sm bg-green-100 px-0.5 text-green-800">
+                                      <span key={partIndex} className="rounded-sm bg-success/10 px-0.5 text-success">
                                         {part.value}
                                       </span>
                                     ) : (

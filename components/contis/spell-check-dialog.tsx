@@ -73,14 +73,14 @@ export function SpellCheckDialog({
     return parts.map((part, i) => {
       if (part.removed && mode === "original") {
         return (
-          <span key={i} className="bg-red-100 text-red-800 line-through rounded-sm px-0.5">
+          <span key={i} className="bg-destructive/10 text-destructive line-through rounded-sm px-0.5">
             {part.value}
           </span>
         )
       }
       if (part.added && mode === "corrected") {
         return (
-          <span key={i} className="bg-green-100 text-green-800 rounded-sm px-0.5">
+          <span key={i} className="bg-success/10 text-success rounded-sm px-0.5">
             {part.value}
           </span>
         )
@@ -111,7 +111,7 @@ export function SpellCheckDialog({
 
         {!isLoading && !error && correctedText !== null && !hasCorrections && (
           <div className="text-center py-8">
-            <p className="text-lg font-medium text-green-600">맞춤법 오류가 없습니다!</p>
+            <p className="text-lg font-medium text-success">맞춤법 오류가 없습니다!</p>
             <p className="text-sm text-muted-foreground mt-1">입력한 텍스트에 오류가 없습니다.</p>
             <Button className="mt-4" onClick={() => onOpenChange(false)}>
               확인

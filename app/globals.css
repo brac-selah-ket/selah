@@ -30,6 +30,10 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning: var(--warning);
+  --color-success-foreground: var(--success-foreground);
+  --color-success: var(--success);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -67,6 +71,10 @@
   --accent: #5a3c31;
   --accent-foreground: #f5edcf;
   --destructive: oklch(0.577 0.245 27.325);
+  --success: oklch(0.52 0.15 145);
+  --success-foreground: oklch(0.985 0 0);
+  --warning: oklch(0.65 0.17 60);
+  --warning-foreground: oklch(0.985 0 0);
   --border: #e4d8c6;
   --input: #e4d8c6;
   --ring: #8c6d5c;
@@ -105,6 +113,10 @@
   --accent: #f5edcf;
   --accent-foreground: #3a281f;
   --destructive: oklch(0.704 0.191 22.216);
+  --success: oklch(0.75 0.17 145);
+  --success-foreground: oklch(0.2 0.03 145);
+  --warning: oklch(0.8 0.17 70);
+  --warning-foreground: oklch(0.22 0.04 70);
   --border: rgb(245 237 207 / 0.16);
   --input: rgb(245 237 207 / 0.18);
   --ring: #d1bfa5;
@@ -138,6 +150,10 @@
   --muted-foreground: #5f6e67;
   --accent: #305a53;
   --accent-foreground: #f8f1de;
+  --success: oklch(0.5 0.16 150);
+  --success-foreground: oklch(0.98 0 0);
+  --warning: oklch(0.65 0.17 60);
+  --warning-foreground: oklch(0.985 0 0);
   --border: #d8dfd3;
   --input: #d8dfd3;
   --ring: #55776d;
@@ -171,6 +187,10 @@
   --muted-foreground: #c7d4cd;
   --accent: #9fb9ad;
   --accent-foreground: #172522;
+  --success: oklch(0.74 0.18 150);
+  --success-foreground: oklch(0.18 0.03 150);
+  --warning: oklch(0.8 0.17 70);
+  --warning-foreground: oklch(0.22 0.04 70);
   --border: rgb(248 241 222 / 0.15);
   --input: rgb(248 241 222 / 0.18);
   --ring: #9fb9ad;
