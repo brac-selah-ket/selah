@@ -449,6 +449,7 @@ export function PresetPdfEditor({
                     return (
                       <div
                         key={corner}
+                        // oxlint-disable-next-line shadcn/no-raw-colors -- PDF overlay highlight must stay a fixed color over the rendered page regardless of theme
                         className="absolute z-20 w-5 h-5 bg-white border-2 border-blue-500 rounded-sm"
                         style={{
                           left: `${isLeft ? Math.min(cropSelection.startX, cropSelection.endX) : Math.max(cropSelection.startX, cropSelection.endX)}%`,
@@ -476,9 +477,12 @@ export function PresetPdfEditor({
               data-overlay
               className={`absolute cursor-move select-none px-1.5 py-0.5 rounded transition-colors ${
                 draggingId === overlay.id
+                  // oxlint-disable-next-line shadcn/no-raw-colors -- PDF overlay highlight must stay a fixed color over the rendered page regardless of theme
                   ? "border-2 border-blue-500 bg-blue-50/80"
                   : selectedOverlayId === overlay.id
+                    // oxlint-disable-next-line shadcn/no-raw-colors -- PDF overlay highlight must stay a fixed color over the rendered page regardless of theme
                     ? "border-2 border-blue-400 bg-blue-50/50"
+                    // oxlint-disable-next-line shadcn/no-raw-colors -- PDF overlay highlight must stay a fixed color over the rendered page regardless of theme
                     : "border border-transparent hover:border-gray-300 hover:bg-white/80"
               }`}
               style={{
@@ -528,6 +532,7 @@ export function PresetPdfEditor({
           return (
             <>
               <div
+                // oxlint-disable-next-line shadcn/no-raw-colors -- PDF overlay highlight must stay a fixed color over the rendered page regardless of theme
                 className="absolute z-10 pointer-events-none border-2 border-blue-500 rounded-sm"
                 style={{
                   left: `${bounds.left}%`,
@@ -542,6 +547,7 @@ export function PresetPdfEditor({
                 return (
                   <div
                     key={`resize-${corner}`}
+                    // oxlint-disable-next-line shadcn/no-raw-colors -- PDF overlay highlight must stay a fixed color over the rendered page regardless of theme
                     className="absolute z-10 w-4 h-4 bg-white border-2 border-blue-500 rounded-sm"
                     style={{
                       left: `${isLeft ? bounds.left : bounds.right}%`,

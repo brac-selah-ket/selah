@@ -46,6 +46,8 @@ Next.js 16 App Router project using React 19, Tailwind CSS v4, and TypeScript. K
 
 **Adding UI components:** `pnpm dlx shadcn@latest add <component>` — respects `components.json` config.
 
+**After UI changes:** run `pnpm lint:design` (oxlint + `@shadcn/lint`) and keep it at 0 errors. Raw Tailwind palette colors (e.g. `red-500`, `green-100`, `blue-600`) are banned — use theme tokens instead (`success`, `warning`, `destructive`, `chart-1`..`chart-5`, etc. from `app/globals.css`).
+
 **Important patterns:**
 - Server Actions for mutations with `'use server'` directive
 - All actions return `{ success: boolean, error?: string, data?: T }`

@@ -49,6 +49,7 @@ function AlertDialogContent({
 }) {
   return (
     <AlertDialogPortal>
+      {/* oxlint-disable-next-line shadcn/require-static-classes -- overlayClassName is a caller-supplied override by design, not a statically known class string */}
       <AlertDialogOverlay className={overlayClassName} />
       <AlertDialogPrimitive.Popup
         data-slot="alert-dialog-content"

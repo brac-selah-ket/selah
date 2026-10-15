@@ -1,0 +1,23 @@
+{
+  "jsPlugins": ["@shadcn/lint"],
+  "categories": { "correctness": "off" },
+  "rules": {
+    "shadcn/no-restyle": ["warn", { "allow": ["layout"] }],
+    "shadcn/no-raw-colors": "error",
+    "shadcn/no-arbitrary-values": "warn",
+    "shadcn/no-inline-styles": "warn",
+    "shadcn/require-static-classes": "error"
+  },
+  "overrides": [
+    { "files": ["components/ui/**"], "rules": { "shadcn/no-restyle": "off" } },
+    {
+      "files": [
+        "components/contis/pdf-export/pdf-editor.tsx",
+        "components/songs/preset-pdf-editor.tsx",
+        "components/contis/ocr-region-selector.tsx"
+      ],
+      "rules": { "shadcn/no-inline-styles": "off", "shadcn/no-arbitrary-values": "off" }
+    }
+  ],
+  "ignorePatterns": ["node_modules", ".next", "dist", "coverage"]
+}

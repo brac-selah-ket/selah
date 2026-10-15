@@ -61,6 +61,7 @@ function DialogContent({
 }) {
   return (
     <DialogPortal>
+      {/* oxlint-disable-next-line shadcn/require-static-classes -- overlayClassName is a caller-supplied override by design, not a statically known class string */}
       <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
