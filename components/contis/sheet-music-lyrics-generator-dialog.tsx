@@ -327,7 +327,11 @@ export function SheetMusicLyricsGeneratorDialog({
                         {warnings.length > 0 && (
                           <div className="flex flex-col gap-0.5 px-1">
                             {warnings.map((warning) => (
-                              <p key={warning.type} className="text-sm text-warning">
+                              <p
+                                key={warning.type}
+                                className="flex items-center gap-1 text-sm text-warning-text"
+                              >
+                                <HugeiconsIcon icon={AlertCircleIcon} size={14} strokeWidth={2} className="shrink-0" />
                                 {warning.message}
                               </p>
                             ))}
