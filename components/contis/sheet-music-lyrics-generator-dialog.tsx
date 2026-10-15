@@ -373,7 +373,7 @@ export function SheetMusicLyricsGeneratorDialog({
                                 <div className="whitespace-pre-wrap text-sm leading-relaxed">
                                   {getCorrectedParts(computeWordDiff(page, correctedText)).map((part, partIndex) => (
                                     part.added ? (
-                                      <span key={partIndex} className="rounded-sm bg-success/10 px-0.5 text-success dark:bg-success/20">
+                                      <span key={partIndex} className="rounded-sm bg-diff-added/10 px-0.5 text-diff-added underline dark:bg-diff-added/20">
                                         {part.value}
                                       </span>
                                     ) : (

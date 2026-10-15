@@ -355,7 +355,7 @@ export function LyricsEditor({
                       <div className="text-sm whitespace-pre-wrap leading-relaxed">
                         {getCorrectedParts(computeWordDiff(lyric, sc.correctedText)).map((part, i) =>
                           part.added ? (
-                            <span key={i} className="bg-success/10 text-success dark:bg-success/20 rounded-sm px-0.5">{part.value}</span>
+                            <span key={i} className="bg-diff-added/10 text-diff-added underline dark:bg-diff-added/20 rounded-sm px-0.5">{part.value}</span>
                           ) : (
                             <span key={i}>{part.value}</span>
                           )

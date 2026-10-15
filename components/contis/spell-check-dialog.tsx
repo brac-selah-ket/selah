@@ -80,7 +80,7 @@ export function SpellCheckDialog({
       }
       if (part.added && mode === "corrected") {
         return (
-          <span key={i} className="bg-success/10 text-success dark:bg-success/20 rounded-sm px-0.5">
+          <span key={i} className="bg-diff-added/10 text-diff-added underline dark:bg-diff-added/20 rounded-sm px-0.5">
             {part.value}
           </span>
         )

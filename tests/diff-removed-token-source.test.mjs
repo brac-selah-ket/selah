@@ -6,10 +6,11 @@ async function read(path) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8")
 }
 
-test("globals define a dedicated diff-removed token in all four themes", async () => {
+test("globals define dedicated diff-removed/diff-added tokens in all four themes", async () => {
   const source = await read("app/globals.css")
 
   assert.match(source, /--color-diff-removed:\s*var\(--diff-removed\);/)
+  assert.match(source, /--color-diff-added:\s*var\(--diff-added\);/)
 
   const rootBlock = source.match(/:root\s*\{[^}]*\}/s)?.[0] ?? ""
   const darkBlock = source.match(/\n\.dark\s*\{[^}]*\}/s)?.[0] ?? ""
@@ -23,6 +24,7 @@ test("globals define a dedicated diff-removed token in all four themes", async (
     ["dark chapel", darkChapelBlock],
   ]) {
     assert.match(block, /--diff-removed:\s*#[0-9a-f]{6};/, `${name} theme is missing --diff-removed`)
+    assert.match(block, /--diff-added:\s*#[0-9a-f]{6};/, `${name} theme is missing --diff-added`)
   }
 })
 
@@ -46,7 +48,7 @@ test("removed-lyric diff spans use the diff-removed token and keep line-through"
   }
 })
 
-test("added-lyric diff highlight boosts opacity in dark mode", async () => {
+test("added-lyric diff spans use the diff-added token, stay underlined, and boost opacity in dark mode", async () => {
   const files = [
     "components/contis/spell-check-dialog.tsx",
     "components/contis/lyrics-editor.tsx",
@@ -56,7 +58,9 @@ test("added-lyric diff highlight boosts opacity in dark mode", async () => {
 
   for (const file of files) {
     const source = await read(file)
-    assert.match(source, /bg-success\/10[^"]*dark:bg-success\/20|dark:bg-success\/20[^"]*bg-success\/10/, `${file} is missing dark:bg-success/20`)
+    assert.match(source, /bg-diff-added\/10[^"]*dark:bg-diff-added\/20|dark:bg-diff-added\/20[^"]*bg-diff-added\/10/, `${file} is missing bg-diff-added/10 + dark:bg-diff-added/20`)
+    assert.match(source, /text-diff-added underline/, `${file} added-diff span is missing underline`)
+    assert.doesNotMatch(source, /bg-success\/10 text-success/, `${file} still uses the raw success diff token`)
   }
 })
 
