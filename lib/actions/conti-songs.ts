@@ -24,6 +24,12 @@ export async function addSongToConti(
     invalidateConti(contiId);
     revalidatePath('/contis');
 
+    try {
+      await postContiPraiseTemplate(contiId);
+    } catch (error) {
+      console.error('[postContiPraiseTemplate]', error);
+    }
+
     return {
       success: true,
       data: contiSong,
@@ -43,6 +49,11 @@ export async function removeSongFromConti(contiSongId: string): Promise<ActionRe
     await repository.removeContiSong(contiSongId);
     if (source) {
       invalidateConti(source.contiId);
+      try {
+        await postContiPraiseTemplate(source.contiId);
+      } catch (error) {
+        console.error('[postContiPraiseTemplate]', error);
+      }
     }
     revalidatePath('/contis');
 
@@ -89,6 +100,12 @@ export async function reorderContiSongs(
     await getStoryboardRepository().reorderContiSongs(contiId, orderedIds);
     invalidateConti(contiId);
     revalidatePath('/contis');
+
+    try {
+      await postContiPraiseTemplate(contiId);
+    } catch (error) {
+      console.error('[postContiPraiseTemplate]', error);
+    }
 
     return {
       success: true,

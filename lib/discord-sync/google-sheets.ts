@@ -351,6 +351,35 @@ export async function updateRoleSelectionInSheet(customId: string, selectedValue
   }
 }
 
+async function batchUpdateValues(updates: Array<{ range: string; values: string[][] }>, label: string): Promise<void> {
+  if (updates.length === 0) {
+    return;
+  }
+
+  const sheetId = getGoogleSheetId();
+  const accessToken = await getGoogleAccessToken();
+  const response = await fetchWithTimeout(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchUpdate`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        valueInputOption: 'USER_ENTERED',
+        data: updates,
+      }),
+    },
+    { timeoutMs: SHEETS_WRITE_TIMEOUT_MS, label },
+  );
+
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(`Failed to update ${label}: ${JSON.stringify(result)}`);
+  }
+}
+
 export async function updateWorshipData(sheetName: string, row: number, data: SheetWorshipData): Promise<void> {
   const updates: Array<{ range: string; values: string[][] }> = [];
 
@@ -376,30 +405,19 @@ export async function updateWorshipData(sheetName: string, row: number, data: Sh
     });
   }
 
-  if (updates.length === 0) {
-    return;
-  }
+  await batchUpdateValues(updates, 'worship data update');
+}
 
-  const sheetId = getGoogleSheetId();
-  const accessToken = await getGoogleAccessToken();
-  const response = await fetchWithTimeout(
-    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchUpdate`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        valueInputOption: 'USER_ENTERED',
-        data: updates,
-      }),
-    },
-    { timeoutMs: SHEETS_WRITE_TIMEOUT_MS, label: 'Sheet worship data update' },
-  );
+const CONTI_SONG_COLUMNS = ['L', 'M', 'N', 'O'];
 
-  const result = await response.json();
-  if (!response.ok) {
-    throw new Error(`Failed to update worship data: ${JSON.stringify(result)}`);
-  }
+// Unlike updateWorshipData's partial song update, this always rewrites every
+// song column — a conti with fewer than 4 songs must blank the leftover
+// cells instead of leaving a previous week's song sitting there.
+export async function updateContiSongsInSheet(sheetName: string, row: number, songTitles: readonly string[]): Promise<void> {
+  const updates = CONTI_SONG_COLUMNS.map((column, index) => ({
+    range: `${sheetName}!${column}${row}`,
+    values: [[songTitles[index]?.trim() ?? '']],
+  }));
+
+  await batchUpdateValues(updates, 'conti songs update');
 }
