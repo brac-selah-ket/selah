@@ -331,7 +331,7 @@ export function SheetMusicLyricsGeneratorDialog({
                                 key={warning.type}
                                 className="flex items-center gap-1 text-sm text-warning-text"
                               >
-                                <HugeiconsIcon icon={AlertCircleIcon} size={14} strokeWidth={2} />
+                                <HugeiconsIcon icon={AlertCircleIcon} size={14} strokeWidth={2} className="shrink-0" />
                                 {warning.message}
                               </p>
                             ))}
