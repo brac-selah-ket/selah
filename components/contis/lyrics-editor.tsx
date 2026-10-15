@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, Fragment } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Add01Icon, ArrowShrink01Icon, Delete01Icon, TextCheckIcon, ScanImageIcon, Loading03Icon, ArrowUp01Icon, ArrowDown01Icon, AiMagicIcon } from "@hugeicons/core-free-icons"
+import { Add01Icon, AlertCircleIcon, ArrowShrink01Icon, Delete01Icon, TextCheckIcon, ScanImageIcon, Loading03Icon, ArrowUp01Icon, ArrowDown01Icon, AiMagicIcon } from "@hugeicons/core-free-icons"
 import { OcrRegionSelector } from "@/components/contis/ocr-region-selector"
 import { SheetMusicLyricsGeneratorDialog } from "@/components/contis/sheet-music-lyrics-generator-dialog"
 import { checkSpelling } from "@/lib/actions/spell-check"
@@ -310,7 +310,11 @@ export function LyricsEditor({
               {warnings.length > 0 && (
                 <div className="flex flex-col gap-0.5 px-1">
                   {warnings.map((w) => (
-                    <p key={w.type} className="text-sm text-warning">
+                    <p
+                      key={w.type}
+                      className="flex items-center gap-1 text-sm text-warning-text"
+                    >
+                      <HugeiconsIcon icon={AlertCircleIcon} size={14} strokeWidth={2} />
                       {w.message}
                     </p>
                   ))}
