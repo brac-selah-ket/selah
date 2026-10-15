@@ -355,7 +355,7 @@ export function SheetMusicLyricsGeneratorDialog({
                                 <div className="whitespace-pre-wrap text-sm leading-relaxed">
                                   {getOriginalParts(computeWordDiff(page, correctedText)).map((part, partIndex) => (
                                     part.removed ? (
-                                      <span key={partIndex} className="rounded-sm bg-destructive/10 px-0.5 text-destructive line-through">
+                                      <span key={partIndex} className="rounded-sm bg-diff-removed/10 px-0.5 text-diff-removed line-through">
                                         {part.value}
                                       </span>
                                     ) : (
@@ -373,7 +373,7 @@ export function SheetMusicLyricsGeneratorDialog({
                                 <div className="whitespace-pre-wrap text-sm leading-relaxed">
                                   {getCorrectedParts(computeWordDiff(page, correctedText)).map((part, partIndex) => (
                                     part.added ? (
-                                      <span key={partIndex} className="rounded-sm bg-success/10 px-0.5 text-success">
+                                      <span key={partIndex} className="rounded-sm bg-success/10 px-0.5 text-success dark:bg-success/20">
                                         {part.value}
                                       </span>
                                     ) : (

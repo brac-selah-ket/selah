@@ -339,7 +339,7 @@ export function LyricsEditor({
                       <div className="text-sm whitespace-pre-wrap leading-relaxed">
                         {getOriginalParts(computeWordDiff(lyric, sc.correctedText)).map((part, i) =>
                           part.removed ? (
-                            <span key={i} className="bg-destructive/10 text-destructive line-through rounded-sm px-0.5">{part.value}</span>
+                            <span key={i} className="bg-diff-removed/10 text-diff-removed line-through rounded-sm px-0.5">{part.value}</span>
                           ) : (
                             <span key={i}>{part.value}</span>
                           )
@@ -355,7 +355,7 @@ export function LyricsEditor({
                       <div className="text-sm whitespace-pre-wrap leading-relaxed">
                         {getCorrectedParts(computeWordDiff(lyric, sc.correctedText)).map((part, i) =>
                           part.added ? (
-                            <span key={i} className="bg-success/10 text-success rounded-sm px-0.5">{part.value}</span>
+                            <span key={i} className="bg-success/10 text-success dark:bg-success/20 rounded-sm px-0.5">{part.value}</span>
                           ) : (
                             <span key={i}>{part.value}</span>
                           )

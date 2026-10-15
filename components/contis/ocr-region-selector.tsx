@@ -362,7 +362,8 @@ export function OcrRegionSelector({
                         {extractedText === null && (
                           <button
                             type="button"
-                            className="bg-destructive text-white rounded-full size-4 flex items-center justify-center hover:bg-destructive/90"
+                            // oxlint-disable-next-line shadcn/no-raw-colors -- PDF overlay delete control must stay a fixed color over the rendered page regardless of theme
+                            className="bg-red-600 text-white rounded-full size-4 flex items-center justify-center hover:bg-red-600/90"
                             onClick={(e) => { e.stopPropagation(); removeRegion(i) }}
                           >
                             <HugeiconsIcon icon={Cancel01Icon} strokeWidth={3} className="size-2.5" />
@@ -441,7 +442,7 @@ export function OcrRegionSelector({
                         <div className="text-sm whitespace-pre-wrap leading-relaxed">
                           {getOriginalParts(computeWordDiff(extractedText, correctedText)).map((part, i) =>
                             part.removed ? (
-                              <span key={i} className="bg-destructive/10 text-destructive line-through rounded-sm px-0.5">{part.value}</span>
+                              <span key={i} className="bg-diff-removed/10 text-diff-removed line-through rounded-sm px-0.5">{part.value}</span>
                             ) : (
                               <span key={i}>{part.value}</span>
                             )
@@ -460,7 +461,7 @@ export function OcrRegionSelector({
                         <div className="text-sm whitespace-pre-wrap leading-relaxed">
                           {getCorrectedParts(computeWordDiff(extractedText, correctedText)).map((part, i) =>
                             part.added ? (
-                              <span key={i} className="bg-success/10 text-success rounded-sm px-0.5">{part.value}</span>
+                              <span key={i} className="bg-success/10 text-success dark:bg-success/20 rounded-sm px-0.5">{part.value}</span>
                             ) : (
                               <span key={i}>{part.value}</span>
                             )

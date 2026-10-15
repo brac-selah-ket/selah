@@ -73,14 +73,14 @@ export function SpellCheckDialog({
     return parts.map((part, i) => {
       if (part.removed && mode === "original") {
         return (
-          <span key={i} className="bg-destructive/10 text-destructive line-through rounded-sm px-0.5">
+          <span key={i} className="bg-diff-removed/10 text-diff-removed line-through rounded-sm px-0.5">
             {part.value}
           </span>
         )
       }
       if (part.added && mode === "corrected") {
         return (
-          <span key={i} className="bg-success/10 text-success rounded-sm px-0.5">
+          <span key={i} className="bg-success/10 text-success dark:bg-success/20 rounded-sm px-0.5">
             {part.value}
           </span>
         )
