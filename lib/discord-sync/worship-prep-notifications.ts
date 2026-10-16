@@ -69,19 +69,22 @@ export async function findExistingWorshipPrepReadyMessage(
   return messages.find((message) => message.content === content && message.author.bot !== false) ?? null;
 }
 
+export async function resolveDiscordGuildId(channelId: string): Promise<string | null> {
+  const configuredGuildId = process.env.DISCORD_GUILD_ID?.trim();
+  const channel = configuredGuildId ? null : await getChannel(channelId);
+  return resolveGuildId({
+    configuredGuildId,
+    channel,
+  });
+}
+
 export async function findDiscordThreadForSundayDate(sundayDate: string) {
   const channelId = process.env.DISCORD_CHANNEL_ID?.trim();
   if (!channelId) {
     throw new Error('DISCORD_CHANNEL_ID must be set');
   }
 
-  const configuredGuildId = process.env.DISCORD_GUILD_ID?.trim();
-  const channel = configuredGuildId ? null : await getChannel(channelId);
-  const guildId = resolveGuildId({
-    configuredGuildId,
-    channel,
-  });
-
+  const guildId = await resolveDiscordGuildId(channelId);
   if (!guildId) {
     throw new Error('DISCORD_GUILD_ID is not set and guild_id could not be resolved from DISCORD_CHANNEL_ID');
   }

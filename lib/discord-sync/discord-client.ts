@@ -20,6 +20,7 @@ export interface DiscordMessage {
   channel_id: string;
   content: string;
   timestamp: string;
+  edited_timestamp?: string | null;
   author: {
     id: string;
     username: string;

@@ -5,7 +5,9 @@ import { getSongs } from "@/lib/queries/songs"
 import { PageHeader } from "@/components/layout/page-header"
 import { ContiDetail } from "@/components/contis/conti-detail"
 import { ContiDeleteButton } from "@/components/contis/conti-delete-button"
+import { ContiPraiseThreadButton } from "@/components/contis/conti-praise-thread-button"
 import { PptxExportButton } from "@/components/contis/pptx-export-button"
+import { getContiPraiseThreadStatus } from "@/lib/discord-sync/praise-template-message"
 import { Button } from "@/components/ui/button"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { PencilEdit01Icon, FileExportIcon, Download04Icon } from "@hugeicons/core-free-icons"
@@ -30,6 +32,8 @@ export default async function ContiDetailPage({
   if (!conti) {
     notFound()
   }
+
+  const praiseThreadStatus = await getContiPraiseThreadStatus(conti.id)
 
   return (
     <div className="flex flex-col gap-6">
@@ -84,6 +88,24 @@ export default async function ContiDetailPage({
         </span>
         <span className="hidden sm:inline-flex">
           <PptxExportButton conti={conti} />
+        </span>
+        {/* 스레드에 올리기 */}
+        <span className="sm:hidden">
+          <ContiPraiseThreadButton
+            contiId={conti.id}
+            hasSongs={conti.songs.length > 0}
+            initialThreadUrl={praiseThreadStatus.threadUrl}
+            initialLastSentAt={praiseThreadStatus.lastSentAt}
+            iconOnly
+          />
+        </span>
+        <span className="hidden sm:inline-flex">
+          <ContiPraiseThreadButton
+            contiId={conti.id}
+            hasSongs={conti.songs.length > 0}
+            initialThreadUrl={praiseThreadStatus.threadUrl}
+            initialLastSentAt={praiseThreadStatus.lastSentAt}
+          />
         </span>
         {/* 편집 */}
         <span className="sm:hidden">
