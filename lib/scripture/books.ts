@@ -32,7 +32,7 @@ export const SCRIPTURE_BOOKS: ScriptureBook[] = [
   { order: 29, name: '요엘', abbreviation: '욜', bskoreaCode: 'jol' },
   { order: 30, name: '아모스', abbreviation: '암', bskoreaCode: 'amo' },
   { order: 31, name: '오바댜', abbreviation: '옵', bskoreaCode: 'oba' },
-  { order: 32, name: '요나', abbreviation: '욘', bskoreaCode: 'jon' },
+  { order: 32, name: '요나', abbreviation: '욘', bskoreaCode: 'jnh' },
   { order: 33, name: '미가', abbreviation: '미', bskoreaCode: 'mic' },
   { order: 34, name: '나훔', abbreviation: '나', bskoreaCode: 'nam' },
   { order: 35, name: '하박국', abbreviation: '합', bskoreaCode: 'hab' },
