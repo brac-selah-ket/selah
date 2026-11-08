@@ -89,6 +89,12 @@ export function parseScriptureReference(input: string): ScriptureReference {
   return { book, start, end };
 }
 
+const PASSAGE_SEPARATOR = /[,，]/;
+
+export function parseScriptureReferences(input: string): ScriptureReference[] {
+  return input.split(PASSAGE_SEPARATOR).map((segment) => parseScriptureReference(segment));
+}
+
 function formatPoint(point: ScripturePoint): string {
   return `${point.chapter}:${point.verse}`;
 }
@@ -102,6 +108,10 @@ export function formatScriptureReference(reference: ScriptureReference): string 
     return `${book.abbreviation} ${formatPoint(start)}~${end.verse}`;
   }
   return `${book.abbreviation} ${formatPoint(start)}~${formatPoint(end)}`;
+}
+
+export function formatScriptureReferences(references: ScriptureReference[]): string {
+  return references.map(formatScriptureReference).join(', ');
 }
 
 export function formatVerseLabel(reference: ScriptureReference, block: ScriptureVerse): string {

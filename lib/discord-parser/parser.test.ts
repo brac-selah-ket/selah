@@ -33,3 +33,21 @@ test('preserves unsupported cross-chapter Korean notation verbatim', () => {
     });
   }
 });
+
+test('normalizes comma-separated passages from different books', () => {
+  assert.deepEqual(extractWorshipData('말씀: 막 8:14~21, 고전 5:6~8'), {
+    scripture: '막 8:14~21, 고전 5:6~8',
+  });
+  assert.deepEqual(extractWorshipData('말씀: 마가복음 8장 14~21절, 고린도전서 5장 6~8절'), {
+    scripture: '막 8:14~21, 고전 5:6~8',
+  });
+  assert.deepEqual(extractWorshipData('말씀: 막8:14-21,고전5:6-8'), {
+    scripture: '막 8:14~21, 고전 5:6~8',
+  });
+});
+
+test('preserves comma input verbatim when a segment is not a scripture reference', () => {
+  assert.deepEqual(extractWorshipData('말씀: 막 8:14~21, 자유 텍스트'), {
+    scripture: '막 8:14~21, 자유 텍스트',
+  });
+});

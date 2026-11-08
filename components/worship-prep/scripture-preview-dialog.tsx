@@ -137,8 +137,8 @@ export function ScripturePreviewDialog({
 
           {status === 'success' && preview && (
             <div className='space-y-3'>
-              {preview.verses.map((verse) => (
-                <div key={verse.label} className='rounded-lg border bg-card p-3'>
+              {preview.verses.map((verse, index) => (
+                <div key={`${index}-${verse.label}`} className='rounded-lg border bg-card p-3'>
                   <p className='mb-1 text-xs font-medium text-muted-foreground'>{verse.label}</p>
                   <p className='whitespace-pre-wrap text-sm leading-6 text-foreground'>
                     {verse.text}

@@ -1,8 +1,8 @@
 import { fetchScriptureVerses } from './provider';
 import {
-  formatScriptureReference,
+  formatScriptureReferences,
   formatVerseLabel,
-  parseScriptureReference,
+  parseScriptureReferences,
 } from './reference';
 import type { ScriptureReference, ScriptureVerse } from './types';
 
@@ -27,18 +27,24 @@ export async function buildScripturePreview(
     throw new Error('말씀 본문을 입력해 주세요');
   }
 
-  const reference = parseScriptureReference(trimmedReference);
-  const verses = await fetcher(reference);
+  const references = parseScriptureReferences(trimmedReference);
+  const verses: ScripturePreviewVerse[] = [];
 
-  if (verses.length === 0) {
-    throw new Error('요청한 범위에서 성경 본문을 찾지 못했습니다.');
+  for (const reference of references) {
+    const passageVerses = await fetcher(reference);
+    if (passageVerses.length === 0) {
+      throw new Error('요청한 범위에서 성경 본문을 찾지 못했습니다.');
+    }
+    verses.push(
+      ...passageVerses.map((verse) => ({
+        label: formatVerseLabel(reference, verse),
+        text: verse.text,
+      })),
+    );
   }
 
   return {
-    reference: formatScriptureReference(reference),
-    verses: verses.map((verse) => ({
-      label: formatVerseLabel(reference, verse),
-      text: verse.text,
-    })),
+    reference: formatScriptureReferences(references),
+    verses,
   };
 }

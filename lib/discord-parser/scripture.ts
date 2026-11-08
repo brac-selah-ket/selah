@@ -190,7 +190,23 @@ export function formatScripture(ref: ScriptureReference): string {
   return `${book} ${startChapter}:${startVerse}~${endVerse}`;
 }
 
+function normalizeMultiBookScripture(input: string): string | null {
+  const segments = input.split(/[,，]/);
+  if (segments.length < 2) return null;
+
+  const formatted: string[] = [];
+  for (const segment of segments) {
+    const parsed = parseScripture(segment);
+    if (!parsed) return null;
+    formatted.push(formatScripture(parsed));
+  }
+  return formatted.join(', ');
+}
+
 export function normalizeScripture(input: string): string {
+  const multiBook = normalizeMultiBookScripture(input);
+  if (multiBook) return multiBook;
+
   const parsed = parseScripture(input);
   if (parsed) {
     return formatScripture(parsed);

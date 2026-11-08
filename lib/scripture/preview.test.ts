@@ -126,6 +126,33 @@ test('keeps the requested reference while labeling a combined returned block', a
   ]);
 });
 
+test('previews comma-separated passages from different books in order', async () => {
+  const { buildScripturePreview } = await loadPreviewModule();
+  const seen: string[] = [];
+
+  const result = await buildScripturePreview('막 8:14~21, 고전 5:6~8', async (reference: TestScriptureReference) => {
+    seen.push(reference.book.abbreviation);
+    return [verse(reference, reference.start.verse, `${reference.book.abbreviation} 본문`)];
+  });
+
+  assert.deepEqual(seen, ['막', '고전']);
+  assert.equal(result.reference, '막 8:14~21, 고전 5:6~8');
+  assert.deepEqual(result.verses, [
+    { label: '막 8:14', text: '막 본문' },
+    { label: '고전 5:6', text: '고전 본문' },
+  ]);
+});
+
+test('reports which passage returned no verses', async () => {
+  const { buildScripturePreview } = await loadPreviewModule();
+
+  await assert.rejects(
+    () => buildScripturePreview('막 8:14, 고전 5:6', async (reference: TestScriptureReference) =>
+      reference.book.abbreviation === '막' ? [verse(reference, 14, '본문')] : []),
+    /요청한 범위에서 성경 본문을 찾지 못했습니다/,
+  );
+});
+
 function verse(
   reference: TestScriptureReference,
   verseStart: number,
