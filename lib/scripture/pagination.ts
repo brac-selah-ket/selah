@@ -50,6 +50,22 @@ function formatVerseText(block: ScriptureVerse, format: string): string {
     .replaceAll('{절}', block.text);
 }
 
+export function paginateScripturePassages(
+  passages: ScriptureVerse[][],
+  versesPerSlide = 2,
+  options: ScripturePaginationOptions = {},
+): ScriptureSlidePage[] {
+  const coveredVerseCount = passages.reduce(
+    (sum, verses) => sum + verses.reduce((passageSum, block) => passageSum + blockWeight(block), 0),
+    0,
+  );
+  if (coveredVerseCount > MAX_SCRIPTURE_VERSES) {
+    throw new Error(`말씀 본문은 최대 ${MAX_SCRIPTURE_VERSES}절까지만 내보낼 수 있습니다.`);
+  }
+
+  return passages.flatMap((verses) => paginateScriptureVerses(verses, versesPerSlide, options));
+}
+
 export function paginateScriptureVerses(
   verses: ScriptureVerse[],
   versesPerSlide = 2,

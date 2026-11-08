@@ -2,9 +2,10 @@
 
 import { ensurePptxFileAllowed, sendPptxExportRequest, sendPptxTextInspectRequest } from '@/lib/pptx/export-service';
 import { getConti } from '@/lib/queries/contis';
-import { paginateScriptureVerses } from '@/lib/scripture/pagination';
+import { paginateScripturePassages } from '@/lib/scripture/pagination';
 import { fetchScriptureVerses } from '@/lib/scripture/provider';
-import { formatScriptureReference, parseScriptureReference } from '@/lib/scripture/reference';
+import { formatScriptureReferences, parseScriptureReferences } from '@/lib/scripture/reference';
+import type { ScriptureVerse } from '@/lib/scripture/types';
 import type {
   ActionResult,
   ContiWithSongs,
@@ -39,10 +40,13 @@ async function buildScripturePayload(
   verseTextFormat?: string,
   sermonTitle?: string | null
 ): Promise<PptxExportScriptureData> {
-  const parsedReference = parseScriptureReference(scriptureReference);
-  const reference = formatScriptureReference(parsedReference);
-  const verses = await fetchScriptureVerses(parsedReference);
-  const pages = paginateScriptureVerses(verses, versesPerSlide, { verseTextFormat });
+  const parsedReferences = parseScriptureReferences(scriptureReference);
+  const reference = formatScriptureReferences(parsedReferences);
+  const passages: ScriptureVerse[][] = [];
+  for (const parsedReference of parsedReferences) {
+    passages.push(await fetchScriptureVerses(parsedReference));
+  }
+  const pages = paginateScripturePassages(passages, versesPerSlide, { verseTextFormat });
 
   return buildPptxScriptureData(reference, pages, getScriptureSectionName(), {
     sermonTitle,
